@@ -1,5 +1,6 @@
 #pragma once
 #include <Geode/Geode.hpp>
+#include <cue/ListNode.hpp>
 
 using namespace geode::prelude;
 
@@ -10,7 +11,9 @@ public:
 private:
     bool init() override;
     void keyBackClicked() override;
+    void fetchBanners();
 
     // members
-    CCSprite *m_background;
+    CCSprite* m_background;
+    cue::ListNode* m_list = nullptr;
 };

@@ -2,9 +2,8 @@
 #include <Geode/ui/Button.hpp>
 #include <Geode/modify/GJGarageLayer.hpp>
 #include <Geode/modify/CommentCell.hpp>
+#include <Geode/modify/EndLevelLayer.hpp>
 #include "../CBShopLayer.hpp"
-#include "Geode/cocos/layers_scenes_transitions_nodes/CCScene.h"
-#include "Geode/cocos/layers_scenes_transitions_nodes/CCTransition.h"
 
 using namespace geode::prelude;
 
@@ -30,5 +29,21 @@ class $modify(GJGarageLayer) {
 class $modify(CBCommentCell, CommentCell) {
     void loadFromComment(GJComment* comment) {
         CommentCell::loadFromComment(comment);
+    }
+};
+
+class $modify(CBEndLevelLayer, EndLevelLayer) {
+    void playCurrencyEffect(float duration) {
+        EndLevelLayer::playCurrencyEffect(duration);
+        if (auto orbContainer = this->getChildByID("orb-container")) {
+            auto orb = CCSprite::createWithSpriteFrameName("CB_amethyst_001.png"_spr);
+            if (orb) {
+                orb->setScale(0.7f);
+                orbContainer->addChild(orb);
+            }
+        }
+        int earned = Mod::get()->getSavedValue<int>("amethyst", 0) + m_orbs;
+        log::debug("earned {} amethyst, total {}", m_orbs, earned);
+        Mod::get()->setSavedValue("amethyst", earned);
     }
 };
