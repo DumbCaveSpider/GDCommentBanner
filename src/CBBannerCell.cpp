@@ -136,15 +136,16 @@ void CBBannerCell::onClosePopup(UploadActionPopup* popup) {
 
 void CBBannerCell::purchaseBanner() {
     geode::queueInMainThread([this]() {
-        auto accountId = argon::getGameAccountData().accountId;
-        arc::spawn([this, accountId]() -> arc::Future<> {
-            auto authResult = co_await argon::startAuth();
-            if (authResult.isErr()) {
-                log::warn("argon failed: {}", authResult.unwrapErr());
+        auto accountData = argon::getGameAccountData();
+        auto accountId = accountData.accountId;
+        arc::spawn([this, accountId, accountData]() -> arc::Future<> {
+            auto authResult = co_await comment::argonToken(accountData);
+            if (authResult.empty()) {
+                log::warn("argon failed");
                 co_return;
             }
 
-            auto authToken = std::move(authResult).unwrap();
+            auto authToken = std::move(authResult);
             auto current = Mod::get()->getSavedValue<int>("amethyst", 0);
             if (!m_banner.owns && current < m_banner.price) {
                 co_return;

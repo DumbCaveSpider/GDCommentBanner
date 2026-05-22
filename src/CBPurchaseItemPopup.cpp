@@ -67,7 +67,7 @@ bool CBPurchaseItemPopup::init(const CBBannerItem& banner) {
     auto descriptionLabel = SimpleTextArea::create(m_banner.description.c_str(), "chatFont.fnt");
     if (descriptionLabel) {
         descriptionLabel->setWidth(m_mainLayer->getContentSize().width - 40.f);
-        descriptionLabel->setMaxLines(4);
+        descriptionLabel->setMaxLines(3);
         descriptionLabel->setAlignment(kCCTextAlignmentCenter);
         m_mainLayer->addChildAtPosition(descriptionLabel, Anchor::Center, {0.f, -30.f}, false);
     }
@@ -97,7 +97,8 @@ bool CBPurchaseItemPopup::init(const CBBannerItem& banner) {
 void CBPurchaseItemPopup::buyBanner() {
     auto itemPopup = Ref<CBPurchaseItemPopup>(this);
     geode::queueInMainThread([this, itemPopup]() {
-        auto accountId = argon::getGameAccountData().accountId;
+        auto accountData = argon::getGameAccountData();
+        auto accountId = accountData.accountId;
         if (accountId <= 0) {
             Notification::create("Failed to retrieve a valid account ID.", NotificationIcon::Error)->show();
             return;
@@ -108,9 +109,9 @@ void CBPurchaseItemPopup::buyBanner() {
             popup->show();
         }
 
-        arc::spawn([this, accountId, popup, itemPopup]() -> arc::Future<> {
-            auto authResult = co_await argon::startAuth();
-            if (authResult.isErr()) {
+        arc::spawn([this, accountId, accountData, popup, itemPopup]() -> arc::Future<> {
+            auto authResult = co_await comment::argonToken(accountData);
+            if (authResult.empty()) {
                 if (popup) {
                     geode::queueInMainThread([popup] {
                         popup->showFailMessage("Authentication failed.");
@@ -123,7 +124,7 @@ void CBPurchaseItemPopup::buyBanner() {
                 co_return;
             }
 
-            auto authToken = std::move(authResult).unwrap();
+            auto authToken = std::move(authResult);
             auto request = geode::utils::web::WebRequest();
             auto body = matjson::makeObject({
                 {"accountId", accountId},

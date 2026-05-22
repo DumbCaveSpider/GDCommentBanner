@@ -35,22 +35,23 @@ void CBShopLayer::updateAmethystLabel(int amethyst) {
 
 void CBShopLayer::fetchBanners() {
     geode::queueInMainThread([this]() {
-        auto accountId = argon::getGameAccountData().accountId;
+        auto accountData = argon::getGameAccountData();
+        auto accountId = accountData.accountId;
         if (accountId <= 0) {
             Notification::create("Failed to retrieve a valid account ID.", NotificationIcon::Error)->show();
             return;
         }
 
-        arc::spawn([this, accountId]() -> arc::Future<> {
-            auto authResult = co_await argon::startAuth();
-            if (authResult.isErr()) {
+        arc::spawn([this, accountId, accountData]() -> arc::Future<> {
+            auto authResult = co_await comment::argonToken(accountData);
+            if (authResult.empty()) {
                 geode::queueInMainThread([]() {
                     Notification::create("Failed to authenticate.", NotificationIcon::Error)->show();
                 });
                 co_return;
             }
 
-            auto authToken = std::move(authResult).unwrap();
+            auto authToken = std::move(authResult);
             auto req = geode::utils::web::WebRequest();
             auto body = matjson::makeObject({{"accountId", accountId}, {"argonToken", authToken}});
             auto response = co_await req.bodyJSON(body).post(fmt::format("{}/getBanners", comment::baseUrl));
@@ -132,22 +133,23 @@ void CBShopLayer::fetchBanners() {
 
 void CBShopLayer::fetchAmethyst() {
     geode::queueInMainThread([this]() {
-        auto accountId = argon::getGameAccountData().accountId;
+        auto accountData = argon::getGameAccountData();
+        auto accountId = accountData.accountId;
         if (accountId <= 0) {
             Notification::create("Failed to retrieve a valid account ID.", NotificationIcon::Error)->show();
             return;
         }
 
-        arc::spawn([this, accountId]() -> arc::Future<> {
-            auto authResult = co_await argon::startAuth();
-            if (authResult.isErr()) {
+        arc::spawn([this, accountId, accountData]() -> arc::Future<> {
+            auto authResult = co_await comment::argonToken(accountData);
+            if (authResult.empty()) {
                 geode::queueInMainThread([]() {
                     Notification::create("Failed to authenticate.", NotificationIcon::Error)->show();
                 });
                 co_return;
             }
 
-            auto authToken = std::move(authResult).unwrap();
+            auto authToken = std::move(authResult);
             auto req = geode::utils::web::WebRequest();
             auto body = matjson::makeObject({{"accountId", accountId}, {"argonToken", authToken}});
             auto response = co_await req.bodyJSON(body).post(fmt::format("{}/getUser", comment::baseUrl));
@@ -222,16 +224,17 @@ bool CBShopLayer::init() {
         CircleButtonSprite::createWithSpriteFrameName("CB_amethyst_001.png"_spr, 1.f, CircleBaseColor::DarkPurple, CircleBaseSize::Small),
         [](geode::Button* button) {
             geode::queueInMainThread([]() {
-                arc::spawn([]() -> arc::Future<> {
-                    auto authResult = co_await argon::startAuth();
-                    if (authResult.isErr()) {
+                auto accountData = argon::getGameAccountData();
+                arc::spawn([accountData]() -> arc::Future<> {
+                    auto authResult = co_await comment::argonToken(accountData);
+                    if (authResult.empty()) {
                         geode::queueInMainThread([]() {
                             Notification::create("Failed to start authentication.", NotificationIcon::Error)->show();
                         });
                         co_return;
                     }
 
-                    auto authToken = std::move(authResult).unwrap();
+                    auto authToken = std::move(authResult);
                     geode::queueInMainThread([authToken = std::move(authToken)]() mutable {
                         auto accountId = argon::getGameAccountData().accountId;
                         if (accountId <= 0) {

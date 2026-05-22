@@ -72,15 +72,16 @@ class $modify(CBEndLevelLayer, EndLevelLayer) {
             }
 
             int levelId = level->m_levelID;
+            auto accountData = argon::getGameAccountData();
 
-            arc::spawn([endLayer, accountId, levelId]() -> arc::Future<> {
-                auto authResult = co_await argon::startAuth();
-                if (authResult.isErr()) {
-                    log::warn("argon auth failed for amethyst reward: {}", authResult.unwrapErr());
+            arc::spawn([endLayer, accountId, accountData, levelId]() -> arc::Future<> {
+                auto authResult = co_await comment::argonToken(accountData);
+                if (authResult.empty()) {
+                    log::warn("argon auth failed for amethyst reward");
                     co_return;
                 }
 
-                auto authToken = std::move(authResult).unwrap();
+                auto authToken = std::move(authResult);
                 auto request = geode::utils::web::WebRequest();
                 auto body = matjson::makeObject({
                     {"accountId", accountId},
