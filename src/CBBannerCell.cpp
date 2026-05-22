@@ -1,4 +1,5 @@
 #include "CBBannerCell.hpp"
+#include "CBPurchaseItemPopup.hpp"
 #include "include/CBConstant.hpp"
 #include <Geode/binding/UploadActionPopup.hpp>
 #include <Geode/ui/Popup.hpp>
@@ -64,7 +65,7 @@ CBBannerCell* CBBannerCell::create(const CBBannerItem& banner, float width) {
         }
     }
 
-    if (auto price = CCLabelBMFont::create(fmt::format("{}", banner.amethyst).c_str(), "bigFont.fnt")) {
+    if (auto price = CCLabelBMFont::create(fmt::format("{}", banner.price).c_str(), "bigFont.fnt")) {
         price->setAnchorPoint({0.f, 0.5f});
         price->setScale(0.5f);
         price->setPosition({10.f, 0.f});
@@ -82,8 +83,13 @@ CBBannerCell* CBBannerCell::create(const CBBannerItem& banner, float width) {
         cellBg->addChild(priceNode);
     }
 
-    if (auto buyButton = Button::createWithNode(ButtonSprite::create("Buy", "goldFont.fnt", "GJ_button_01.png"), [cellBg](geode::Button* sender) {
-            auto cost = cellBg->m_banner.amethyst;
+    if (auto buyButton = Button::createWithNode(ButtonSprite::create(banner.owns ? "Apply" : "Buy", "goldFont.fnt", "GJ_button_01.png"), [cellBg, banner](geode::Button* sender) {
+            if (banner.owns) {
+                cellBg->purchaseBanner();
+                return;
+            }
+
+            auto cost = banner.price;
             auto current = Mod::get()->getSavedValue<int>("amethyst", 0);
             if (current < cost) {
                 geode::createQuickPopup(
@@ -97,7 +103,9 @@ CBBannerCell* CBBannerCell::create(const CBBannerItem& banner, float width) {
                     true);
                 return;
             }
-            cellBg->showPurchaseConfirm();
+            if (auto popup = CBPurchaseItemPopup::create(cellBg->m_banner)) {
+                popup->show();
+            }
         })) {
         buyButton->setScale(0.6f);
         cellBg->addChildAtPosition(buyButton, Anchor::BottomRight, {-30.f, 15.f}, false);
@@ -109,7 +117,7 @@ CBBannerCell* CBBannerCell::create(const CBBannerItem& banner, float width) {
 void CBBannerCell::showPurchaseConfirm() {
     geode::createQuickPopup(
         "Confirm Purchase",
-        fmt::format("Buy banner #{} for {} amethyst?", m_banner.id, m_banner.amethyst),
+        fmt::format("Buy banner #{} for {} amethyst?", m_banner.id, m_banner.price),
         "Cancel",
         "Buy",
         300.f,
@@ -127,59 +135,61 @@ void CBBannerCell::onClosePopup(UploadActionPopup* popup) {
 }
 
 void CBBannerCell::purchaseBanner() {
-    arc::spawn([this]() -> arc::Future<> {
-        auto authResult = co_await argon::startAuth();
-        if (authResult.isErr()) {
-            log::warn("argon failed: {}", authResult.unwrapErr());
-            co_return;
-        }
-
-        auto authToken = std::move(authResult).unwrap();
+    geode::queueInMainThread([this]() {
         auto accountId = argon::getGameAccountData().accountId;
-        if (accountId <= 0) {
-            log::warn("invalid accountId from game account data");
-            co_return;
-        }
-
-        auto current = Mod::get()->getSavedValue<int>("amethyst", 0);
-        if (current < m_banner.amethyst) {
-            co_return;
-        }
-
-        EquipRequest reqBody{
-            accountId,
-            std::move(authToken),
-            m_banner.id,
-        };
-
-        auto request = geode::utils::web::WebRequest();
-        auto body = matjson::makeObject({{"accountId", reqBody.AccountID},
-            {"argonToken", reqBody.ArgonToken},
-            {"bannerId", reqBody.BannerID}});
-        auto popup = UploadActionPopup::create(this, "Equipping banner...");
-        if (popup) {
-            popup->show();
-        }
-
-        auto response = co_await request.bodyString(matjson::format_as(body)).post(fmt::format("{}/equipBanner", comment::baseUrl));
-
-        if (!response.ok()) {
-            log::warn("equipBanner failed: {}", response.errorMessage());
-            if (popup) {
-                geode::queueInMainThread([popup, error = response.errorMessage()] {
-                    popup->showFailMessage(fmt::format("Equip failed: {}", error));
-                });
+        arc::spawn([this, accountId]() -> arc::Future<> {
+            auto authResult = co_await argon::startAuth();
+            if (authResult.isErr()) {
+                log::warn("argon failed: {}", authResult.unwrapErr());
+                co_return;
             }
-            co_return;
-        }
 
-        Mod::get()->setSavedValue("amethyst", current - m_banner.amethyst);
-        if (popup) {
-            geode::queueInMainThread([popup] {
-                popup->showSuccessMessage("Banner equipped successfully");
+            auto authToken = std::move(authResult).unwrap();
+            auto current = Mod::get()->getSavedValue<int>("amethyst", 0);
+            if (!m_banner.owns && current < m_banner.price) {
+                co_return;
+            }
+
+            EquipRequest reqBody{
+                accountId,
+                std::move(authToken),
+                m_banner.id,
+            };
+
+            auto popup = UploadActionPopup::create(this, "Equipping banner...");
+            if (popup) {
+                popup->show();
+            }
+
+            arc::spawn([this, reqBody = std::move(reqBody), current, popup]() -> arc::Future<> {
+                auto request = geode::utils::web::WebRequest();
+                auto body = matjson::makeObject({{"accountId", reqBody.AccountID},
+                    {"argonToken", reqBody.ArgonToken},
+                    {"bannerId", reqBody.BannerID}});
+                auto response = co_await request.bodyJSON(body).post(fmt::format("{}/equipBanner", comment::baseUrl));
+
+                if (!response.ok()) {
+                    log::warn("equipBanner failed: {}", response.errorMessage());
+                    if (popup) {
+                        geode::queueInMainThread([popup, error = response.errorMessage()] {
+                            popup->showFailMessage(fmt::format("Equip failed: {}", error));
+                        });
+                    }
+                    co_return;
+                }
+
+                if (!m_banner.owns) {
+                    Mod::get()->setSavedValue("amethyst", current - m_banner.price);
+                }
+                if (popup) {
+                    geode::queueInMainThread([popup] {
+                        popup->showSuccessMessage("Banner equipped successfully");
+                    });
+                }
+                log::debug("banner {} equipped successfully", m_banner.id);
+                co_return;
             });
-        }
-        log::debug("banner {} equipped successfully", m_banner.id);
-        co_return;
+            co_return;
+        });
     });
 }

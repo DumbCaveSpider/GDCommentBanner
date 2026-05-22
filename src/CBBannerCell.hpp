@@ -12,9 +12,10 @@ struct CBBannerItem {
     std::string name;
     std::string description;
     std::string username;
-    int amethyst = 0;
+    int price = 0;
     int id = 0;
     int accountId = 0;
+    bool owns = false;
 };
 
 class CBBannerCell : public cocos2d::CCLayer, public UploadPopupDelegate {
