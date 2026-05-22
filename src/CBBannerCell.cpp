@@ -48,7 +48,21 @@ CBBannerCell* CBBannerCell::create(const CBBannerItem& banner, float width) {
         nameLabel = CCLabelBMFont::create(banner.name.c_str(), "bigFont.fnt");
         if (nameLabel) {
             nameLabel->setAnchorPoint({0.f, 0.5f});
-            nameLabel->setPosition({10.f, 15.f});
+            float nameX = 10.f;
+            if (banner.isLimited) {
+                if (auto starIcon = CCSprite::createWithSpriteFrameName("star_small01_001.png")) {
+                    starIcon->setScale(0.8f);
+                    starIcon->setPosition({nameX, 15.f});
+                    starIcon->setAnchorPoint({0.f, 0.5f});
+                    cellBg->addChild(starIcon);
+                    nameLabel->runAction(CCRepeatForever::create(CCSequence::create(
+                        CCTintTo::create(0.5f, 255, 255, 0),
+                        CCTintTo::create(0.5f, 255, 255, 255),
+                        nullptr)));
+                    nameX += starIcon->getContentSize().width * starIcon->getScale() + 4.f;
+                }
+            }
+            nameLabel->setPosition({nameX, 15.f});
             nameLabel->limitLabelWidth(100.f, 0.5f, 0.2f);
             cellBg->addChild(nameLabel);
         }
@@ -90,9 +104,9 @@ CBBannerCell* CBBannerCell::create(const CBBannerItem& banner, float width) {
         detailNode->setPosition({20.f, 10.f});
 
         if (banner.isLimited) {
-            if (auto amountLabel = CCLabelBMFont::create(fmt::format("Amount: {}", banner.amount).c_str(), "goldFont.fnt")) {
+            if (auto amountLabel = CCLabelBMFont::create(fmt::format("Amount Left: {}", banner.amount - banner.totalBought).c_str(), "goldFont.fnt")) {
                 amountLabel->setAnchorPoint({1.f, 0.5f});
-                amountLabel->setScale(0.4f);
+                amountLabel->limitLabelWidth(60.f, 0.4f, 0.2f);
                 amountLabel->setPosition({0.f, 10.f});
                 detailNode->addChild(amountLabel);
             }
@@ -100,7 +114,7 @@ CBBannerCell* CBBannerCell::create(const CBBannerItem& banner, float width) {
 
         if (auto totalBoughtLabel = CCLabelBMFont::create(fmt::format("Bought: {}", banner.totalBought).c_str(), "goldFont.fnt")) {
             totalBoughtLabel->setAnchorPoint({1.f, 0.5f});
-            totalBoughtLabel->setScale(0.4f);
+            totalBoughtLabel->limitLabelWidth(60.f, 0.4f, 0.2f);
             totalBoughtLabel->setPosition({0.f, banner.isLimited ? -8.f : 0.f});
             detailNode->addChild(totalBoughtLabel);
         }
@@ -110,7 +124,11 @@ CBBannerCell* CBBannerCell::create(const CBBannerItem& banner, float width) {
         }
     }
 
-    if (auto buyButton = Button::createWithNode(ButtonSprite::create(banner.owns ? "Apply" : "Buy", 100.f, true, "goldFont.fnt", banner.owns ? "GJ_button_02.png" : "GJ_button_01.png", .0f, 1.f), [cellBg, banner](geode::Button* sender) {
+    if (auto buyButton = Button::createWithNode(ButtonSprite::create(banner.equipped ? "Unequip" : (banner.owns ? "Apply" : "Buy"), 100.f, true, "goldFont.fnt", banner.equipped ? "GJ_button_06.png" : (banner.owns ? "GJ_button_02.png" : "GJ_button_01.png"), .0f, 1.f), [cellBg, banner](geode::Button* sender) {
+            if (banner.equipped) {
+                cellBg->unequipBanner();
+                return;
+            }
             if (banner.owns) {
                 cellBg->applyBanner();
                 return;
@@ -223,6 +241,55 @@ void CBBannerCell::applyBanner() {
                 log::debug("banner {} equipped successfully", m_banner.id);
                 co_return;
             });
+            co_return;
+        });
+    });
+}
+
+void CBBannerCell::unequipBanner() {
+    geode::queueInMainThread([this]() {
+        auto accountData = argon::getGameAccountData();
+        auto accountId = accountData.accountId;
+        Ref<UploadActionPopup> popup = nullptr;
+        popup = UploadActionPopup::create(nullptr, "Unequipping banner...");
+        if (popup) {
+            popup->show();
+        }
+
+        arc::spawn([this, accountId, accountData, popup]() -> arc::Future<> {
+            auto authResult = co_await comment::argonToken(accountData);
+            if (authResult.empty()) {
+                log::warn("argon failed");
+                co_return;
+            }
+
+            auto authToken = std::move(authResult);
+
+            auto request = geode::utils::web::WebRequest();
+            auto body = matjson::makeObject({{"accountId", accountId},
+                {"argonToken", authToken}});
+            auto response = co_await request.bodyJSON(body).post(fmt::format("{}/unequipBanner", comment::baseUrl));
+
+            if (!response.ok()) {
+                log::warn("unequipBanner failed: {}", response.errorMessage());
+                if (popup) {
+                    geode::queueInMainThread([popup, error = response.errorMessage()] {
+                        popup->showFailMessage(fmt::format("Unequip failed: {}", error));
+                    });
+                }
+                co_return;
+            }
+
+            if (popup) {
+                geode::queueInMainThread([popup] {
+                    popup->showSuccessMessage("Banner unequipped successfully");
+                });
+            }
+            if (auto shop = CBShopLayer::getInstance()) {
+                shop->setEquippedBannerId(-1);
+                shop->refreshBanners();
+            }
+            log::debug("banner {} unequipped successfully", m_banner.id);
             co_return;
         });
     });

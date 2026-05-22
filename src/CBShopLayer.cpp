@@ -21,6 +21,9 @@ CBShopLayer* CBShopLayer::getInstance() {
 }
 
 void CBShopLayer::refreshBanners() {
+    if (m_loadingCircle) {
+        m_loadingCircle->fadeIn();
+    }
     this->fetchBanners();
 }
 

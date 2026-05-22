@@ -1,5 +1,7 @@
 #include <Geode/Geode.hpp>
 #include <Geode/ui/Button.hpp>
+#include <Geode/ui/LazySprite.hpp>
+#include <Geode/ui/NineSlice.hpp>
 #include <Geode/utils/web.hpp>
 #include <argon/argon.hpp>
 #include <Geode/modify/GJGarageLayer.hpp>
@@ -32,6 +34,78 @@ class $modify(GJGarageLayer) {
 class $modify(CBCommentCell, CommentCell) {
     void loadFromComment(GJComment* comment) {
         CommentCell::loadFromComment(comment);
+        if (!m_backgroundLayer) {
+            return;
+        }
+
+        if (m_accountComment) return;  // don't load banner for account comment
+
+        auto self = Ref<CBCommentCell>(this);
+        int accountId = comment->m_accountID;
+
+        arc::spawn([self, accountId]() -> arc::Future<> {
+            auto request = geode::utils::web::WebRequest();
+            auto body = matjson::makeObject({
+                {"targetAccountId", accountId},
+            });
+
+            auto response = co_await request.bodyJSON(body).post(fmt::format("{}/getImageBanner", comment::baseUrl));
+            if (!response.ok()) {
+                log::debug("getImageBanner failed: {}", response.errorMessage());
+                co_return;
+            }
+
+            auto jsonRes = response.json();
+            if (jsonRes.isErr()) {
+                log::debug("getImageBanner returned invalid JSON");
+                co_return;
+            }
+
+            auto json = jsonRes.unwrap();
+            auto equipped = json["equipped"].asBool().unwrapOr(false);
+            if (!equipped) {
+                co_return;
+            }
+
+            auto imageUrlRes = json["imageUrl"].asString();
+            if (imageUrlRes.isErr()) {
+                log::debug("getImageBanner missing imageUrl");
+                co_return;
+            }
+
+            auto imageUrl = imageUrlRes.unwrap();
+            geode::queueInMainThread([self, imageUrl]() {
+                if (!self->m_backgroundLayer) {
+                    return;
+                }
+
+                auto size = self->m_backgroundLayer->getScaledContentSize();
+                auto bannerSize = self->m_compactMode ? size : CCSize{800.f, 800.f};
+                auto bannerSprite = LazySprite::create(bannerSize, true);
+                bannerSprite->setAutoResize(true);
+                bannerSprite->loadFromUrl(imageUrl, LazySprite::Format::kFmtWebp, true);
+                bannerSprite->setPosition({size.width / 2.f, size.height / 2.f});
+                self->m_backgroundLayer->setOpacity(100);
+                self->m_backgroundLayer->addChild(bannerSprite, -1);
+
+                if (self->m_compactMode) {
+                    if (auto commentText = self->m_mainLayer->getChildByIDRecursive("comment-text-label")) {
+                        if (!self->m_mainLayer->getChildByID("cb-comment-banner-bg")) {
+                            auto commentBg = NineSlice::create("square02_small.png");
+                            commentBg->setID("cb-comment-banner-bg");
+                            commentBg->setInsets({5, 5, 5, 5});
+                            commentBg->setContentSize(commentText->getScaledContentSize() + CCSize(5, 0));
+                            commentBg->setPosition({commentText->getPosition().x - 2, commentText->getPosition().y});
+                            commentBg->setOpacity(150);
+                            commentBg->setAnchorPoint(commentText->getAnchorPoint());
+                            self->m_mainLayer->addChild(commentBg, -1);
+                        }
+                    }
+                }
+            });
+
+            co_return;
+        });
     }
 };
 
@@ -40,16 +114,16 @@ class $modify(CBEndLevelLayer, EndLevelLayer) {
         EndLevelLayer::customSetup();
 
         auto endLayer = Ref<EndLevelLayer>(this);
-        auto orb = CCSprite::createWithSpriteFrameName("CB_amethyst_001.png"_spr);
-        if (orb) {
-            orb->setScale(0.7f);
-            m_listLayer->addChild(orb);
-        }
 
         geode::queueInMainThread([endLayer]() {
             auto accountId = argon::getGameAccountData().accountId;
             if (accountId <= 0) {
                 Notification::create("Invalid account ID for amethyst reward submission.", NotificationIcon::Error)->show();
+                return;
+            }
+
+            if (endLayer->m_playLayer->m_level->m_stars == 0) {
+                log::debug("unrated level completion, skipping amethyst reward submission");
                 return;
             }
 
