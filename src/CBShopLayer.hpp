@@ -1,5 +1,6 @@
 #pragma once
 #include <Geode/Geode.hpp>
+#include <cue/LoadingCircle.hpp>
 #include <cue/ListNode.hpp>
 
 using namespace geode::prelude;
@@ -9,6 +10,8 @@ public:
     static CBShopLayer* create();
     static CBShopLayer* getInstance();
     void updateAmethystLabel(int amethyst);
+    void refreshBanners();
+    void setEquippedBannerId(int bannerId);
 
 private:
     bool init() override;
@@ -23,4 +26,6 @@ private:
     CCSprite* m_background;
     cue::ListNode* m_list = nullptr;
     CCCounterLabel* m_amethystLabel = nullptr;
+    int m_equippedBannerId = -1;
+    cue::LoadingCircle* m_loadingCircle = nullptr;
 };

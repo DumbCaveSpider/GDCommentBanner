@@ -16,6 +16,10 @@ struct CBBannerItem {
     int id = 0;
     int accountId = 0;
     bool owns = false;
+    bool equipped = false;
+    bool isLimited = false;
+    int amount = 0;
+    int totalBought = 0;
 };
 
 class CBBannerCell : public cocos2d::CCLayer, public UploadPopupDelegate {

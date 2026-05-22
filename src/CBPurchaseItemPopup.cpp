@@ -193,10 +193,11 @@ void CBPurchaseItemPopup::buyBanner() {
                 if (popup) {
                     popup->showSuccessMessage("Banner purchased successfully");
                 }
-                if (latestAmethyst >= 0) {
-                    if (auto shop = CBShopLayer::getInstance()) {
+                if (auto shop = CBShopLayer::getInstance()) {
+                    if (latestAmethyst >= 0) {
                         shop->updateAmethystLabel(latestAmethyst);
                     }
+                    shop->refreshBanners();
                 }
                 itemPopup->onClose(nullptr);
             });

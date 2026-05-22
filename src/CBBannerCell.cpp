@@ -1,6 +1,9 @@
 #include "CBBannerCell.hpp"
 #include "CBPurchaseItemPopup.hpp"
+#include "Geode/ui/Layout.hpp"
+#include "ccTypes.h"
 #include "include/CBConstant.hpp"
+#include "CBShopLayer.hpp"
 #include <Geode/binding/UploadActionPopup.hpp>
 #include <Geode/ui/Popup.hpp>
 #include <Geode/ui/Button.hpp>
@@ -28,6 +31,7 @@ CBBannerCell* CBBannerCell::create(const CBBannerItem& banner, float width) {
     if (auto background = NineSlice::createWithSpriteFrameName("geode.loader/tab-bg.png")) {
         background->setContentSize({width - 5, cellHeight});
         background->setPosition({width / 2.f, cellHeight / 2.f});
+        background->setColor(banner.owns ? ccColor3B{0, 200, 0} : ccColor3B{255, 255, 255});
         cellBg->addChild(background);
     }
 
@@ -45,7 +49,7 @@ CBBannerCell* CBBannerCell::create(const CBBannerItem& banner, float width) {
         if (nameLabel) {
             nameLabel->setAnchorPoint({0.f, 0.5f});
             nameLabel->setPosition({10.f, 15.f});
-            nameLabel->setScale(0.5f);
+            nameLabel->limitLabelWidth(100.f, 0.5f, 0.2f);
             cellBg->addChild(nameLabel);
         }
     }
@@ -60,7 +64,7 @@ CBBannerCell* CBBannerCell::create(const CBBannerItem& banner, float width) {
                 usernameX = nameLabel->getPositionX() + nameLabel->getContentSize().width * nameLabel->getScale() + 8.f;
             }
             usernameLabel->setPosition({usernameX, 15.f});
-            usernameLabel->setScale(0.5f);
+            usernameLabel->setScale(0.4f);
             cellBg->addChild(usernameLabel);
         }
     }
@@ -81,9 +85,32 @@ CBBannerCell* CBBannerCell::create(const CBBannerItem& banner, float width) {
 
         priceNode->addChild(price);
         cellBg->addChild(priceNode);
+
+        auto detailNode = CCNode::create();
+        detailNode->setPosition({20.f, 10.f});
+
+        if (banner.isLimited) {
+            if (auto amountLabel = CCLabelBMFont::create(fmt::format("Amount: {}", banner.amount).c_str(), "goldFont.fnt")) {
+                amountLabel->setAnchorPoint({1.f, 0.5f});
+                amountLabel->setScale(0.4f);
+                amountLabel->setPosition({0.f, 10.f});
+                detailNode->addChild(amountLabel);
+            }
+        }
+
+        if (auto totalBoughtLabel = CCLabelBMFont::create(fmt::format("Bought: {}", banner.totalBought).c_str(), "goldFont.fnt")) {
+            totalBoughtLabel->setAnchorPoint({1.f, 0.5f});
+            totalBoughtLabel->setScale(0.4f);
+            totalBoughtLabel->setPosition({0.f, banner.isLimited ? -8.f : 0.f});
+            detailNode->addChild(totalBoughtLabel);
+        }
+
+        if (detailNode->getChildrenCount() > 0) {
+            cellBg->addChildAtPosition(detailNode, Anchor::BottomRight, {-90.f, 25.f}, false);
+        }
     }
 
-    if (auto buyButton = Button::createWithNode(ButtonSprite::create(banner.owns ? "Apply" : "Buy", 100.f, true, "goldFont.fnt", "GJ_button_01.png", .0f, 1.f), [cellBg, banner](geode::Button* sender) {
+    if (auto buyButton = Button::createWithNode(ButtonSprite::create(banner.owns ? "Apply" : "Buy", 100.f, true, "goldFont.fnt", banner.owns ? "GJ_button_02.png" : "GJ_button_01.png", .0f, 1.f), [cellBg, banner](geode::Button* sender) {
             if (banner.owns) {
                 cellBg->applyBanner();
                 return;
@@ -109,6 +136,14 @@ CBBannerCell* CBBannerCell::create(const CBBannerItem& banner, float width) {
         })) {
         buyButton->setScale(0.6f);
         cellBg->addChildAtPosition(buyButton, Anchor::BottomRight, {-50.f, 15.f}, false);
+    }
+
+    if (banner.equipped) {
+        if (auto equippedLabel = CCLabelBMFont::create("Equipped", "goldFont.fnt")) {
+            equippedLabel->setScale(0.5f);
+            equippedLabel->setColor({255, 215, 0});
+            cellBg->addChildAtPosition(equippedLabel, Anchor::BottomRight, {-50.f, 35.f}, false);
+        }
     }
 
     return cellBg;
@@ -180,6 +215,10 @@ void CBBannerCell::applyBanner() {
                     geode::queueInMainThread([popup] {
                         popup->showSuccessMessage("Banner equipped successfully");
                     });
+                }
+                if (auto shop = CBShopLayer::getInstance()) {
+                    shop->setEquippedBannerId(m_banner.id);
+                    shop->refreshBanners();
                 }
                 log::debug("banner {} equipped successfully", m_banner.id);
                 co_return;
