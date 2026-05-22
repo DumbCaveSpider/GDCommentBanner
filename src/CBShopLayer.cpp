@@ -212,13 +212,21 @@ bool CBShopLayer::init() {
     addBackButton(this, BackButtonStyle::Pink);
 
     auto winSize = CCDirector::sharedDirector()->getWinSize();
-    m_list = cue::ListNode::create({356, winSize.height - 60}, {0, 0, 0, 100}, cue::ListBorderStyle::None);
+    m_list = cue::ListNode::create({356, winSize.height - 60}, {0, 0, 0, 0}, cue::ListBorderStyle::None);
     if (m_list) {
-        m_list->setPosition({winSize.width / 2.f, winSize.height / 2.f});
-        this->addChild(m_list);
+        m_list->setZOrder(2);
+        this->addChildAtPosition(m_list, Anchor::Center, {0.f, -20.f}, false);
     }
     this->fetchBanners();
     this->fetchAmethyst();
+
+    auto listBg = NineSlice::create("square02_001.png");
+    if (listBg) {
+        listBg->setPosition(m_list->getPosition());
+        listBg->setContentSize(m_list->getContentSize() + CCSize(5.f, 10.f));
+        listBg->setOpacity(100);
+        this->addChild(listBg);
+    }
 
     auto authButton = geode::Button::createWithNode(
         CircleButtonSprite::createWithSpriteFrameName("CB_amethyst_001.png"_spr, 1.f, CircleBaseColor::DarkPurple, CircleBaseSize::Small),

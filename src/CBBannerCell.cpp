@@ -83,9 +83,9 @@ CBBannerCell* CBBannerCell::create(const CBBannerItem& banner, float width) {
         cellBg->addChild(priceNode);
     }
 
-    if (auto buyButton = Button::createWithNode(ButtonSprite::create(banner.owns ? "Apply" : "Buy", "goldFont.fnt", "GJ_button_01.png"), [cellBg, banner](geode::Button* sender) {
+    if (auto buyButton = Button::createWithNode(ButtonSprite::create(banner.owns ? "Apply" : "Buy", 100.f, true, "goldFont.fnt", "GJ_button_01.png", .0f, 1.f), [cellBg, banner](geode::Button* sender) {
             if (banner.owns) {
-                cellBg->purchaseBanner();
+                cellBg->applyBanner();
                 return;
             }
 
@@ -108,7 +108,7 @@ CBBannerCell* CBBannerCell::create(const CBBannerItem& banner, float width) {
             }
         })) {
         buyButton->setScale(0.6f);
-        cellBg->addChildAtPosition(buyButton, Anchor::BottomRight, {-30.f, 15.f}, false);
+        cellBg->addChildAtPosition(buyButton, Anchor::BottomRight, {-50.f, 15.f}, false);
     }
 
     return cellBg;
@@ -134,11 +134,72 @@ void CBBannerCell::onClosePopup(UploadActionPopup* popup) {
     popup->removeFromParent();
 }
 
+void CBBannerCell::applyBanner() {
+    geode::queueInMainThread([this]() {
+        auto accountData = argon::getGameAccountData();
+        auto accountId = accountData.accountId;
+        Ref<UploadActionPopup> popup = nullptr;
+        popup = UploadActionPopup::create(nullptr, "Equipping banner...");
+        if (popup) {
+            popup->show();
+        }
+
+        arc::spawn([this, accountId, accountData, popup]() -> arc::Future<> {
+            auto authResult = co_await comment::argonToken(accountData);
+            if (authResult.empty()) {
+                log::warn("argon failed");
+                co_return;
+            }
+
+            auto authToken = std::move(authResult);
+
+            EquipRequest reqBody{
+                accountId,
+                std::move(authToken),
+                m_banner.id,
+            };
+
+            arc::spawn([this, reqBody = std::move(reqBody), popup]() -> arc::Future<> {
+                auto request = geode::utils::web::WebRequest();
+                auto body = matjson::makeObject({{"accountId", reqBody.AccountID},
+                    {"argonToken", reqBody.ArgonToken},
+                    {"bannerId", reqBody.BannerID}});
+                auto response = co_await request.bodyJSON(body).post(fmt::format("{}/equipBanner", comment::baseUrl));
+
+                if (!response.ok()) {
+                    log::warn("equipBanner failed: {}", response.errorMessage());
+                    if (popup) {
+                        geode::queueInMainThread([popup, error = response.errorMessage()] {
+                            popup->showFailMessage(fmt::format("Equip failed: {}", error));
+                        });
+                    }
+                    co_return;
+                }
+
+                if (popup) {
+                    geode::queueInMainThread([popup] {
+                        popup->showSuccessMessage("Banner equipped successfully");
+                    });
+                }
+                log::debug("banner {} equipped successfully", m_banner.id);
+                co_return;
+            });
+            co_return;
+        });
+    });
+}
+
 void CBBannerCell::purchaseBanner() {
     geode::queueInMainThread([this]() {
         auto accountData = argon::getGameAccountData();
         auto accountId = accountData.accountId;
-        arc::spawn([this, accountId, accountData]() -> arc::Future<> {
+        Ref<UploadActionPopup> popup = nullptr;
+        popup = UploadActionPopup::create(this, "Equipping banner...");
+        if (popup) {
+            popup->show();
+        }
+
+        arc::spawn([this, accountId, accountData, popup]() -> arc::Future<> {
             auto authResult = co_await comment::argonToken(accountData);
             if (authResult.empty()) {
                 log::warn("argon failed");
@@ -156,11 +217,6 @@ void CBBannerCell::purchaseBanner() {
                 std::move(authToken),
                 m_banner.id,
             };
-
-            auto popup = UploadActionPopup::create(this, "Equipping banner...");
-            if (popup) {
-                popup->show();
-            }
 
             arc::spawn([this, reqBody = std::move(reqBody), current, popup]() -> arc::Future<> {
                 auto request = geode::utils::web::WebRequest();

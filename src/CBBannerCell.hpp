@@ -24,6 +24,7 @@ public:
 
 private:
     void showPurchaseConfirm();
+    void applyBanner();
     void purchaseBanner();
     void onClosePopup(UploadActionPopup* popup) override;
 

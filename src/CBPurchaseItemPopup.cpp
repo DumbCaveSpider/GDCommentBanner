@@ -68,6 +68,7 @@ bool CBPurchaseItemPopup::init(const CBBannerItem& banner) {
     if (descriptionLabel) {
         descriptionLabel->setWidth(m_mainLayer->getContentSize().width - 40.f);
         descriptionLabel->setMaxLines(3);
+        descriptionLabel->setScale(0.8);
         descriptionLabel->setAlignment(kCCTextAlignmentCenter);
         m_mainLayer->addChildAtPosition(descriptionLabel, Anchor::Center, {0.f, -30.f}, false);
     }
