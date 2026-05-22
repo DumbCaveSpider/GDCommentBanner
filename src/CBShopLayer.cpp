@@ -276,7 +276,7 @@ bool CBShopLayer::init() {
     m_list = cue::ListNode::create({356, winSize.height - 60}, {0, 0, 0, 0}, cue::ListBorderStyle::None);
     if (m_list) {
         m_list->setZOrder(2);
-        this->addChildAtPosition(m_list, Anchor::Center, {0.f, -20.f}, false);
+        this->addChildAtPosition(m_list, Anchor::Center, {0.f, -10.f}, false);
     }
 
     if (auto refreshButton = geode::Button::createWithSpriteFrameName(

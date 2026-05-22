@@ -4,7 +4,7 @@
 
 using namespace geode::prelude;
 namespace comment {
-    inline std::string baseUrl = "http://127.0.0.1:8010";
+    inline std::string baseUrl = "https://gdbanner.arcticwoof.xyz";
 
     inline auto argonToken = [](const argon::AccountData& accountData) -> arc::Future<std::string> {
         auto authResult = co_await argon::startAuth(accountData);

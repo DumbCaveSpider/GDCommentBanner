@@ -6,11 +6,11 @@
 		"mac": "2.2081",
 		"ios": "2.2081"
 	},
-	"id": "arcticwoof.comment-banner",
-	"name": "Comment Banner",
+	"id": "arcticwoof.comment-banners",
+	"name": "Comment Banners",
 	"version": "v1.0.0",
 	"developer": "ArcticWoof",
-	"description": "Community-run, Custom banner for comments.",
+	"description": "Community-run, Custom banners for comments.",
 	"dependencies": {
 		"geode.node-ids": ">=v1.23.3"
 	},
@@ -19,6 +19,13 @@
 			"PO-Sheet":[
 				"resources/*.png"
 			]
+		}
+	},
+	"settings": {
+		"localServer": {
+			"type": "bool",
+			"name": "Use Local Server",
+			"default": false
 		}
 	}
 }

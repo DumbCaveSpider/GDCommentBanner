@@ -192,7 +192,8 @@ class $modify(CBEndLevelLayer, EndLevelLayer) {
                 Mod::get()->setSavedValue("amethyst", current + amethystReward);
 
                 geode::queueInMainThread([amethystReward]() {
-                    Notification::create(fmt::format("Awarded {} amethyst", amethystReward), CCSprite::createWithSpriteFrameName("CB_amethyst_001.png"_spr))->show();
+                    Notification::create(fmt::format("Awarded {} amethyst", GameToolbox::pointsToString(amethystReward)), CCSprite::createWithSpriteFrameName("CB_amethyst_001.png"_spr))->show();
+                    FMODAudioEngine::sharedEngine()->playEffect("secretKey.ogg");
                 });
 
                 log::debug("awarded {} amethyst from submitAmethystReward", amethystReward);
