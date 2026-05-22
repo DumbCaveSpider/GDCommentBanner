@@ -21,11 +21,5 @@
 			]
 		}
 	},
-	"settings": {
-		"localServer": {
-			"type": "bool",
-			"name": "Use Local Server",
-			"default": false
-		}
-	}
+	"tags": ["online", "customization", "content"]
 }
