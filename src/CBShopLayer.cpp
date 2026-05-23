@@ -284,8 +284,7 @@ bool CBShopLayer::init() {
             [this](geode::Button* sender) {
                 this->fetchBanners();
             })) {
-        refreshButton->setScale(0.6f);
-        this->addChildAtPosition(refreshButton, Anchor::BottomLeft, {20.f, 20.f}, false);
+        this->addChildAtPosition(refreshButton, Anchor::BottomRight, {-35.f, 35.f}, false);
     }
 
     this->fetchBanners();
@@ -355,6 +354,7 @@ bool CBShopLayer::init() {
     }
 
     this->setKeypadEnabled(true);
+
     return true;
 }
 

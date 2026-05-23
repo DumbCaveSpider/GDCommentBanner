@@ -18,6 +18,23 @@ class $modify(GJGarageLayer) {
             return false;
         if (auto shardMenu = this->getChildByID("shards-menu")) {
             auto shopButton = Button::createWithNode(CircleButtonSprite::createWithSpriteFrameName("CB_amethyst_001.png"_spr, 1.f, CircleBaseColor::DarkPurple, CircleBaseSize::Small), [](geode::Button* button) {
+                // check if rl is loaded and if so disable the nameplates on comments
+                if (Loader::get()->isModLoaded("arcticwoof.rated_layouts")) {
+                    auto rl = Loader::get()->getLoadedMod("arcticwoof.rated_layouts");
+                    if (!rl->getSettingValue<bool>("disableNameplateInComment")) {
+                        rl->setSettingValue("disableNameplateInComment", true);
+                        FLAlertLayer::create("Compatibility Notice", "<cp>Comment Banners</c> has detected that you have <cl>Rated Layouts</c> installed.\nThe <cy>Disable Nameplate in Comments</c> setting has been forcibly <cg>enabled</c> in <cl>Rated Layouts</c>' settings to prevent conflicts.", "OK")->show();
+                        return;
+                    }
+                    if (GJAccountManager::sharedState()->m_accountID == 0) {
+                        FLAlertLayer::create(
+                            "Comment Banners",
+                            "You must be <cg>logged in</c> to access this feature in <cp>Comment Banners.</c>",
+                            "OK")
+                            ->show();
+                        return;
+                    }
+                }
                 auto scene = CCScene::create();
                 scene->addChild(CBShopLayer::create());
                 CCDirector::sharedDirector()->pushScene(CCTransitionMoveInT::create(0.5f, scene));

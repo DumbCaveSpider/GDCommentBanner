@@ -56,9 +56,10 @@ bool CBPurchaseItemPopup::init(const CBBannerItem& banner) {
     }
 
     if (!m_banner.imageUrl.empty()) {
-        auto bannerSprite = LazySprite::create({200.f, 80.f}, true);
+        auto bannerSprite = LazySprite::create({180.f, 80.f}, true);
         if (bannerSprite) {
             bannerSprite->loadFromUrl(m_banner.imageUrl, LazySprite::Format::kFmtWebp, false);
+            bannerSprite->setAutoResize(true);
             bannerSprite->setScale(0.9f);
             m_mainLayer->addChildAtPosition(bannerSprite, Anchor::Center, {0.f, 15.f}, false);
         }

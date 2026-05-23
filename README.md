@@ -2,6 +2,8 @@
 
 **A <cl>community-run</c> <cg>custom banner</c> mod that lets you create and customize your own banners for comments!**
 
+#### ![➕](frame:highObjectIcon_001.png?scale=0.8) <co>Comment Banners is currently in early beta, so expect some bugs and missing features. Please report any issues you encounter!</c>
+
 ---
 
 ### About

@@ -1,3 +1,3 @@
-## v1.0.0
+## v0.1.0-beta.1
 
 nameplate? more like banners

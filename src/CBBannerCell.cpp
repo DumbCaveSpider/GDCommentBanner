@@ -35,7 +35,8 @@ CBBannerCell* CBBannerCell::create(const CBBannerItem& banner, float width) {
         cellBg->addChild(background);
     }
 
-    auto sprite = LazySprite::create({104.f, 104.f}, true);
+    auto sprite = LazySprite::create({324.f, 104.f}, true);
+    sprite->setAutoResize(true);
     sprite->setScale(0.9f);
     sprite->setPosition({width / 2.f, cellHeight - 30.f});
     if (!banner.imageUrl.empty()) {
