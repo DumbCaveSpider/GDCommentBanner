@@ -14,7 +14,7 @@ It also introduces a new currency called <cp>**Amethysts**</c>, which you can ea
 
 The mod includes its own **<cg>economy</c>**, where you can create banners, set prices, and earn <cp>**Amethysts**</c> when other players buy your banner.
 
-#### ![ℹ️](frame:GJ_infoIcon_001.png?scale=0.5) <cc>You can upload your own banners to the shop by clicking the button at the top right of the shop.</c>
+#### ![ℹ️](frame:GJ_infoIcon_001.png?scale=0.5) <cc>You can upload your own banners to the shop by clicking the Submit Button at the top of the shop.</c>
 
 ---
 
@@ -29,6 +29,8 @@ The mod includes its own **<cg>economy</c>**, where you can create banners, set 
 ### Disclaimer
 
 <cl>[Rated Layouts](mod:arcticwoof.rated_layouts)</c> may conflict with <cr>Nameplates</c> because both mods use similar logic. To avoid issues, enable <cy>Disable Nameplate in Comments</c> in Rated Layouts' mod settings.
+
+#### <cr>Any misuse of this mod like uploading inapproriate banners will result in a temporary ban on submitting your own banners depending on the severity.</c>
 
 ---
 

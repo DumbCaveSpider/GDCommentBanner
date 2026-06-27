@@ -31,6 +31,8 @@ bool CBManageUserPopup::init(matjson::Value const& userData) {
     m_amethyst = m_userData["amethyst"].asInt().unwrapOr(0);
 
     this->setTitle(fmt::format("Manage {}", m_username));
+    addSideArt(m_mainLayer, SideArt::TopLeft, SideArtStyle::PopupBlue);
+    addSideArt(m_mainLayer, SideArt::BottomLeft, SideArtStyle::PopupBlue);
 
     // Left Side (Controls)
     auto controlsMenu = CCMenu::create();
@@ -45,6 +47,12 @@ bool CBManageUserPopup::init(matjson::Value const& userData) {
     m_staffToggler = CCMenuItemToggler::createWithStandardSprites(
         this, menu_selector(CBManageUserPopup::onToggleStaff), 1.f);
     m_staffToggler->toggle(m_isStaff);
+
+    bool isAdmin = Mod::get()->getSavedValue<bool>("is_admin", false);
+    if (!isAdmin) {
+        staffRow->setVisible(false);
+    }
+
     staffRow->addChild(m_staffToggler);
     controlsMenu->addChild(staffRow);
 
@@ -333,30 +341,17 @@ void CBManageUserPopup::createBannerCell(matjson::Value const& banner) {
     auto bannerMenu = CCMenu::create();
     bannerMenu->setPosition({0, 0});
 
-    auto deleteBtn = geode::Button::createWithNode(
-        CCSprite::createWithSpriteFrameName("GJ_resetBtn_001.png"),
-        [this, bannerId](geode::Button*) {
-            geode::createQuickPopup("Delete Banner", "Are you sure you want to delete this banner?", "Cancel", "Delete", [this, bannerId](FLAlertLayer*, bool btn2) {
-                if (btn2) {
-                    this->deleteBanner(bannerId);
-                }
-            });
-        });
-    deleteBtn->setAnchorPoint({0.5f, 0.5f});
-    deleteBtn->setPosition({170.f, 20.f});
-    bannerMenu->addChild(deleteBtn);
-
     auto amyIcon = CCSprite::createWithSpriteFrameName("CB_amethyst_002.png"_spr);
     amyIcon->setScale(0.5f);
     amyIcon->setAnchorPoint({1.f, 0.5f});
-    amyIcon->setPosition({198.f, 20.f});
+    amyIcon->setPosition({168.f, 20.f});
     bannerMenu->addChild(amyIcon);
 
     auto priceInput = TextInput::create(40.f, "Price");
     priceInput->setCommonFilter(CommonFilter::Int);
     priceInput->setString(numToString(price));
     priceInput->setAnchorPoint({0, 0.5f});
-    priceInput->setPosition({200.f, 20.f});
+    priceInput->setPosition({170.f, 20.f});
     bannerMenu->addChild(priceInput);
 
     auto savePriceSpr = CircleButtonSprite::createWithSpriteFrameName("GJ_completesIcon_001.png", 0.7f, CircleBaseColor::Green, CircleBaseSize::Small);
@@ -367,8 +362,28 @@ void CBManageUserPopup::createBannerCell(matjson::Value const& banner) {
             this->updateBannerPrice(bannerId, priceInput);
         });
     savePriceBtn->setAnchorPoint({0.5f, 0.5f});
-    savePriceBtn->setPosition({265.f, 20.f});
+    savePriceBtn->setPosition({235.f, 20.f});
     bannerMenu->addChild(savePriceBtn);
+
+    auto deleteBtn = geode::Button::createWithNode(
+        CCSprite::createWithSpriteFrameName("GJ_resetBtn_001.png"),
+        [this, bannerId](geode::Button*) {
+            geode::createQuickPopup("Delete Banner", "Are you sure you want to <cr>delete this banner</c>?", "Cancel", "Delete", [this, bannerId](FLAlertLayer*, bool btn2) {
+                if (btn2) {
+                    this->deleteBanner(bannerId);
+                }
+            });
+        });
+    deleteBtn->setAnchorPoint({0.5f, 0.5f});
+    deleteBtn->setPosition({270.f, 20.f});
+
+    bool isAdmin = Mod::get()->getSavedValue<bool>("is_admin", false);
+    if (!isAdmin) {
+        deleteBtn->setEnabled(false);
+        deleteBtn->setColor({150, 150, 150});
+    }
+
+    bannerMenu->addChild(deleteBtn);
 
     cell->addChild(bannerMenu);
 

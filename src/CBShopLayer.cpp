@@ -11,6 +11,7 @@
 #include "CBLogsPopup.hpp"
 #include "CBAdminPanelLayer.hpp"
 #include "CBYourBannersPopup.hpp"
+#include "Geode/ui/Layout.hpp"
 #include "Geode/utils/web.hpp"
 #include "ccTypes.h"
 #include "include/CBConstant.hpp"
@@ -173,22 +174,34 @@ void CBShopLayer::fetchBanners() {
                     return;
                 }
 
-                float listWidth = m_list->getListSize().width;
-                for (auto const& banner : banners) {
-                    auto cell = CBBannerCell::create(banner, listWidth);
-                    if (cell) {
-                        m_list->setCellColor(ccColor4B{0, 0, 0, 0});
-                        m_list->addCell(cell);
-                    }
-                }
+                this->m_banners = std::move(banners);
+                this->populateList();
+
                 if (m_loadingCircle) {
                     m_loadingCircle->fadeOut();
                 }
-                m_list->updateLayout();
             });
             co_return;
         });
     });
+}
+
+void CBShopLayer::populateList() {
+    if (!m_list) return;
+
+    m_list->clear();
+    float listWidth = m_list->getListSize().width;
+    for (auto const& banner : m_banners) {
+        if (m_filterState == 1 && !banner.owns) continue;
+        if (m_filterState == 2 && banner.owns) continue;
+
+        auto cell = CBBannerCell::create(banner, listWidth);
+        if (cell) {
+            m_list->setCellColor(ccColor4B{0, 0, 0, 0});
+            m_list->addCell(cell);
+        }
+    }
+    m_list->updateLayout();
 }
 
 void CBShopLayer::fetchAmethyst() {
@@ -243,10 +256,17 @@ void CBShopLayer::fetchAmethyst() {
             } else {
                 m_equippedBannerId = -1;
             }
-            if (auto isStaffRes = json["isStaff"].asBool(); isStaffRes.isOk()) {
+            if (auto isStaffRes = json["is_staff"].asBool(); isStaffRes.isOk()) {
                 m_isStaff = isStaffRes.unwrap();
             } else {
                 m_isStaff = false;
+            }
+            if (auto isAdminRes = json["is_admin"].asBool(); isAdminRes.isOk()) {
+                m_isAdmin = isAdminRes.unwrap();
+                Mod::get()->setSavedValue("is_admin", m_isAdmin);
+            } else {
+                m_isAdmin = false;
+                Mod::get()->setSavedValue("is_admin", false);
             }
             Mod::get()->setSavedValue("amethyst", amethyst);
             geode::queueInMainThread([this, amethyst]() {
@@ -264,7 +284,7 @@ void CBShopLayer::fetchAmethyst() {
                     if (auto navMenu = this->getChildByID("nav-menu")) {
                         if (!navMenu->getChildByID("admin-button")) {
                             auto adminBtn = geode::Button::createWithNode(
-                                ButtonSprite::create("Admin", "goldFont.fnt", "GJ_button_02.png", .8f),
+                                ButtonSprite::create("Admin", "goldFont.fnt", "GJ_button_03.png", .8f),
                                 [](geode::Button* sender) {
                                     if (auto popup = CBAdminPanelLayer::create()) {
                                         popup->show();
@@ -301,6 +321,8 @@ bool CBShopLayer::init() {
     m_background->setColor({154, 108, 217});
     this->addChild(m_background);
     addBackButton(this, BackButtonStyle::Pink);
+    addSideArt(this, SideArt::Bottom);
+    addSideArt(this, SideArt::TopLeft);
 
     auto winSize = CCDirector::sharedDirector()->getWinSize();
     m_list = cue::ListNode::create({356, winSize.height - 85}, {0, 0, 0, 0}, cue::ListBorderStyle::None);
@@ -324,6 +346,55 @@ bool CBShopLayer::init() {
             }
         })) {
         this->addChildAtPosition(discordButton, Anchor::BottomRight, {-35.f, 85.f}, false);
+    }
+
+    if (auto infoButton = geode::Button::createWithSpriteFrameName("GJ_infoIcon_001.png", [this](geode::Button* sender) {
+            MDPopup::create(
+                "About Comment Banners",
+                "<cp>**Comment Banners**</c> is a <cb>community-run</c> banner shop that lets you buy <cg>User-generated</c> banners that you can apply for your <cc>Comments Cell</c> for everyone to see using this mod.\n\n"
+                "-----\n"
+                "### About Amethysts\n"
+                "<cp>Amethysts</c> is the custom currency used for the <cp>Comment Banners</c> and can be obtain by completing any <cy>Rated Levels</c>\n\n"
+                "The following <cp>amethysts value</c> are rewarded to the <co>following difficulty</c>\n"
+                "- **<co>Auto</c>**: 50-100 Amethysts\n"
+                "- **<cl>Easy</c>**: 100-200 Amethysts\n"
+                "- **<cg>Normal</c>**: 500-1000 Amethysts\n"
+                "- **<cy>Hard</c>**: 1000-2000 Amethysts\n"
+                "- **<cr>Harder</c>**: 1000-5000 Amethysts\n"
+                "- **<cp>Insane</c>**: 5000-10k Amethysts\n"
+                "- **<cc>Demon</c>**: 10k-15k Amethysts\n"
+                "-----\n"
+                "### Submission Rules\n"
+                "To ensure that the quality of banners are high and there are no <cr>inappropriate banners</c> being uploaded, all banners must be <cc>reviewed and approved by the staff team</c> before being added to the shop.\n\n"
+                "The following rules that every submission must follow:\n\n"
+                "- The banner must not contain any <cr>inappropriate content, including nudity, hate speech, or gore</c>.\n"
+                "- Banners must be at an apporiate quality and must not be <cr>low-quality</c>\n"
+                "- Banners that are <cr>mostly AI-Generated</c> are <cr>not accepted</c>\n"
+                "- Banners must be in a <cg>1500 x 150</c> resolution\n"
+                "- Banners must be in a <cc>PNG/WebP</c> format\n"
+                "- Any form of <cy>self-promotion</c> on your submission are <cr>not accepted</c>\n"
+                "- Strong Profanity like swearing or slurs are <cr>not accepted</c>. Some <cg>soft profanity</c> are accepted.\n"
+                "- Any form of <cc>Plagiarism like stealing other users' banners</cc> will result a <cr>Temporary Ban</c>.\n\n"
+                "#### Any misuse of this mod or repeatedly breaking the rules will result in a <cr>temporary ban</c> on submitting your own banners depending on the <cr>severity.</c>\n\n",
+                "OK")
+                ->show();
+        })) {
+        this->addChildAtPosition(infoButton, Anchor::BottomLeft, {25.f, 25.f}, false);
+    }
+
+    if (auto filterButton = CCMenuItemSpriteExtra::create(
+            EditorButtonSprite::createWithSpriteFrameName("GJ_filterIcon_001.png", 1.0f, EditorBaseColor::Gray),
+            this,
+            menu_selector(CBShopLayer::onFilterClicked))) {
+        auto filterMenu = CCMenu::create();
+        filterMenu->setContentSize({40, 40});
+        filterButton->setAnchorPoint({0.5f, 0.5f});
+        filterMenu->setLayout(ColumnLayout::create());
+
+        filterMenu->addChild(filterButton);
+        filterMenu->updateLayout();
+
+        this->addChildAtPosition(filterMenu, Anchor::TopLeft, {25.f, -65.f}, false);
     }
 
     // Navigation Menu
@@ -362,7 +433,7 @@ bool CBShopLayer::init() {
     yourBannersBtn->setID("your-banners-button");
     navMenu->addChild(yourBannersBtn);
 
-    this->addChildAtPosition(navMenu, Anchor::Top, {0.f, -25.f}, false);
+    this->addChildAtPosition(navMenu, Anchor::Top, {0.f, -35.f}, false);
     navMenu->updateLayout();
 
     this->fetchBanners();
@@ -376,73 +447,75 @@ bool CBShopLayer::init() {
         this->addChild(listBg);
     }
 
-    auto authButton = geode::Button::createWithNode(
-        CircleButtonSprite::createWithSpriteFrameName("CB_amethyst_001.png"_spr, 1.f, CircleBaseColor::DarkPurple, CircleBaseSize::Small),
-        [](geode::Button* button) {
-            Ref<UploadActionPopup> popup = UploadActionPopup::create(nullptr, "Checking permissions...");
-            popup->show();
+    // auto authButton = geode::Button::createWithNode(
+    //     CircleButtonSprite::createWithSpriteFrameName("CB_amethyst_001.png"_spr, 1.f, CircleBaseColor::DarkPurple, CircleBaseSize::Small),
+    //     [](geode::Button* button) {
+    //         Ref<UploadActionPopup> popup = UploadActionPopup::create(nullptr, "Checking permissions...");
+    //         popup->show();
 
-            auto accountData = argon::getGameAccountData();
-            auto accountId = accountData.accountId;
+    //         auto accountData = argon::getGameAccountData();
+    //         auto accountId = accountData.accountId;
 
-            if (accountId <= 0) {
-                popup->showFailMessage("Invalid account ID.");
-                return;
-            }
+    //         if (accountId <= 0) {
+    //             popup->showFailMessage("Invalid account ID.");
+    //             return;
+    //         }
 
-            arc::spawn([accountId, accountData, popup]() -> arc::Future<> {
-                auto authResult = co_await comment::argonToken(accountData);
-                if (authResult.empty()) {
-                    geode::queueInMainThread([popup] {
-                        popup->showFailMessage("Authentication failed.");
-                    });
-                    co_return;
-                }
+    //         arc::spawn([accountId, accountData, popup]() -> arc::Future<> {
+    //             auto authResult = co_await comment::argonToken(accountData);
+    //             if (authResult.empty()) {
+    //                 geode::queueInMainThread([popup] {
+    //                     popup->showFailMessage("Authentication failed.");
+    //                 });
+    //                 co_return;
+    //             }
 
-                auto authToken = std::move(authResult);
-                auto req = geode::utils::web::WebRequest();
-                auto url = fmt::format("{}/userInfo?accountId={}&argonToken={}", comment::baseUrl, accountId, authToken);
+    //             auto authToken = std::move(authResult);
+    //             auto req = geode::utils::web::WebRequest();
+    //             auto url = fmt::format("{}/userInfo?accountId={}&argonToken={}", comment::baseUrl, accountId, authToken);
 
-                auto response = co_await req.get(url);
-                if (!response.ok()) {
-                    geode::queueInMainThread([popup] {
-                        popup->showFailMessage("Failed to fetch user info.");
-                    });
-                    co_return;
-                }
+    //             auto response = co_await req.get(url);
+    //             if (!response.ok()) {
+    //                 geode::queueInMainThread([popup] {
+    //                     popup->showFailMessage("Failed to fetch user info.");
+    //                 });
+    //                 co_return;
+    //             }
 
-                auto jsonRes = response.json();
-                if (jsonRes.isErr()) {
-                    geode::queueInMainThread([popup] {
-                        popup->showFailMessage("Invalid response from server.");
-                    });
-                    co_return;
-                }
+    //             auto jsonRes = response.json();
+    //             if (jsonRes.isErr()) {
+    //                 geode::queueInMainThread([popup] {
+    //                     popup->showFailMessage("Invalid response from server.");
+    //                 });
+    //                 co_return;
+    //             }
 
-                auto json = jsonRes.unwrap();
-                bool isStaff = false;
-                if (auto staffRes = json["is_staff"].asBool(); staffRes.isOk()) {
-                    isStaff = staffRes.unwrap();
-                }
+    //             auto json = jsonRes.unwrap();
+    //             bool isStaff = false;
+    //             if (auto staffRes = json["is_staff"].asBool(); staffRes.isOk()) {
+    //                 isStaff = staffRes.unwrap();
+    //             }
+    //             if (auto adminRes = json["is_admin"].asBool(); adminRes.isOk()) {
+    //                 Mod::get()->setSavedValue("is_admin", adminRes.unwrap());
+    //             }
+    //             geode::queueInMainThread([popup, isStaff] {
+    //                 if (isStaff) {
+    //                     popup->onClose(nullptr);
+    //                     if (auto adminPopup = CBAdminPanelLayer::create()) {
+    //                         adminPopup->show();
+    //                     }
+    //                 } else {
+    //                     popup->showFailMessage("You do not have staff permissions.");
+    //                 }
+    //             });
+    //             co_return;
+    //         });
+    //     });
 
-                geode::queueInMainThread([popup, isStaff] {
-                    if (isStaff) {
-                        popup->onClose(nullptr);
-                        if (auto adminPopup = CBAdminPanelLayer::create()) {
-                            adminPopup->show();
-                        }
-                    } else {
-                        popup->showFailMessage("You do not have staff permissions.");
-                    }
-                });
-                co_return;
-            });
-        });
-
-    if (authButton) {
-        auto winSize = CCDirector::sharedDirector()->getWinSize();
-        this->addChildAtPosition(authButton, Anchor::TopLeft, {25.f, -80}, false);
-    }
+    // if (authButton) {
+    //     auto winSize = CCDirector::sharedDirector()->getWinSize();
+    //     this->addChildAtPosition(authButton, Anchor::TopLeft, {25.f, -80}, false);
+    // }
 
     // amethyst counter
     auto amethystIcon = CCSprite::createWithSpriteFrameName("CB_amethyst_001.png"_spr);
@@ -465,4 +538,26 @@ bool CBShopLayer::init() {
 
 void CBShopLayer::keyBackClicked() {
     CCDirector::sharedDirector()->popSceneWithTransition(0.5f, PopTransition::kPopTransitionFade);
+}
+
+void CBShopLayer::onFilterClicked(CCObject* sender) {
+    auto btn = static_cast<CCMenuItemSpriteExtra*>(sender);
+
+    m_filterState = (m_filterState + 1) % 3;
+
+    EditorBaseColor baseColor = EditorBaseColor::Gray;
+    if (m_filterState == 1) {
+        baseColor = EditorBaseColor::Green;
+        Notification::create("Showing Owned Banners", NotificationIcon::Info)->show();
+    } else if (m_filterState == 2) {
+        baseColor = EditorBaseColor::Orange;
+        Notification::create("Showing Unowned Banners", NotificationIcon::Info)->show();
+    } else {
+        Notification::create("Showing All Banners", NotificationIcon::Info)->show();
+    }
+
+    auto newSpr = EditorButtonSprite::createWithSpriteFrameName("GJ_filterIcon_001.png", 1.0f, baseColor);
+    btn->setNormalImage(newSpr);
+
+    this->populateList();
 }

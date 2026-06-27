@@ -2,6 +2,7 @@
 #include <Geode/Geode.hpp>
 #include <cue/LoadingCircle.hpp>
 #include <cue/ListNode.hpp>
+#include "CBBannerCell.hpp"
 
 using namespace geode::prelude;
 
@@ -11,6 +12,8 @@ public:
     static CBShopLayer* getInstance();
     void updateAmethystLabel(int amethyst);
     void refreshBanners();
+    void populateList();
+    void onFilterClicked(CCObject* sender);
     void setEquippedBannerId(int bannerId);
 
 private:
@@ -29,4 +32,7 @@ private:
     int m_equippedBannerId = -1;
     cue::LoadingCircle* m_loadingCircle = nullptr;
     bool m_isStaff = false;
+    bool m_isAdmin = false;
+    int m_filterState = 0; // 0 = All, 1 = Owned, 2 = Unowned
+    std::vector<CBBannerItem> m_banners;
 };

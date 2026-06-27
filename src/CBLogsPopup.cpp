@@ -1,6 +1,7 @@
 #include "CBLogsPopup.hpp"
 #include <Geode/utils/web.hpp>
 #include <argon/argon.hpp>
+#include "Geode/ui/Notification.hpp"
 #include "include/CBConstant.hpp"
 
 using namespace geode::prelude;
@@ -49,7 +50,7 @@ void CBLogsPopup::fetchLogs() {
 
     if (accountId <= 0) {
         m_loadingCircle->fadeOut();
-        FLAlertLayer::create("Error", "Invalid account ID.", "OK")->show();
+        Notification::create("Invalid account ID", NotificationIcon::Error)->show();
         return;
     }
 
@@ -59,7 +60,7 @@ void CBLogsPopup::fetchLogs() {
         if (authResult.empty()) {
             geode::queueInMainThread([retainedSelf] {
                 retainedSelf->m_loadingCircle->fadeOut();
-                FLAlertLayer::create("Error", "Authentication failed.", "OK")->show();
+                Notification::create("Authentication failed.", NotificationIcon::Error)->show();
             });
             co_return;
         }
@@ -72,7 +73,7 @@ void CBLogsPopup::fetchLogs() {
         if (!response.ok()) {
             geode::queueInMainThread([retainedSelf] {
                 retainedSelf->m_loadingCircle->fadeOut();
-                FLAlertLayer::create("Error", "Failed to fetch logs.", "OK")->show();
+                Notification::create("Failed to fetch logs.", NotificationIcon::Error)->show();
             });
             co_return;
         }
@@ -81,7 +82,7 @@ void CBLogsPopup::fetchLogs() {
         if (jsonRes.isErr()) {
             geode::queueInMainThread([retainedSelf] {
                 retainedSelf->m_loadingCircle->fadeOut();
-                FLAlertLayer::create("Error", "Invalid JSON from server.", "OK")->show();
+                Notification::create("Invalid JSON from server.", NotificationIcon::Error)->show();
             });
             co_return;
         }

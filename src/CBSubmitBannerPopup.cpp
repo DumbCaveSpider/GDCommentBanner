@@ -1,4 +1,5 @@
 #include "CBSubmitBannerPopup.hpp"
+#include "CBShopLayer.hpp"
 #include <Geode/utils/web.hpp>
 #include <Geode/binding/UploadActionPopup.hpp>
 #include <argon/argon.hpp>
@@ -63,7 +64,22 @@ bool CBSubmitBannerPopup::init() {
     row1->addChild(m_amountInput);
     row1->updateLayout();
 
-    m_buttonMenu->addChildAtPosition(row1, Anchor::Center, {0.f, -60.f}, {0.5, 0.5});
+    m_buttonMenu->addChildAtPosition(row1, Anchor::Center, {0.f, -50.f}, {0.5, 0.5});
+
+    auto costRow = CCMenu::create();
+    costRow->setContentSize({300.f, 20.f});
+    costRow->setLayout(RowLayout::create()->setGap(5.f)->setAutoScale(false));
+
+    auto amethystSpr = CCSprite::createWithSpriteFrameName("CB_amethyst_001.png"_spr);
+    amethystSpr->setScale(0.6f);
+    costRow->addChild(amethystSpr);
+
+    auto costLabel = CCLabelBMFont::create("Submission Cost: 15,000 amethysts", "bigFont.fnt");
+    costLabel->setScale(0.35f);
+    costRow->addChild(costLabel);
+
+    costRow->updateLayout();
+    m_mainLayer->addChildAtPosition(costRow, Anchor::Center, {0.f, -80.f}, {0.5, 0.5});
 
     auto limitedMenu = CCMenu::create();
     limitedMenu->setAnchorPoint({0.f, 0.f});
@@ -155,40 +171,50 @@ void CBSubmitBannerPopup::onPickFile(CCObject*) {
 }
 
 void CBSubmitBannerPopup::onSubmit(CCObject*) {
-    Ref<UploadActionPopup> popup = UploadActionPopup::create(nullptr, "Submitting banner...");
-    popup->show();
+    int currentAmethysts = Mod::get()->getSavedValue<int>("amethyst", 0);
+    if (currentAmethysts < 15000) {
+        int needed = 15000 - currentAmethysts;
+        geode::Notification::create(fmt::format("Not enough amethysts! You need {} more.", needed), geode::NotificationIcon::Error)->show();
+        return;
+    }
 
     if (m_selectedFilePath.empty()) {
-        popup->showFailMessage("Please select an image file.");
+        geode::Notification::create("Please select an image file.", geode::NotificationIcon::Error)->show();
         return;
     }
     if (m_nameInput->getString().empty() || m_descInput->getString().empty() || m_priceInput->getString().empty()) {
-        popup->showFailMessage("Please fill out all required fields.");
+        geode::Notification::create("Please fill out all required fields.", geode::NotificationIcon::Error)->show();
         return;
     }
     bool isLimited = m_limitedToggler->isToggled();
     if (isLimited && m_amountInput->getString().empty()) {
-        popup->showFailMessage("Please specify an amount for the limited banner.");
+        geode::Notification::create("Please specify an amount for the limited banner.", geode::NotificationIcon::Error)->show();
         return;
     }
 
-    auto name = m_nameInput->getString();
-    auto desc = m_descInput->getString();
-    auto price = m_priceInput->getString();
-    auto amount = m_amountInput->getString();
-    auto filePath = m_selectedFilePath;
+    geode::createQuickPopup("Submit Banner", "Are you sure you want to submit this banner? You <cr>cannot change it</c> after it's uploaded.", "Cancel", "Submit", [this, isLimited](FLAlertLayer*, bool btn2) {
+        if (!btn2) return;
 
-    auto accountData = argon::getGameAccountData();
-    auto accountId = accountData.accountId;
+        Ref<UploadActionPopup> popup = UploadActionPopup::create(nullptr, "Submitting banner...");
+        popup->show();
 
-    if (accountId <= 0) {
-        popup->showFailMessage("Invalid account ID.");
-        return;
-    }
+        auto name = m_nameInput->getString();
+        auto desc = m_descInput->getString();
+        auto price = m_priceInput->getString();
+        auto amount = m_amountInput->getString();
+        auto filePath = m_selectedFilePath;
 
-    Ref<CBSubmitBannerPopup> retainedSelf = this;
-    arc::spawn([retainedSelf, accountId, accountData, name, desc, price, amount, isLimited, filePath, popup]() -> arc::Future<> {
-        auto authResult = co_await comment::argonToken(accountData);
+        auto accountData = argon::getGameAccountData();
+        auto accountId = accountData.accountId;
+
+        if (accountId <= 0) {
+            popup->showFailMessage("Invalid account ID.");
+            return;
+        }
+
+        Ref<CBSubmitBannerPopup> retainedSelf = this;
+        arc::spawn([retainedSelf, accountId, accountData, name, desc, price, amount, isLimited, filePath, popup]() -> arc::Future<> {
+            auto authResult = co_await comment::argonToken(accountData);
         if (authResult.empty()) {
             geode::queueInMainThread([popup] {
                 popup->showFailMessage("Authentication failed.");
@@ -229,10 +255,17 @@ void CBSubmitBannerPopup::onSubmit(CCObject*) {
         }
 
         geode::queueInMainThread([popup, retainedSelf] {
+            int current = Mod::get()->getSavedValue<int>("amethyst", 0);
+            int newAmethyst = std::max(0, current - 15000);
+            Mod::get()->setSavedValue("amethyst", newAmethyst);
+            if (auto shopLayer = CBShopLayer::getInstance()) {
+                shopLayer->updateAmethystLabel(newAmethyst);
+            }
             popup->showSuccessMessage("Banner submitted successfully! Waiting for staff approval.");
             retainedSelf->onClose(nullptr);
         });
 
         co_return;
+    });
     });
 }

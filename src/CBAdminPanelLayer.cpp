@@ -2,6 +2,7 @@
 #include <Geode/utils/web.hpp>
 #include <argon/argon.hpp>
 #include "Geode/ui/BasedButtonSprite.hpp"
+#include "Geode/ui/General.hpp"
 #include "Geode/ui/Layout.hpp"
 #include "include/CBConstant.hpp"
 #include <Geode/ui/Button.hpp>
@@ -24,7 +25,8 @@ CBAdminPanelLayer* CBAdminPanelLayer::create() {
 bool CBAdminPanelLayer::init() {
     if (!Popup::init(420.f, 280.f, "GJ_square02.png")) return false;
 
-    this->setTitle("Admin Panel");
+    this->setTitle("Comment Banners Admin Panel");
+    addSideArt(m_mainLayer, SideArt::Top, SideArtStyle::PopupBlue);
 
     m_list = cue::ListNode::create({380.f, 190.f}, {0, 0, 0, 0}, cue::ListBorderStyle::CommentsBlue);
     if (m_list) {
@@ -92,7 +94,7 @@ void CBAdminPanelLayer::fetchPendingBanners() {
         if (authResult.empty()) {
             geode::queueInMainThread([retainedSelf] {
                 retainedSelf->m_loadingCircle->fadeOut();
-                FLAlertLayer::create("Error", "Authentication failed.", "OK")->show();
+                Notification::create("Authentication failed.", NotificationIcon::Error)->show();
             });
             co_return;
         }
@@ -105,7 +107,7 @@ void CBAdminPanelLayer::fetchPendingBanners() {
         if (!response.ok()) {
             geode::queueInMainThread([retainedSelf] {
                 retainedSelf->m_loadingCircle->fadeOut();
-                FLAlertLayer::create("Error", "Failed to fetch pending banners.", "OK")->show();
+                Notification::create("Failed to fetch pending banners.", NotificationIcon::Error)->show();
             });
             co_return;
         }
@@ -215,7 +217,7 @@ void CBAdminPanelLayer::fetchPendingBanners() {
 
                 // Price
                 if (auto priceLabel = CCLabelBMFont::create(fmt::format("{}", price).c_str(), "bigFont.fnt")) {
-                    priceLabel->setAnchorPoint({1.f, 0.5f});
+                    priceLabel->setAnchorPoint({0.f, 0.5f});
                     priceLabel->setScale(0.5f);
                     priceLabel->setPosition({0.f, 0.f});
 
@@ -225,6 +227,7 @@ void CBAdminPanelLayer::fetchPendingBanners() {
 
                     if (auto amethystIcon = CCSprite::createWithSpriteFrameName("CB_amethyst_002.png"_spr)) {
                         amethystIcon->setScale(0.5f);
+                        amethystIcon->setAnchorPoint({0.f, 0.5f});
                         auto priceWidth = priceLabel->getContentSize().width * priceLabel->getScale();
                         amethystIcon->setPosition({priceWidth + 4.f, 0.f});
                         priceNode->addChild(amethystIcon);
@@ -349,7 +352,7 @@ void CBAdminPanelLayer::fetchUsers() {
         if (authResult.empty()) {
             geode::queueInMainThread([retainedSelf] {
                 retainedSelf->m_loadingCircle->fadeOut();
-                FLAlertLayer::create("Error", "Authentication failed.", "OK")->show();
+                Notification::create("Authentication failed.", NotificationIcon::Error)->show();
             });
             co_return;
         }
@@ -362,7 +365,7 @@ void CBAdminPanelLayer::fetchUsers() {
         if (!response.ok()) {
             geode::queueInMainThread([retainedSelf] {
                 retainedSelf->m_loadingCircle->fadeOut();
-                FLAlertLayer::create("Error", "Failed to fetch users.", "OK")->show();
+                Notification::create("Failed to fetch users.", NotificationIcon::Error)->show();
             });
             co_return;
         }
@@ -431,14 +434,19 @@ void CBAdminPanelLayer::fetchUsers() {
                 menu->addChild(btn);
                 float currentX = 10.f + labelWidth + 5.f;
 
-                if (isAdmin || isStaff) {
-                    auto rankLabel = CCLabelBMFont::create(isAdmin ? "Admin" : "Staff", "chatFont.fnt");
-                    rankLabel->setScale(0.4f);
-                    rankLabel->setAnchorPoint({0, 0.5f});
-                    rankLabel->setPosition({10.f, 12.f});
-                    rankLabel->setColor(isAdmin ? ccColor3B{255, 100, 100} : ccColor3B{100, 255, 100});
-                    cell->addChild(rankLabel);
+                std::string rankStr = isAdmin ? "Admin" : (isStaff ? "Staff" : "User");
+                auto rankLabel = CCLabelBMFont::create(rankStr.c_str(), "chatFont.fnt");
+                rankLabel->setScale(0.4f);
+                rankLabel->setAnchorPoint({0, 0.5f});
+                rankLabel->setPosition({10.f, 12.f});
+                if (isAdmin) {
+                    rankLabel->setColor(ccColor3B{255, 100, 100});
+                } else if (isStaff) {
+                    rankLabel->setColor(ccColor3B{100, 255, 100});
+                } else {
+                    rankLabel->setColor(ccColor3B{200, 200, 200});
                 }
+                cell->addChild(rankLabel);
 
                 if (auto amyIcon = CCSprite::createWithSpriteFrameName("CB_amethyst_002.png"_spr)) {
                     amyIcon->setScale(0.4f);
