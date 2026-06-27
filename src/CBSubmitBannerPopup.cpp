@@ -67,7 +67,7 @@ bool CBSubmitBannerPopup::init() {
     auto limitedMenu = CCMenu::create();
     limitedMenu->setAnchorPoint({0.f, 0.f});
     limitedMenu->setContentSize({60.f, 40.f});
-    limitedMenu->setLayout(RowLayout::create()->setGap(5.f)->setAutoScale(false));
+    limitedMenu->setLayout(RowLayout::create()->setGap(0.f)->setAutoScale(false));
 
     m_limitedToggler = CCMenuItemToggler::createWithStandardSprites(
         this, menu_selector(CBSubmitBannerPopup::onToggleLimited), 0.7f);
@@ -78,7 +78,7 @@ bool CBSubmitBannerPopup::init() {
     limitedMenu->addChild(limitedLabel);
     limitedMenu->updateLayout();
 
-    m_mainLayer->addChildAtPosition(limitedMenu, Anchor::BottomLeft, {10.f, 10.f});
+    m_mainLayer->addChildAtPosition(limitedMenu, Anchor::BottomLeft, {5.f, 10.f});
 
     // Submit Button
     auto submitBtn = CCMenuItemSpriteExtra::create(

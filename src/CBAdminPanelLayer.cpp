@@ -1,10 +1,13 @@
 #include "CBAdminPanelLayer.hpp"
 #include <Geode/utils/web.hpp>
 #include <argon/argon.hpp>
+#include "Geode/ui/BasedButtonSprite.hpp"
 #include "Geode/ui/Layout.hpp"
 #include "include/CBConstant.hpp"
 #include <Geode/ui/Button.hpp>
 #include <Geode/ui/LazySprite.hpp>
+#include <Geode/binding/UploadActionPopup.hpp>
+#include "CBManageUserPopup.hpp"
 
 using namespace geode::prelude;
 
@@ -76,6 +79,10 @@ void CBAdminPanelLayer::fetchPendingBanners() {
     m_list->addChildAtPosition(m_loadingCircle, Anchor::Center, CCPointZero, false);
     m_loadingCircle->fadeIn();
 
+    if (auto empty = m_list->getChildByID("empty-label")) {
+        empty->removeFromParent();
+    }
+
     auto accountData = argon::getGameAccountData();
     auto accountId = accountData.accountId;
 
@@ -129,7 +136,7 @@ void CBAdminPanelLayer::fetchPendingBanners() {
             }
 
             if (json.size() == 0) {
-                auto emptyLabel = CCLabelBMFont::create("No pending banners.", "chatFont.fnt");
+                auto emptyLabel = CCLabelBMFont::create("No pending banners.", "goldFont.fnt");
                 emptyLabel->setScale(0.8f);
                 emptyLabel->setID("empty-label");
                 retainedSelf->m_list->addChildAtPosition(emptyLabel, Anchor::Center);
@@ -141,7 +148,7 @@ void CBAdminPanelLayer::fetchPendingBanners() {
                 auto cell = CCLayer::create();
                 cell->setContentSize({380.f, 90.f});
 
-                auto bg = CCScale9Sprite::create("square02_001.png");
+                auto bg = NineSlice::create("square02_001.png");
                 bg->setContentSize(cell->getContentSize());
                 bg->setAnchorPoint({0, 0});
                 bg->setOpacity(50);
@@ -153,12 +160,13 @@ void CBAdminPanelLayer::fetchPendingBanners() {
                 std::string desc = item["description"].asString().unwrapOr("");
                 int price = item["price"].asInt().unwrapOr(0);
                 bool isLimited = item["isLimited"].asBool().unwrapOr(false);
+                int amount = item["amount"].asInt().unwrapOr(0);
                 std::string imageUrl = item["imageUrl"].asString().unwrapOr("");
                 if (!imageUrl.empty()) {
                     imageUrl = fmt::format("{}{}", comment::baseUrl, imageUrl);
                 }
 
-                auto sprite = LazySprite::create({304.f, 84.f}, true);
+                auto sprite = LazySprite::create({344.f, 84.f}, true);
                 sprite->setAutoResize(true);
                 sprite->setPosition({380.f / 2.f, 60.f});
                 if (!imageUrl.empty()) {
@@ -175,8 +183,15 @@ void CBAdminPanelLayer::fetchPendingBanners() {
                 float currentX = label->getPositionX() + (label->getContentSize().width * label->getScale()) + 5.f;
 
                 if (isLimited) {
+                    auto amountLabel = CCLabelBMFont::create(fmt::format("{}", amount).c_str(), "bigFont.fnt");
+                    amountLabel->limitLabelWidth(50.f, 0.4f, 0.2f);
+                    amountLabel->setAnchorPoint({0, 0.5f});
+                    amountLabel->setPosition({currentX, 25.f});
+                    cell->addChild(amountLabel);
+                    currentX += (amountLabel->getContentSize().width * amountLabel->getScale()) + 2.f;
+
                     auto limitedIcon = CCSprite::createWithSpriteFrameName("GJ_sRecentIcon_001.png");
-                    limitedIcon->setScale(0.6f);
+                    limitedIcon->setScale(0.7f);
                     limitedIcon->setAnchorPoint({0, 0.5f});
                     limitedIcon->setPosition({currentX, 25.f});
                     cell->addChild(limitedIcon);
@@ -197,9 +212,10 @@ void CBAdminPanelLayer::fetchPendingBanners() {
                     cell->addChild(amethystIcon);
                 }
 
-                auto descLabel = SimpleTextArea::create(desc.c_str(), "chatFont.fnt", 0.4f);
+                auto descLabel = SimpleTextArea::create(desc.c_str(), "chatFont.fnt", 0.4f, 250.f);
                 descLabel->setAnchorPoint({0, 0.5f});
                 descLabel->setPosition({10.f, 10.f});
+                descLabel->setMaxLines(2);
                 cell->addChild(descLabel);
 
                 auto menu = CCMenu::create();
@@ -207,32 +223,56 @@ void CBAdminPanelLayer::fetchPendingBanners() {
                 menu->setPosition({320.f, 20.f});
                 menu->setLayout(RowLayout::create()
                         ->setAxisAlignment(AxisAlignment::Center)
-                        ->setGap(10.f));
+                        ->setGap(5.f));
 
+                auto approveSpr = CircleButtonSprite::createWithSpriteFrameName("GJ_completesIcon_001.png", 0.7f, CircleBaseColor::Green, CircleBaseSize::Small);
+                approveSpr->setScale(0.8f);
                 auto approveBtn = geode::Button::createWithNode(
-                    CCSprite::createWithSpriteFrameName("GJ_completesIcon_001.png"),
+                    approveSpr,
                     [retainedSelf, id, accountId, authToken](geode::Button*) {
-                        arc::spawn([retainedSelf, id, accountId, authToken]() -> arc::Future<> {
+                        Ref<UploadActionPopup> popup = UploadActionPopup::create(nullptr, "Approving banner...");
+                        popup->show();
+                        arc::spawn([retainedSelf, id, accountId, authToken, popup]() -> arc::Future<> {
                             auto req = geode::utils::web::WebRequest();
                             req.header("Content-Type", "application/x-www-form-urlencoded");
                             std::string body = fmt::format("accountId={}&argonToken={}&id={}", accountId, authToken, id);
                             auto res = co_await req.bodyString(body).post(fmt::format("{}/approveBanner", comment::baseUrl));
-                            geode::queueInMainThread([retainedSelf] { retainedSelf->fetchPendingBanners(); });
+                            bool ok = res.ok();
+                            geode::queueInMainThread([retainedSelf, popup, ok] {
+                                if (ok) {
+                                    popup->showSuccessMessage("Banner approved!");
+                                    retainedSelf->fetchPendingBanners();
+                                } else {
+                                    popup->showFailMessage("Failed to approve banner.");
+                                }
+                            });
                             co_return;
                         });
                     });
                 approveBtn->setPosition({-35.f, 0.f});
                 menu->addChild(approveBtn);
 
+                auto rejectSpr = CircleButtonSprite::createWithSpriteFrameName("GJ_deleteIcon_001.png", 0.7f, CircleBaseColor::Red, CircleBaseSize::Small);
+                rejectSpr->setScale(0.8f);
                 auto rejectBtn = geode::Button::createWithNode(
-                    CCSprite::createWithSpriteFrameName("GJ_deleteIcon_001.png"),
+                    rejectSpr,
                     [retainedSelf, id, accountId, authToken](geode::Button*) {
-                        arc::spawn([retainedSelf, id, accountId, authToken]() -> arc::Future<> {
+                        Ref<UploadActionPopup> popup = UploadActionPopup::create(nullptr, "Rejecting banner...");
+                        popup->show();
+                        arc::spawn([retainedSelf, id, accountId, authToken, popup]() -> arc::Future<> {
                             auto req = geode::utils::web::WebRequest();
                             req.header("Content-Type", "application/x-www-form-urlencoded");
                             std::string body = fmt::format("accountId={}&argonToken={}&id={}", accountId, authToken, id);
                             auto res = co_await req.bodyString(body).post(fmt::format("{}/rejectBanner", comment::baseUrl));
-                            geode::queueInMainThread([retainedSelf] { retainedSelf->fetchPendingBanners(); });
+                            bool ok = res.ok();
+                            geode::queueInMainThread([retainedSelf, popup, ok] {
+                                if (ok) {
+                                    popup->showSuccessMessage("Banner rejected!");
+                                    retainedSelf->fetchPendingBanners();
+                                } else {
+                                    popup->showFailMessage("Failed to reject banner.");
+                                }
+                            });
                             co_return;
                         });
                     });
@@ -240,6 +280,7 @@ void CBAdminPanelLayer::fetchPendingBanners() {
                 menu->addChild(rejectBtn);
 
                 cell->addChild(menu);
+                menu->updateLayout();
 
                 retainedSelf->m_list->setCellColor(ccColor4B{0, 0, 0, 0});
                 retainedSelf->m_list->addCell(cell);
@@ -254,8 +295,13 @@ void CBAdminPanelLayer::fetchPendingBanners() {
 void CBAdminPanelLayer::fetchUsers() {
     if (m_loadingCircle) m_loadingCircle->removeFromParent();
     m_loadingCircle = cue::LoadingCircle::create(true);
-    m_list->addChild(m_loadingCircle);
+
+    m_list->addChildAtPosition(m_loadingCircle, Anchor::Center, CCPointZero, false);
     m_loadingCircle->fadeIn();
+
+    if (auto empty = m_list->getChildByID("empty-label")) {
+        empty->removeFromParent();
+    }
 
     auto accountData = argon::getGameAccountData();
     auto accountId = accountData.accountId;
@@ -306,20 +352,87 @@ void CBAdminPanelLayer::fetchUsers() {
                 auto cell = CCLayer::create();
                 cell->setContentSize({380.f, 40.f});
 
-                auto bg = CCScale9Sprite::create("square02_001.png");
-                bg->setContentSize(cell->getContentSize());
-                bg->setAnchorPoint({0, 0});
-                bg->setOpacity(50);
-                cell->addChild(bg);
+                std::string equippedBannerUrl = item["equippedBannerUrl"].asString().unwrapOr("");
+                if (!equippedBannerUrl.empty()) {
+                    equippedBannerUrl = fmt::format("{}", equippedBannerUrl);
+                }
+
+                if (!equippedBannerUrl.empty()) {
+                    auto sprite = LazySprite::create({380.f, 40.f}, true);
+                    sprite->setAutoResize(true);
+                    sprite->setPosition({190.f, 20.f});
+                    sprite->loadFromUrl(equippedBannerUrl, LazySprite::Format::kFmtWebp, false);
+                    cell->addChild(sprite);
+
+                    auto bg = NineSlice::create("square02_001.png");
+                    bg->setContentSize(cell->getContentSize());
+                    bg->setAnchorPoint({0, 0});
+                    bg->setOpacity(150);
+                    cell->addChild(bg);
+                } else {
+                    auto bg = NineSlice::create("square02_001.png");
+                    bg->setContentSize(cell->getContentSize());
+                    bg->setAnchorPoint({0, 0});
+                    bg->setOpacity(50);
+                    cell->addChild(bg);
+                }
 
                 std::string user = item["username"].asString().unwrapOr("Unknown");
                 int targetId = item["accountId"].asInt().unwrapOr(0);
+                bool isAdmin = item["is_admin"].asBool().unwrapOr(false);
+                bool isStaff = item["is_staff"].asBool().unwrapOr(false);
+                int amethyst = item["amethyst"].asInt().unwrapOr(0);
 
-                auto label = CCLabelBMFont::create(fmt::format("{} (ID: {})", user, targetId).c_str(), "chatFont.fnt");
+                auto label = CCLabelBMFont::create(fmt::format("{}", user, targetId).c_str(), "goldFont.fnt");
                 label->setScale(0.6f);
-                label->setAnchorPoint({0, 0.5f});
-                label->setPosition({10.f, 20.f});
-                cell->addChild(label);
+                float labelWidth = label->getContentSize().width * label->getScale();
+
+                auto btn = geode::Button::createWithNode(
+                    label,
+                    [targetId](geode::Button*) {
+                        ProfilePage::create(targetId, false)->show();
+                    });
+                btn->setAnchorPoint({0, 0.5f});
+                btn->setPosition({10.f, 26.f});
+
+                auto menu = CCMenu::create();
+                menu->setPosition({0, 0});
+                menu->addChild(btn);
+                float currentX = 10.f + labelWidth + 5.f;
+
+                if (isAdmin || isStaff) {
+                    auto rankLabel = CCLabelBMFont::create(isAdmin ? "Admin" : "Staff", "chatFont.fnt");
+                    rankLabel->setScale(0.4f);
+                    rankLabel->setAnchorPoint({0, 0.5f});
+                    rankLabel->setPosition({10.f, 12.f});
+                    rankLabel->setColor(isAdmin ? ccColor3B{255, 100, 100} : ccColor3B{100, 255, 100});
+                    cell->addChild(rankLabel);
+                }
+
+                if (auto amyIcon = CCSprite::createWithSpriteFrameName("CB_amethyst_002.png"_spr)) {
+                    amyIcon->setScale(0.4f);
+                    amyIcon->setAnchorPoint({0, 0.5f});
+                    amyIcon->setPosition({currentX, 20.f});
+                    cell->addChild(amyIcon);
+                    currentX += (amyIcon->getContentSize().width * amyIcon->getScale()) + 2.f;
+                }
+
+                auto amyLabel = CCLabelBMFont::create(fmt::format("{}", amethyst).c_str(), "bigFont.fnt");
+                amyLabel->setScale(0.4f);
+                amyLabel->setAnchorPoint({0, 0.5f});
+                amyLabel->setPosition({currentX, 20.f});
+                cell->addChild(amyLabel);
+
+                auto manageBtn = geode::Button::createWithNode(
+                    ButtonSprite::create("Manage", "goldFont.fnt", "GJ_button_01.png", 0.5f),
+                    [item](geode::Button*) {
+                        CBManageUserPopup::create(item)->show();
+                    });
+                manageBtn->setAnchorPoint({1.f, 0.5f});
+                manageBtn->setPosition({370.f, 20.f});
+                menu->addChild(manageBtn);
+
+                cell->addChild(menu);
 
                 retainedSelf->m_list->setCellColor(ccColor4B{0, 0, 0, 0});
                 retainedSelf->m_list->addCell(cell);

@@ -12,19 +12,20 @@ public:
 
 private:
     bool init();
-    
+
     void fetchPendingBanners();
     void fetchUsers();
-    
+
     void onTabPending(CCObject*);
     void onTabUsers(CCObject*);
 
     cue::ListNode* m_list = nullptr;
     cue::LoadingCircle* m_loadingCircle = nullptr;
-    
+
     CCMenuItemToggler* m_tabPending = nullptr;
     CCMenuItemToggler* m_tabUsers = nullptr;
 
-    enum class Tab { Pending, Users };
+    enum class Tab { Pending,
+        Users };
     Tab m_currentTab = Tab::Pending;
 };

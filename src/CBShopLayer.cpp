@@ -10,6 +10,7 @@
 #include "CBSubmitBannerPopup.hpp"
 #include "CBLogsPopup.hpp"
 #include "CBAdminPanelLayer.hpp"
+#include "CBYourBannersPopup.hpp"
 #include "Geode/utils/web.hpp"
 #include "ccTypes.h"
 #include "include/CBConstant.hpp"
@@ -342,6 +343,16 @@ bool CBShopLayer::init() {
     logsBtn->setID("logs-button");
     navMenu->addChild(logsBtn);
 
+    auto yourBannersBtn = geode::Button::createWithNode(
+        ButtonSprite::create("Your Banners", "goldFont.fnt", "GJ_button_01.png", .8f),
+        [](geode::Button* sender) {
+            if (auto popup = CBYourBannersPopup::create()) {
+                popup->show();
+            }
+        });
+    yourBannersBtn->setID("your-banners-button");
+    navMenu->addChild(yourBannersBtn);
+
     this->addChildAtPosition(navMenu, Anchor::Top, {0.f, -25.f}, false);
     navMenu->updateLayout();
 
@@ -382,7 +393,7 @@ bool CBShopLayer::init() {
                 auto authToken = std::move(authResult);
                 auto req = geode::utils::web::WebRequest();
                 auto url = fmt::format("{}/userInfo?accountId={}&argonToken={}", comment::baseUrl, accountId, authToken);
-                
+
                 auto response = co_await req.get(url);
                 if (!response.ok()) {
                     geode::queueInMainThread([popup] {

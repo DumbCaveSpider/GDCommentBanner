@@ -1,7 +1,6 @@
 #include "CBLogsPopup.hpp"
 #include <Geode/utils/web.hpp>
 #include <argon/argon.hpp>
-#include "Geode/cocos/cocoa/CCGeometry.h"
 #include "include/CBConstant.hpp"
 
 using namespace geode::prelude;
@@ -111,11 +110,12 @@ void CBLogsPopup::fetchLogs() {
                 auto message = item["message"].asString().unwrapOr("Unknown message");
                 auto createdAt = item["createdAt"].asString().unwrapOr("");
                 auto actionType = item["actionType"].asString().unwrapOr("");
+                int id = item["id"].asInt().unwrapOr(0);
 
                 auto cell = CCLayer::create();
-                cell->setContentSize({340.f, 40.f});
+                cell->setContentSize({340.f, 60.f});
 
-                auto bg = CCScale9Sprite::create("square02_001.png");
+                auto bg = NineSlice::create("square02_001.png");
                 bg->setContentSize(cell->getContentSize());
                 bg->setAnchorPoint({0, 0});
                 bg->setPosition({0, 0});
@@ -127,13 +127,20 @@ void CBLogsPopup::fetchLogs() {
                 }
                 cell->addChild(bg);
 
+                auto infoLabel = CCLabelBMFont::create(fmt::format("#{} - {}", id, createdAt).c_str(), "chatFont.fnt");
+                infoLabel->setScale(0.4f);
+                infoLabel->setColor({150, 150, 150});
+                infoLabel->setAnchorPoint({0.f, 1.f});
+                infoLabel->setPosition({10.f, 55.f});
+                cell->addChild(infoLabel);
+
                 auto msgLabel = SimpleTextArea::create(message.c_str(), "chatFont.fnt");
                 msgLabel->setWidth(330.f);
-                msgLabel->setMaxLines(2);
+                msgLabel->setMaxLines(4);
                 msgLabel->setScale(0.6f);
                 msgLabel->setAlignment(kCCTextAlignmentLeft);
-                msgLabel->setAnchorPoint({0.f, 0.5f});
-                msgLabel->setPosition({10.f, 20.f});
+                msgLabel->setAnchorPoint({0.f, 1.f});
+                msgLabel->setPosition({10.f, 43.f});
                 cell->addChild(msgLabel);
 
                 retainedSelf->m_list->setCellColor(ccColor4B{0, 0, 0, 0});
