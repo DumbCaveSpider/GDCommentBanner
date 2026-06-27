@@ -56,7 +56,7 @@ static void saveCache() {
     auto path = Mod::get()->getSaveDir() / "banner_cache.json";
     matjson::Value obj = matjson::makeObject({});
     for (auto const& [accountId, banner] : s_bannerCache) {
-        auto timeMs = banner.timestamp.timeSinceEpoch().millis<uint64_t>();
+        auto timeMs = banner.timestamp.timeSinceEpoch().millis();
         obj.set(numToString(accountId), matjson::makeObject({{"equipped", banner.equipped}, {"imageUrl", banner.imageUrl}, {"timestamp", timeMs}}));
     }
     std::ofstream file(path);
