@@ -51,14 +51,14 @@ CBBannerCell* CBBannerCell::create(const CBBannerItem& banner, float width) {
             nameLabel->setAnchorPoint({0.f, 0.5f});
             float nameX = 10.f;
             if (banner.isLimited) {
-                if (auto starIcon = CCSprite::createWithSpriteFrameName("star_small01_001.png")) {
+                if (auto starIcon = CCSprite::createWithSpriteFrameName("GJ_sRecentIcon_001.png")) {
                     starIcon->setScale(0.8f);
-                    starIcon->setPosition({nameX, 15.f});
+                    starIcon->setPosition({nameX, 13.f});
                     starIcon->setAnchorPoint({0.f, 0.5f});
                     cellBg->addChild(starIcon);
                     nameLabel->runAction(CCRepeatForever::create(CCSequence::create(
-                        CCTintTo::create(0.5f, 255, 255, 0),
-                        CCTintTo::create(0.5f, 255, 255, 255),
+                        CCTintTo::create(1.f, 255, 150, 255),
+                        CCTintTo::create(1.f, 255, 255, 255),
                         nullptr)));
                     nameX += starIcon->getContentSize().width * starIcon->getScale() + 4.f;
                 }
@@ -87,18 +87,20 @@ CBBannerCell* CBBannerCell::create(const CBBannerItem& banner, float width) {
     if (auto price = CCLabelBMFont::create(fmt::format("{}", banner.price).c_str(), "bigFont.fnt")) {
         price->setAnchorPoint({0.f, 0.5f});
         price->setScale(0.5f);
-        price->setPosition({10.f, 0.f});
+        price->setPosition({-8.f, 0.f});
 
         auto priceNode = CCNode::create();
         priceNode->setPosition({20.f, 35.f});
 
+        priceNode->addChild(price);
+
         if (auto amethystIcon = CCSprite::createWithSpriteFrameName("CB_amethyst_002.png"_spr)) {
-            amethystIcon->setPosition({0.f, 0.f});
             amethystIcon->setScale(0.5f);
+            auto priceWidth = price->getContentSize().width * price->getScale();
+            amethystIcon->setPosition({priceWidth + 4.f, 0.f});
             priceNode->addChild(amethystIcon);
         }
 
-        priceNode->addChild(price);
         cellBg->addChild(priceNode);
 
         auto detailNode = CCNode::create();
@@ -169,15 +171,16 @@ CBBannerCell* CBBannerCell::create(const CBBannerItem& banner, float width) {
 }
 
 void CBBannerCell::showPurchaseConfirm() {
+    Ref<CBBannerCell> retainedSelf = this;
     geode::createQuickPopup(
         "Confirm Purchase",
         fmt::format("Buy banner #{} for {} amethyst?", m_banner.id, m_banner.price),
         "Cancel",
         "Buy",
         300.f,
-        [this](FLAlertLayer* layer, bool btn2) {
+        [retainedSelf](FLAlertLayer* layer, bool btn2) {
             if (btn2) {
-                this->purchaseBanner();
+                retainedSelf->purchaseBanner();
             }
         },
         true,
@@ -189,7 +192,8 @@ void CBBannerCell::onClosePopup(UploadActionPopup* popup) {
 }
 
 void CBBannerCell::applyBanner() {
-    geode::queueInMainThread([this]() {
+    Ref<CBBannerCell> retainedSelf = this;
+    geode::queueInMainThread([retainedSelf]() {
         auto accountData = argon::getGameAccountData();
         auto accountId = accountData.accountId;
         Ref<UploadActionPopup> popup = nullptr;
@@ -198,7 +202,7 @@ void CBBannerCell::applyBanner() {
             popup->show();
         }
 
-        arc::spawn([this, accountId, accountData, popup]() -> arc::Future<> {
+        arc::spawn([retainedSelf, accountId, accountData, popup]() -> arc::Future<> {
             auto authResult = co_await comment::argonToken(accountData);
             if (authResult.empty()) {
                 log::warn("argon failed");
@@ -210,10 +214,10 @@ void CBBannerCell::applyBanner() {
             EquipRequest reqBody{
                 accountId,
                 std::move(authToken),
-                m_banner.id,
+                retainedSelf->m_banner.id,
             };
 
-            arc::spawn([this, reqBody = std::move(reqBody), popup]() -> arc::Future<> {
+            arc::spawn([retainedSelf, reqBody = std::move(reqBody), popup]() -> arc::Future<> {
                 auto request = geode::utils::web::WebRequest();
                 auto body = matjson::makeObject({{"accountId", reqBody.AccountID},
                     {"argonToken", reqBody.ArgonToken},
@@ -236,10 +240,10 @@ void CBBannerCell::applyBanner() {
                     });
                 }
                 if (auto shop = CBShopLayer::getInstance()) {
-                    shop->setEquippedBannerId(m_banner.id);
+                    shop->setEquippedBannerId(retainedSelf->m_banner.id);
                     shop->refreshBanners();
                 }
-                log::debug("banner {} equipped successfully", m_banner.id);
+                log::debug("banner {} equipped successfully", retainedSelf->m_banner.id);
                 co_return;
             });
             co_return;
@@ -248,7 +252,8 @@ void CBBannerCell::applyBanner() {
 }
 
 void CBBannerCell::unequipBanner() {
-    geode::queueInMainThread([this]() {
+    Ref<CBBannerCell> retainedSelf = this;
+    geode::queueInMainThread([retainedSelf]() {
         auto accountData = argon::getGameAccountData();
         auto accountId = accountData.accountId;
         Ref<UploadActionPopup> popup = nullptr;
@@ -257,7 +262,7 @@ void CBBannerCell::unequipBanner() {
             popup->show();
         }
 
-        arc::spawn([this, accountId, accountData, popup]() -> arc::Future<> {
+        arc::spawn([retainedSelf, accountId, accountData, popup]() -> arc::Future<> {
             auto authResult = co_await comment::argonToken(accountData);
             if (authResult.empty()) {
                 log::warn("argon failed");
@@ -290,23 +295,24 @@ void CBBannerCell::unequipBanner() {
                 shop->setEquippedBannerId(-1);
                 shop->refreshBanners();
             }
-            log::debug("banner {} unequipped successfully", m_banner.id);
+            log::debug("banner {} unequipped successfully", retainedSelf->m_banner.id);
             co_return;
         });
     });
 }
 
 void CBBannerCell::purchaseBanner() {
-    geode::queueInMainThread([this]() {
+    Ref<CBBannerCell> retainedSelf = this;
+    geode::queueInMainThread([retainedSelf]() {
         auto accountData = argon::getGameAccountData();
         auto accountId = accountData.accountId;
         Ref<UploadActionPopup> popup = nullptr;
-        popup = UploadActionPopup::create(this, "Equipping banner...");
+        popup = UploadActionPopup::create(retainedSelf, "Equipping banner...");
         if (popup) {
             popup->show();
         }
 
-        arc::spawn([this, accountId, accountData, popup]() -> arc::Future<> {
+        arc::spawn([retainedSelf, accountId, accountData, popup]() -> arc::Future<> {
             auto authResult = co_await comment::argonToken(accountData);
             if (authResult.empty()) {
                 log::warn("argon failed");
@@ -315,17 +321,17 @@ void CBBannerCell::purchaseBanner() {
 
             auto authToken = std::move(authResult);
             auto current = Mod::get()->getSavedValue<int>("amethyst", 0);
-            if (!m_banner.owns && current < m_banner.price) {
+            if (!retainedSelf->m_banner.owns && current < retainedSelf->m_banner.price) {
                 co_return;
             }
 
             EquipRequest reqBody{
                 accountId,
                 std::move(authToken),
-                m_banner.id,
+                retainedSelf->m_banner.id,
             };
 
-            arc::spawn([this, reqBody = std::move(reqBody), current, popup]() -> arc::Future<> {
+            arc::spawn([retainedSelf, reqBody = std::move(reqBody), current, popup]() -> arc::Future<> {
                 auto request = geode::utils::web::WebRequest();
                 auto body = matjson::makeObject({{"accountId", reqBody.AccountID},
                     {"argonToken", reqBody.ArgonToken},
@@ -342,15 +348,15 @@ void CBBannerCell::purchaseBanner() {
                     co_return;
                 }
 
-                if (!m_banner.owns) {
-                    Mod::get()->setSavedValue("amethyst", current - m_banner.price);
+                if (!retainedSelf->m_banner.owns) {
+                    Mod::get()->setSavedValue("amethyst", current - retainedSelf->m_banner.price);
                 }
                 if (popup) {
                     geode::queueInMainThread([popup] {
                         popup->showSuccessMessage("Banner equipped successfully");
                     });
                 }
-                log::debug("banner {} equipped successfully", m_banner.id);
+                log::debug("banner {} equipped successfully", retainedSelf->m_banner.id);
                 co_return;
             });
             co_return;

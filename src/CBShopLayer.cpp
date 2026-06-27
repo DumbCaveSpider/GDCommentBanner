@@ -1,9 +1,15 @@
 #include <Geode/Enums.hpp>
 #include <Geode/Geode.hpp>
 #include <Geode/binding/CCCounterLabel.hpp>
+#include <Geode/binding/UploadActionPopup.hpp>
 #include <Geode/ui/Button.hpp>
 #include "CBShopLayer.hpp"
+#include "CBShopLayer.hpp"
+#include "CBShopLayer.hpp"
 #include "CBBannerCell.hpp"
+#include "CBSubmitBannerPopup.hpp"
+#include "CBLogsPopup.hpp"
+#include "CBAdminPanelLayer.hpp"
 #include "Geode/utils/web.hpp"
 #include "ccTypes.h"
 #include "include/CBConstant.hpp"
@@ -236,6 +242,11 @@ void CBShopLayer::fetchAmethyst() {
             } else {
                 m_equippedBannerId = -1;
             }
+            if (auto isStaffRes = json["isStaff"].asBool(); isStaffRes.isOk()) {
+                m_isStaff = isStaffRes.unwrap();
+            } else {
+                m_isStaff = false;
+            }
             Mod::get()->setSavedValue("amethyst", amethyst);
             geode::queueInMainThread([this, amethyst]() {
                 if (!m_amethystLabel) {
@@ -245,6 +256,24 @@ void CBShopLayer::fetchAmethyst() {
                 m_amethystLabel->updateCounter(0.f);
                 if (m_equippedBannerId >= 0) {
                     this->refreshBanners();
+                }
+
+                // Add Admin button dynamically if staff
+                if (m_isStaff) {
+                    if (auto navMenu = this->getChildByID("nav-menu")) {
+                        if (!navMenu->getChildByID("admin-button")) {
+                            auto adminBtn = geode::Button::createWithNode(
+                                ButtonSprite::create("Admin", "goldFont.fnt", "GJ_button_02.png", .8f),
+                                [](geode::Button* sender) {
+                                    if (auto popup = CBAdminPanelLayer::create()) {
+                                        popup->show();
+                                    }
+                                });
+                            adminBtn->setID("admin-button");
+                            navMenu->addChild(adminBtn);
+                            static_cast<CCMenu*>(navMenu)->updateLayout();
+                        }
+                    }
                 }
             });
             co_return;
@@ -273,10 +302,10 @@ bool CBShopLayer::init() {
     addBackButton(this, BackButtonStyle::Pink);
 
     auto winSize = CCDirector::sharedDirector()->getWinSize();
-    m_list = cue::ListNode::create({356, winSize.height - 60}, {0, 0, 0, 0}, cue::ListBorderStyle::None);
+    m_list = cue::ListNode::create({356, winSize.height - 85}, {0, 0, 0, 0}, cue::ListBorderStyle::None);
     if (m_list) {
         m_list->setZOrder(2);
-        this->addChildAtPosition(m_list, Anchor::Center, {0.f, -10.f}, false);
+        this->addChildAtPosition(m_list, Anchor::Center, {0.f, -22.f}, false);
     }
 
     if (auto refreshButton = geode::Button::createWithSpriteFrameName(
@@ -286,6 +315,35 @@ bool CBShopLayer::init() {
             })) {
         this->addChildAtPosition(refreshButton, Anchor::BottomRight, {-35.f, 35.f}, false);
     }
+
+    // Navigation Menu
+    auto navMenu = CCMenu::create();
+    navMenu->setID("nav-menu");
+    navMenu->setContentSize({356, 30});
+    navMenu->setLayout(RowLayout::create()->setGap(10.f));
+
+    auto submitBtn = geode::Button::createWithNode(
+        ButtonSprite::create("Submit", "goldFont.fnt", "GJ_button_01.png", .8f),
+        [](geode::Button* sender) {
+            if (auto popup = CBSubmitBannerPopup::create()) {
+                popup->show();
+            }
+        });
+    submitBtn->setID("submit-button");
+    navMenu->addChild(submitBtn);
+
+    auto logsBtn = geode::Button::createWithNode(
+        ButtonSprite::create("Logs", "goldFont.fnt", "GJ_button_01.png", .8f),
+        [](geode::Button* sender) {
+            if (auto popup = CBLogsPopup::create()) {
+                popup->show();
+            }
+        });
+    logsBtn->setID("logs-button");
+    navMenu->addChild(logsBtn);
+
+    this->addChildAtPosition(navMenu, Anchor::Top, {0.f, -25.f}, false);
+    navMenu->updateLayout();
 
     this->fetchBanners();
     this->fetchAmethyst();
@@ -301,36 +359,63 @@ bool CBShopLayer::init() {
     auto authButton = geode::Button::createWithNode(
         CircleButtonSprite::createWithSpriteFrameName("CB_amethyst_001.png"_spr, 1.f, CircleBaseColor::DarkPurple, CircleBaseSize::Small),
         [](geode::Button* button) {
-            geode::queueInMainThread([]() {
-                auto accountData = argon::getGameAccountData();
-                arc::spawn([accountData]() -> arc::Future<> {
-                    auto authResult = co_await comment::argonToken(accountData);
-                    if (authResult.empty()) {
-                        geode::queueInMainThread([]() {
-                            Notification::create("Failed to start authentication.", NotificationIcon::Error)->show();
-                        });
-                        co_return;
-                    }
+            Ref<UploadActionPopup> popup = UploadActionPopup::create(nullptr, "Checking permissions...");
+            popup->show();
 
-                    auto authToken = std::move(authResult);
-                    geode::queueInMainThread([authToken = std::move(authToken)]() mutable {
-                        auto accountId = argon::getGameAccountData().accountId;
-                        if (accountId <= 0) {
-                            geode::queueInMainThread([]() {
-                                Notification::create("Failed to retrieve a valid account ID from the game data.", NotificationIcon::Error)->show();
-                            });
-                            return;
-                        }
+            auto accountData = argon::getGameAccountData();
+            auto accountId = accountData.accountId;
 
-                        auto url = fmt::format(
-                            "{}?accountId={}&argonToken={}",
-                            comment::baseUrl,
-                            accountId,
-                            authToken);
-                        utils::web::openLinkInBrowser(url.c_str());
+            if (accountId <= 0) {
+                popup->showFailMessage("Invalid account ID.");
+                return;
+            }
+
+            arc::spawn([accountId, accountData, popup]() -> arc::Future<> {
+                auto authResult = co_await comment::argonToken(accountData);
+                if (authResult.empty()) {
+                    geode::queueInMainThread([popup] {
+                        popup->showFailMessage("Authentication failed.");
                     });
                     co_return;
+                }
+
+                auto authToken = std::move(authResult);
+                auto req = geode::utils::web::WebRequest();
+                auto url = fmt::format("{}/userInfo?accountId={}&argonToken={}", comment::baseUrl, accountId, authToken);
+                
+                auto response = co_await req.get(url);
+                if (!response.ok()) {
+                    geode::queueInMainThread([popup] {
+                        popup->showFailMessage("Failed to fetch user info.");
+                    });
+                    co_return;
+                }
+
+                auto jsonRes = response.json();
+                if (jsonRes.isErr()) {
+                    geode::queueInMainThread([popup] {
+                        popup->showFailMessage("Invalid response from server.");
+                    });
+                    co_return;
+                }
+
+                auto json = jsonRes.unwrap();
+                bool isStaff = false;
+                if (auto staffRes = json["is_staff"].asBool(); staffRes.isOk()) {
+                    isStaff = staffRes.unwrap();
+                }
+
+                geode::queueInMainThread([popup, isStaff] {
+                    if (isStaff) {
+                        popup->onClose(nullptr);
+                        if (auto adminPopup = CBAdminPanelLayer::create()) {
+                            adminPopup->show();
+                        }
+                    } else {
+                        popup->showFailMessage("You do not have staff permissions.");
+                    }
                 });
+                co_return;
             });
         });
 

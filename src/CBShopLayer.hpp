@@ -28,4 +28,5 @@ private:
     CCCounterLabel* m_amethystLabel = nullptr;
     int m_equippedBannerId = -1;
     cue::LoadingCircle* m_loadingCircle = nullptr;
+    bool m_isStaff = false;
 };

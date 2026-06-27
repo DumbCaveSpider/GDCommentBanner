@@ -22,7 +22,7 @@ class $modify(GJGarageLayer) {
                 if (Loader::get()->isModLoaded("arcticwoof.rated_layouts")) {
                     auto rl = Loader::get()->getLoadedMod("arcticwoof.rated_layouts");
                     if (!rl->getSettingValue<bool>("disableNameplateInComment")) {
-                        rl->setSettingValue("disableNameplateInComment", true);
+                        rl->setSettingValue("disableNameplateInComment", true); // imagine disabling my own other mod settings sybru
                         FLAlertLayer::create("Compatibility Notice", "<cp>Comment Banners</c> has detected that you have <cl>Rated Layouts</c> installed.\nThe <cy>Disable Nameplate in Comments</c> setting has been forcibly <cg>enabled</c> in <cl>Rated Layouts</c>' settings to prevent conflicts.", "OK")->show();
                         return;
                     }
@@ -135,7 +135,7 @@ class $modify(CBEndLevelLayer, EndLevelLayer) {
         geode::queueInMainThread([endLayer]() {
             auto accountId = argon::getGameAccountData().accountId;
             if (accountId <= 0) {
-                Notification::create("Invalid account ID for amethyst reward submission.", NotificationIcon::Error)->show();
+                log::warn("Invalid account ID for amethyst reward submission.");
                 return;
             }
 
@@ -145,20 +145,18 @@ class $modify(CBEndLevelLayer, EndLevelLayer) {
             }
 
             if (!endLayer->m_playLayer || !endLayer->m_playLayer->m_level) {
-                Notification::create("Unable to determine the completed level.", NotificationIcon::Error)->show();
+                log::warn("Unable to determine the completed level.");
                 return;
             }
 
             auto level = endLayer->m_playLayer->m_level;
             if (!level->m_isCompletionLegitimate) {
-                Notification::create("Level completion is not legitimate for amethyst reward submission.", NotificationIcon::Error)->show();
-                log::warn("illegitimate level completion for amethyst reward submission");
+                log::warn("Level completion is not legitimate for amethyst reward submission.");
                 return;
             }
 
             if (level->m_attemptTime <= 25 || level->m_attemptTime >= 28000000) {
-                Notification::create("Attempt time is invalid for amethyst reward submission.", NotificationIcon::Error)->show();
-                log::warn("invalid attempt time for amethyst reward submission: {}", level->m_attemptTime);
+                log::warn("Attempt time is invalid for amethyst reward submission: {}", level->m_attemptTime);
                 return;
             }
 
