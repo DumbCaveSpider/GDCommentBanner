@@ -323,7 +323,7 @@ bool CBShopLayer::init() {
                 geode::utils::web::openLinkInBrowser(communityUrl.value());
             }
         })) {
-        this->addChildAtPosition(discordButton, Anchor::BottomRight, {-35.f, 55.f}, false);
+        this->addChildAtPosition(discordButton, Anchor::BottomRight, {-35.f, 85.f}, false);
     }
 
     // Navigation Menu

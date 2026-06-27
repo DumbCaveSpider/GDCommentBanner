@@ -310,7 +310,7 @@ void CBManageUserPopup::createBannerCell(matjson::Value const& banner) {
     }
     cell->addChild(sprite, -2);
 
-    auto bg = CCLayerGradient::create({0, 0, 0, 200}, {255, 255, 255, 0}, {1, 0});
+    auto bg = CCLayerGradient::create({0, 0, 0, 255}, {0, 0, 0, 0}, {1, 0});
     bg->setContentSize(cell->getContentSize());
     bg->setAnchorPoint({0, 0});
     cell->addChild(bg, -1);

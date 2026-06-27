@@ -26,5 +26,20 @@
 		"homepage": "https://arcticwoof.xyz/",
 		"community": "https://discord.gg/duQc6EwFxZ"
 	},
+	"settings": {
+		"cache-duration-hours": {
+			"name": "Cache Duration (Hours)",
+			"description": "How long should banner data be cached locally before checking for updates again.",
+			"type": "int",
+			"default": 24,
+			"min": 1,
+			"max": 168
+		},
+		"clear-cache": {
+			"name": "Clear Cache",
+			"description": "Clear the local banner data cache immediately.",
+			"type": "button"
+		}
+	},
 	"tags": ["online", "customization", "content"]
 }

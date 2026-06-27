@@ -3,9 +3,11 @@
 #include <Geode/binding/UploadActionPopup.hpp>
 #include <argon/argon.hpp>
 #include "Geode/ui/General.hpp"
+#include "Geode/utils/general.hpp"
 #include "include/CBConstant.hpp"
-#include <fstream>
+#include <Geode/utils/file.hpp>
 #include <vector>
+#include <algorithm>
 
 using namespace geode::prelude;
 
@@ -22,7 +24,7 @@ CBSubmitBannerPopup* CBSubmitBannerPopup::create() {
 bool CBSubmitBannerPopup::init() {
     if (!Popup::init(380.f, 260.f)) return false;
 
-    this->setTitle("Submit Banner");
+    this->setTitle("Submit Comment Banner");
     addSideArt(m_mainLayer, SideArt::Top, SideArtStyle::PopupBlue, false);
     addSideArt(m_mainLayer, SideArt::BottomRight, SideArtStyle::PopupBlue, false);
 
@@ -109,15 +111,45 @@ void CBSubmitBannerPopup::onPickFile(CCObject*) {
                 .defaultPath = std::nullopt,
                 .filters = {
                     geode::utils::file::FilePickOptions::Filter{
-                        .description = "Images",
-                        .files = {"*.png", "*.jpg", "*.jpeg", "*.gif"}}}});
+                        .description = "PNG Image",
+                        .files = {"*.png"}}}});
+
+        auto notify = [&](std::string message) {
+            geode::Loader::get()->queueInMainThread([message = std::move(message)]() {
+                geode::Notification::create(message.c_str(), geode::NotificationIcon::Warning)->show();
+            });
+        };
+
         if (result.isOk()) {
-            if (auto path = result.unwrap()) {
-                retainedSelf->m_selectedFilePath = path->string();
-                if (retainedSelf->m_fileNameLabel) {
-                    retainedSelf->m_fileNameLabel->setString(path->filename().string().c_str());
-                    retainedSelf->m_fileNameLabel->setColor({100, 255, 100});
+            auto pathOpt = result.unwrap();
+            if (pathOpt.has_value()) {
+                auto path = pathOpt.value();
+
+                auto extension = path.extension().string();
+                std::transform(extension.begin(), extension.end(), extension.begin(), ::tolower);
+                if (extension != ".png") {
+                    notify("Please select a PNG file");
+                    co_return;
                 }
+
+                CCImage image;
+                if (!image.initWithImageFile(path.string().c_str())) {
+                    notify("Unable to decode image");
+                    co_return;
+                }
+
+                if (image.getWidth() != 1500 || image.getHeight() != 150) {
+                    notify("Image must be 1500x150, got " + numToString(image.getWidth()) + "x" + numToString(image.getHeight()));
+                    co_return;
+                }
+
+                geode::Loader::get()->queueInMainThread([retainedSelf, p = path.string(), filename = path.filename().string()]() {
+                    retainedSelf->m_selectedFilePath = p;
+                    if (retainedSelf->m_fileNameLabel) {
+                        retainedSelf->m_fileNameLabel->setString(filename.c_str());
+                        retainedSelf->m_fileNameLabel->setColor({100, 255, 100});
+                    }
+                });
             }
         }
     });
@@ -167,53 +199,29 @@ void CBSubmitBannerPopup::onSubmit(CCObject*) {
 
         auto authToken = std::move(authResult);
 
-        // Read file
-        std::ifstream file(filePath, std::ios::binary | std::ios::ate);
-        if (!file.is_open()) {
-            geode::queueInMainThread([popup] {
-                popup->showFailMessage("Failed to read image file.");
-            });
-            co_return;
-        }
-        std::streamsize size = file.tellg();
-        file.seekg(0, std::ios::beg);
-        std::vector<char> buffer(size);
-        if (!file.read(buffer.data(), size)) {
-            geode::queueInMainThread([popup] {
-                popup->showFailMessage("Failed to read image file.");
-            });
-            co_return;
-        }
-
-        std::string boundary = "----GeodeBoundary123456789";
-        std::string body;
-
-        auto appendField = [&](const std::string& field, const std::string& val) {
-            body += "--" + boundary + "\r\n";
-            body += "Content-Disposition: form-data; name=\"" + field + "\"\r\n\r\n";
-            body += val + "\r\n";
-        };
-
-        appendField("accountId", std::to_string(accountId));
-        appendField("argonToken", authToken);
-        appendField("name", name);
-        appendField("description", desc);
-        appendField("price", price);
-        appendField("limited", isLimited ? "true" : "false");
+        geode::utils::web::MultipartForm form;
+        form.param("accountId", numToString(accountId));
+        form.param("argonToken", authToken);
+        form.param("name", name);
+        form.param("description", desc);
+        form.param("price", price);
+        form.param("limited", isLimited ? "true" : "false");
         if (isLimited) {
-            appendField("amount", amount);
+            form.param("amount", amount);
         }
 
-        body += "--" + boundary + "\r\n";
-        body += "Content-Disposition: form-data; name=\"image\"; filename=\"image.png\"\r\n";
-        body += "Content-Type: application/octet-stream\r\n\r\n";
-        body.append(buffer.begin(), buffer.end());
-        body += "\r\n--" + boundary + "--\r\n";
+        auto res = form.file("image", filePath, "image/png");
+        if (!res) {
+            geode::queueInMainThread([popup] {
+                popup->showFailMessage("Failed to attach image file.");
+            });
+            co_return;
+        }
 
         auto req = geode::utils::web::WebRequest();
-        req.header("Content-Type", "multipart/form-data; boundary=" + boundary);
+        req.bodyMultipart(std::move(form));
 
-        auto response = co_await req.bodyString(body).post(fmt::format("{}/submitBanner", comment::baseUrl));
+        auto response = co_await req.post(fmt::format("{}/submitBanner", comment::baseUrl));
         if (!response.ok()) {
             geode::queueInMainThread([popup, response] {
                 popup->showFailMessage(comment::getResponseMessage(response, "Failed to submit banner."));

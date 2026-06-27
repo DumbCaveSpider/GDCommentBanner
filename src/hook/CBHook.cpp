@@ -12,6 +12,64 @@
 
 using namespace geode::prelude;
 
+#include <asp/time/SystemTime.hpp>
+
+struct CachedBanner {
+    bool equipped;
+    std::string imageUrl;
+    asp::time::SystemTime timestamp;
+};
+
+static std::map<int, CachedBanner> s_bannerCache;
+static bool s_cacheLoaded = false;
+
+static void loadCache() {
+    if (s_cacheLoaded) return;
+    auto path = Mod::get()->getSaveDir() / "banner_cache.json";
+    if (std::filesystem::exists(path)) {
+        if (auto jsonStrRes = geode::utils::file::readString(path)) {
+            if (auto jsonParseRes = matjson::parse(jsonStrRes.unwrap())) {
+                auto json = jsonParseRes.unwrap();
+                if (json.isObject()) {
+                    for (auto const& [key, value] : json) {
+                        int accountId = numFromString<int>(key).unwrapOr(0);
+                        CachedBanner banner;
+                        banner.equipped = value["equipped"].asBool().unwrapOr(false);
+                        banner.imageUrl = value["imageUrl"].asString().unwrapOr("");
+                        long long timeMs = value["timestamp"].asInt().unwrapOr(0);
+                        banner.timestamp = asp::time::SystemTime::fromUnixMillis(timeMs);
+                        s_bannerCache[accountId] = banner;
+                    }
+                }
+            }
+        }
+    }
+    s_cacheLoaded = true;
+}
+
+static void saveCache() {
+    auto path = Mod::get()->getSaveDir() / "banner_cache.json";
+    matjson::Value obj = matjson::makeObject({});
+    for (auto const& [accountId, banner] : s_bannerCache) {
+        auto timeMs = banner.timestamp.timeSinceEpoch().millis<uint64_t>();
+        obj.set(std::to_string(accountId), matjson::makeObject({{"equipped", banner.equipped}, {"imageUrl", banner.imageUrl}, {"timestamp", timeMs}}));
+    }
+    (void)geode::utils::file::writeString(path, obj.dump(matjson::NO_INDENTATION));
+}
+
+static void clearCache() {
+    s_bannerCache.clear();
+    saveCache();
+}
+
+$execute {
+    SettingChangedEventV3(Mod::get(), "clear-cache").listen([](std::shared_ptr<geode::SettingV3>) {
+                                                        clearCache();
+                                                        Notification::create("Banner Cache Cleared!", CCSprite::createWithSpriteFrameName("GJ_completesIcon_001.png"))->show();
+                                                    })
+        .leak();
+}
+
 class $modify(GJGarageLayer) {
     bool init() {
         if (!GJGarageLayer::init())
@@ -22,7 +80,7 @@ class $modify(GJGarageLayer) {
                 if (Loader::get()->isModLoaded("arcticwoof.rated_layouts")) {
                     auto rl = Loader::get()->getLoadedMod("arcticwoof.rated_layouts");
                     if (!rl->getSettingValue<bool>("disableNameplateInComment")) {
-                        rl->setSettingValue("disableNameplateInComment", true); // imagine disabling my own other mod settings sybru
+                        rl->setSettingValue("disableNameplateInComment", true);  // imagine disabling my own other mod settings sybru
                         FLAlertLayer::create("Compatibility Notice", "<cp>Comment Banners</c> has detected that you have <cl>Rated Layouts</c> installed.\nThe <cy>Disable Nameplate in Comments</c> setting has been forcibly <cg>enabled</c> in <cl>Rated Layouts</c>' settings to prevent conflicts.", "OK")->show();
                         return;
                     }
@@ -59,6 +117,48 @@ class $modify(CBCommentCell, CommentCell) {
 
         auto self = Ref<CBCommentCell>(this);
         int accountId = comment->m_accountID;
+        loadCache();
+
+        // Check cache
+        if (s_bannerCache.contains(accountId)) {
+            auto& cached = s_bannerCache[accountId];
+            auto now = asp::time::SystemTime::now();
+            auto durationHours = Mod::get()->getSettingValue<int64_t>("cache-duration-hours");
+            auto ageDur = now.durationSince(cached.timestamp);
+
+            if (ageDur && ageDur.value().hours() < durationHours) {
+                if (!cached.equipped) return;
+
+                std::string imageUrl = cached.imageUrl;
+                geode::queueInMainThread([self, imageUrl]() {
+                    if (!self->m_backgroundLayer) return;
+                    auto size = self->m_backgroundLayer->getScaledContentSize();
+                    auto bannerSize = self->m_compactMode ? size : CCSize{800.f, 800.f};
+                    auto bannerSprite = LazySprite::create(bannerSize, true);
+                    bannerSprite->setAutoResize(true);
+                    bannerSprite->loadFromUrl(imageUrl, LazySprite::Format::kFmtWebp, true);
+                    bannerSprite->setPosition({size.width / 2.f, size.height / 2.f});
+                    self->m_backgroundLayer->setOpacity(100);
+                    self->m_backgroundLayer->addChild(bannerSprite, -1);
+
+                    if (self->m_compactMode) {
+                        if (auto commentText = self->m_mainLayer->getChildByIDRecursive("comment-text-label")) {
+                            if (!self->m_mainLayer->getChildByID("cb-comment-banner-bg")) {
+                                auto commentBg = NineSlice::create("square02_small.png");
+                                commentBg->setID("cb-comment-banner-bg");
+                                commentBg->setInsets({5, 5, 5, 5});
+                                commentBg->setContentSize(commentText->getScaledContentSize() + CCSize(5, 0));
+                                commentBg->setPosition({commentText->getPosition().x - 2, commentText->getPosition().y});
+                                commentBg->setOpacity(150);
+                                commentBg->setAnchorPoint(commentText->getAnchorPoint());
+                                self->m_mainLayer->addChild(commentBg, -1);
+                            }
+                        }
+                    }
+                });
+                return;
+            }
+        }
 
         arc::spawn([self, accountId]() -> arc::Future<> {
             auto request = geode::utils::web::WebRequest();
@@ -81,6 +181,12 @@ class $modify(CBCommentCell, CommentCell) {
             auto json = jsonRes.unwrap();
             auto equipped = json["equipped"].asBool().unwrapOr(false);
             if (!equipped) {
+                CachedBanner newCached;
+                newCached.equipped = false;
+                newCached.imageUrl = "";
+                newCached.timestamp = asp::time::SystemTime::now();
+                s_bannerCache[accountId] = newCached;
+                saveCache();
                 co_return;
             }
 
@@ -91,6 +197,15 @@ class $modify(CBCommentCell, CommentCell) {
             }
 
             auto imageUrl = imageUrlRes.unwrap();
+
+            // Save to cache
+            CachedBanner newCached;
+            newCached.equipped = true;
+            newCached.imageUrl = imageUrl;
+            newCached.timestamp = asp::time::SystemTime::now();
+            s_bannerCache[accountId] = newCached;
+            saveCache();
+
             geode::queueInMainThread([self, imageUrl]() {
                 if (!self->m_backgroundLayer) {
                     return;
