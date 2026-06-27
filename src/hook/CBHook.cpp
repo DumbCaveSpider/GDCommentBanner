@@ -1,3 +1,5 @@
+#include <fstream>
+#include <sstream>
 #include <Geode/Geode.hpp>
 #include <Geode/ui/Button.hpp>
 #include <Geode/ui/LazySprite.hpp>
@@ -27,8 +29,11 @@ static void loadCache() {
     if (s_cacheLoaded) return;
     auto path = Mod::get()->getSaveDir() / "banner_cache.json";
     if (std::filesystem::exists(path)) {
-        if (auto jsonStrRes = geode::utils::file::readString(path)) {
-            if (auto jsonParseRes = matjson::parse(jsonStrRes.unwrap())) {
+        std::ifstream file(path);
+        if (file.is_open()) {
+            std::stringstream buffer;
+            buffer << file.rdbuf();
+            if (auto jsonParseRes = matjson::parse(buffer.str())) {
                 auto json = jsonParseRes.unwrap();
                 if (json.isObject()) {
                     for (auto const& [key, value] : json) {
@@ -52,22 +57,12 @@ static void saveCache() {
     matjson::Value obj = matjson::makeObject({});
     for (auto const& [accountId, banner] : s_bannerCache) {
         auto timeMs = banner.timestamp.timeSinceEpoch().millis<uint64_t>();
-        obj.set(std::to_string(accountId), matjson::makeObject({{"equipped", banner.equipped}, {"imageUrl", banner.imageUrl}, {"timestamp", timeMs}}));
+        obj.set(numToString(accountId), matjson::makeObject({{"equipped", banner.equipped}, {"imageUrl", banner.imageUrl}, {"timestamp", timeMs}}));
     }
-    (void)geode::utils::file::writeString(path, obj.dump(matjson::NO_INDENTATION));
-}
-
-static void clearCache() {
-    s_bannerCache.clear();
-    saveCache();
-}
-
-$execute {
-    SettingChangedEventV3(Mod::get(), "clear-cache").listen([](std::shared_ptr<geode::SettingV3>) {
-                                                        clearCache();
-                                                        Notification::create("Banner Cache Cleared!", CCSprite::createWithSpriteFrameName("GJ_completesIcon_001.png"))->show();
-                                                    })
-        .leak();
+    std::ofstream file(path);
+    if (file.is_open()) {
+        file << obj.dump(matjson::NO_INDENTATION);
+    }
 }
 
 class $modify(GJGarageLayer) {

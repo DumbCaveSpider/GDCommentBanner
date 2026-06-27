@@ -6,7 +6,6 @@
 #include "Geode/utils/general.hpp"
 #include "include/CBConstant.hpp"
 #include <Geode/utils/file.hpp>
-#include <vector>
 #include <algorithm>
 
 using namespace geode::prelude;
