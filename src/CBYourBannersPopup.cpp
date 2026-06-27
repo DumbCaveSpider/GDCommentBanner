@@ -106,6 +106,8 @@ void CBYourBannersPopup::fetchBanners() {
                 return;
             }
 
+            float totalEarnRate = 0.f;
+
             for (size_t i = 0; i < json.size(); ++i) {
                 auto item = json[i];
                 auto name = item["name"].asString().unwrapOr("Unknown Banner");
@@ -115,6 +117,7 @@ void CBYourBannersPopup::fetchBanners() {
                 bool isLimited = item["isLimited"].asBool().unwrapOr(false);
                 int amount = item["amount"].asInt().unwrapOr(0);
                 int totalBought = item["totalBought"].asInt().unwrapOr(0);
+                int equippedCount = item["equippedCount"].asInt().unwrapOr(0);
                 int id = item["id"].asInt().unwrapOr(0);
 
                 auto status = isPending ? "PENDING" : "APPROVED";
@@ -198,24 +201,32 @@ void CBYourBannersPopup::fetchBanners() {
                     cell->addChild(priceNode);
                 }
 
-                // Details (amount/bought)
+                // Details (amount/bought/earn rate)
                 auto detailNode = CCNode::create();
                 detailNode->setPosition({20.f, 10.f});
+
+                float currentDetailY = 10.f;
 
                 if (isLimited) {
                     if (auto amountLabel = CCLabelBMFont::create(fmt::format("Amount Left: {}", amount - totalBought).c_str(), "goldFont.fnt")) {
                         amountLabel->setAnchorPoint({1.f, 0.5f});
                         amountLabel->limitLabelWidth(60.f, 0.4f, 0.2f);
-                        amountLabel->setPosition({0.f, 10.f});
+                        amountLabel->setPosition({0.f, currentDetailY});
                         detailNode->addChild(amountLabel);
+                        currentDetailY -= 15.f;
                     }
                 }
 
                 if (auto totalBoughtLabel = CCLabelBMFont::create(fmt::format("Bought: {}", totalBought).c_str(), "goldFont.fnt")) {
                     totalBoughtLabel->setAnchorPoint({1.f, 0.5f});
                     totalBoughtLabel->limitLabelWidth(60.f, 0.4f, 0.2f);
-                    totalBoughtLabel->setPosition({0.f, isLimited ? -8.f : 0.f});
+                    totalBoughtLabel->setPosition({0.f, currentDetailY});
                     detailNode->addChild(totalBoughtLabel);
+                    currentDetailY -= 15.f;
+                }
+
+                if (!isPending) {
+                    totalEarnRate += equippedCount * (price * 0.05f);
                 }
 
                 if (detailNode->getChildrenCount() > 0) {
@@ -226,6 +237,25 @@ void CBYourBannersPopup::fetchBanners() {
                 retainedSelf->m_list->addCell(cell);
             }
             retainedSelf->m_list->updateLayout();
+
+            if (totalEarnRate >= 0.f) {
+                auto earnNode = CCNode::create();
+
+                auto earnLabel = CCLabelBMFont::create(fmt::format("+{:.1f}/day", totalEarnRate).c_str(), "bigFont.fnt");
+                earnLabel->setScale(0.5f);
+                earnLabel->setAnchorPoint({1.f, 0.5f});
+                earnLabel->setPosition({0.f, 0.f});
+                earnNode->addChild(earnLabel);
+
+                if (auto amethystIcon = CCSprite::createWithSpriteFrameName("CB_amethyst_002.png"_spr)) {
+                    amethystIcon->setScale(0.5f);
+                    amethystIcon->setPosition({5.f, 0.f});
+                    amethystIcon->setAnchorPoint({0.f, 0.5f});
+                    earnNode->addChild(amethystIcon);
+                }
+
+                retainedSelf->m_mainLayer->addChildAtPosition(earnNode, Anchor::TopRight, {-30.f, -25.f});
+            }
         });
 
         co_return;

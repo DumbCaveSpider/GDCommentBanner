@@ -317,6 +317,15 @@ bool CBShopLayer::init() {
         this->addChildAtPosition(refreshButton, Anchor::BottomRight, {-35.f, 35.f}, false);
     }
 
+    if (auto discordButton = geode::Button::createWithSpriteFrameName("gj_discordIcon_001.png", [this](geode::Button* sender) {
+            auto communityUrl = getMod()->getMetadata().getLinks().getCommunityURL();
+            if (communityUrl.has_value()) {
+                geode::utils::web::openLinkInBrowser(communityUrl.value());
+            }
+        })) {
+        this->addChildAtPosition(discordButton, Anchor::BottomRight, {-35.f, 55.f}, false);
+    }
+
     // Navigation Menu
     auto navMenu = CCMenu::create();
     navMenu->setID("nav-menu");

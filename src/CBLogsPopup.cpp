@@ -127,11 +127,24 @@ void CBLogsPopup::fetchLogs() {
                 }
                 cell->addChild(bg);
 
+                auto actionLabel = CCLabelBMFont::create(actionType.c_str(), "bigFont.fnt");
+                actionLabel->setScale(0.45f);
+                actionLabel->setAnchorPoint({0.f, 1.f});
+                actionLabel->setPosition({10.f, 58.f});
+                if (actionType == "APPROVED") {
+                    actionLabel->setColor({100, 255, 100});
+                } else if (actionType == "REJECTED") {
+                    actionLabel->setColor({255, 100, 100});
+                } else {
+                    actionLabel->setColor({255, 200, 100});
+                }
+                cell->addChild(actionLabel);
+
                 auto infoLabel = CCLabelBMFont::create(fmt::format("#{} - {}", id, createdAt).c_str(), "chatFont.fnt");
                 infoLabel->setScale(0.4f);
                 infoLabel->setColor({150, 150, 150});
-                infoLabel->setAnchorPoint({0.f, 1.f});
-                infoLabel->setPosition({10.f, 55.f});
+                infoLabel->setAnchorPoint({1.f, 1.f});
+                infoLabel->setPosition({330.f, 58.f});
                 cell->addChild(infoLabel);
 
                 auto msgLabel = SimpleTextArea::create(message.c_str(), "chatFont.fnt");
@@ -140,7 +153,7 @@ void CBLogsPopup::fetchLogs() {
                 msgLabel->setScale(0.6f);
                 msgLabel->setAlignment(kCCTextAlignmentLeft);
                 msgLabel->setAnchorPoint({0.f, 1.f});
-                msgLabel->setPosition({10.f, 43.f});
+                msgLabel->setPosition({10.f, 40.f});
                 cell->addChild(msgLabel);
 
                 retainedSelf->m_list->setCellColor(ccColor4B{0, 0, 0, 0});

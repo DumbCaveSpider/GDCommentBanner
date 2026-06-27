@@ -7,6 +7,7 @@
 #include <Geode/ui/Button.hpp>
 #include "Geode/cocos/label_nodes/CCLabelBMFont.h"
 #include "Geode/utils/general.hpp"
+#include "ccTypes.h"
 
 using namespace geode::prelude;
 
@@ -93,12 +94,6 @@ bool CBManageUserPopup::init(matjson::Value const& userData) {
     // Right Side (Banners)
     m_bannersList = cue::ListNode::create({290.f, 210.f}, {0, 0, 0, 0}, cue::ListBorderStyle::CommentsBlue);
     m_mainLayer->addChildAtPosition(m_bannersList, Anchor::Center, {100.f, -15.f}, false);
-
-    auto listBg = NineSlice::create("square02_001.png");
-    listBg->setPosition(m_bannersList->getPosition());
-    listBg->setContentSize(m_bannersList->getContentSize() + CCSize(5.f, 10.f));
-    listBg->setOpacity(100);
-    m_mainLayer->addChild(listBg, -1);
 
     fetchUserBanners();
 
@@ -303,23 +298,22 @@ void CBManageUserPopup::createBannerCell(matjson::Value const& banner) {
     std::string name = banner["name"].asString().unwrapOr("Unknown");
     std::string description = banner["description"].asString().unwrapOr("");
     std::string imageUrl = banner["imageUrl"].asString().unwrapOr("");
-    if (!imageUrl.empty() && imageUrl.find("http") != 0) {
-        imageUrl = fmt::format("{}/{}", comment::baseUrl, imageUrl.front() == '/' ? imageUrl.substr(1) : imageUrl);
+    if (!imageUrl.empty()) {
+        imageUrl = fmt::format("{}", imageUrl);
     }
 
-    auto sprite = LazySprite::create({290.f, 40.f}, true);
+    auto sprite = LazySprite::create({345.f, 40.f}, true);
     sprite->setAutoResize(true);
     sprite->setPosition({145.f, 20.f});
     if (!imageUrl.empty()) {
         sprite->loadFromUrl(imageUrl, LazySprite::Format::kFmtWebp, false);
     }
-    cell->addChild(sprite);
+    cell->addChild(sprite, -2);
 
-    auto bg = NineSlice::create("square02_001.png");
+    auto bg = CCLayerGradient::create({0, 0, 0, 200}, {255, 255, 255, 0}, {1, 0});
     bg->setContentSize(cell->getContentSize());
     bg->setAnchorPoint({0, 0});
-    bg->setOpacity(150);
-    cell->addChild(bg);
+    cell->addChild(bg, -1);
 
     auto label = CCLabelBMFont::create(name.c_str(), "bigFont.fnt");
     label->limitLabelWidth(140.f, 0.5f, 0.2f);
@@ -328,7 +322,6 @@ void CBManageUserPopup::createBannerCell(matjson::Value const& banner) {
     cell->addChild(label);
 
     auto descLabel = CCLabelBMFont::create(description.c_str(), "chatFont.fnt", 140.f);
-    descLabel->setColor({200, 200, 200});
     descLabel->setAnchorPoint({0, 0.5f});
     descLabel->setPosition({10.f, 13.f});
     descLabel->limitLabelWidth(140.f, 0.3f, 0.2f);
@@ -367,7 +360,7 @@ void CBManageUserPopup::createBannerCell(matjson::Value const& banner) {
     bannerMenu->addChild(priceInput);
 
     auto savePriceSpr = CircleButtonSprite::createWithSpriteFrameName("GJ_completesIcon_001.png", 0.7f, CircleBaseColor::Green, CircleBaseSize::Small);
-    savePriceSpr->setScale(0.8f);
+    savePriceSpr->setScale(0.7f);
     auto savePriceBtn = geode::Button::createWithNode(
         savePriceSpr,
         [this, bannerId, priceInput](geode::Button*) {

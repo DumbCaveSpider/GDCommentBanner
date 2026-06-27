@@ -53,7 +53,7 @@ CBBannerCell* CBBannerCell::create(const CBBannerItem& banner, float width) {
             if (banner.isLimited) {
                 if (auto starIcon = CCSprite::createWithSpriteFrameName("GJ_sRecentIcon_001.png")) {
                     starIcon->setScale(0.8f);
-                    starIcon->setPosition({nameX, 13.f});
+                    starIcon->setPosition({nameX, 23.f});
                     starIcon->setAnchorPoint({0.f, 0.5f});
                     cellBg->addChild(starIcon);
                     nameLabel->runAction(CCRepeatForever::create(CCSequence::create(
@@ -63,7 +63,7 @@ CBBannerCell* CBBannerCell::create(const CBBannerItem& banner, float width) {
                     nameX += starIcon->getContentSize().width * starIcon->getScale() + 4.f;
                 }
             }
-            nameLabel->setPosition({nameX, 15.f});
+            nameLabel->setPosition({nameX, 25.f});
             nameLabel->limitLabelWidth(100.f, 0.5f, 0.2f);
             cellBg->addChild(nameLabel);
         }
@@ -74,11 +74,7 @@ CBBannerCell* CBBannerCell::create(const CBBannerItem& banner, float width) {
                 ProfilePage::create(banner.accountId, false)->show();
             })) {
             usernameLabel->setAnchorPoint({0.f, 0.5f});
-            float usernameX = 10.f;
-            if (nameLabel) {
-                usernameX = nameLabel->getPositionX() + nameLabel->getContentSize().width * nameLabel->getScale() + 8.f;
-            }
-            usernameLabel->setPosition({usernameX, 15.f});
+            usernameLabel->setPosition({10.f, 10.f});
             usernameLabel->setScale(0.4f);
             cellBg->addChild(usernameLabel);
         }
@@ -87,10 +83,14 @@ CBBannerCell* CBBannerCell::create(const CBBannerItem& banner, float width) {
     if (auto price = CCLabelBMFont::create(fmt::format("{}", banner.price).c_str(), "bigFont.fnt")) {
         price->setAnchorPoint({0.f, 0.5f});
         price->setScale(0.5f);
-        price->setPosition({-8.f, 0.f});
+        price->setPosition({0.f, 0.f});
 
         auto priceNode = CCNode::create();
-        priceNode->setPosition({20.f, 35.f});
+        float priceX = 20.f;
+        if (nameLabel) {
+            priceX = nameLabel->getPositionX() + nameLabel->getContentSize().width * nameLabel->getScale() + 10.f;
+        }
+        priceNode->setPosition({priceX, 25.f});
 
         priceNode->addChild(price);
 
@@ -98,6 +98,7 @@ CBBannerCell* CBBannerCell::create(const CBBannerItem& banner, float width) {
             amethystIcon->setScale(0.5f);
             auto priceWidth = price->getContentSize().width * price->getScale();
             amethystIcon->setPosition({priceWidth + 4.f, 0.f});
+            amethystIcon->setAnchorPoint({0.f, 0.5f});
             priceNode->addChild(amethystIcon);
         }
 
@@ -141,8 +142,8 @@ CBBannerCell* CBBannerCell::create(const CBBannerItem& banner, float width) {
             auto current = Mod::get()->getSavedValue<int>("amethyst", 0);
             if (current < cost) {
                 geode::createQuickPopup(
-                    "Not enough amethyst",
-                    fmt::format("You need {} more amethyst to buy this banner.", cost - current),
+                    "Not enough Amethyst",
+                    fmt::format("You need <cp>{} Amethyst</c> to <cg>buy this banner</c>.", cost - current),
                     "OK",
                     nullptr,
                     300.f,

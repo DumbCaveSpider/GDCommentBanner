@@ -145,15 +145,6 @@ void CBAdminPanelLayer::fetchPendingBanners() {
 
             for (size_t i = 0; i < json.size(); ++i) {
                 auto item = json[i];
-                auto cell = CCLayer::create();
-                cell->setContentSize({380.f, 90.f});
-
-                auto bg = NineSlice::create("square02_001.png");
-                bg->setContentSize(cell->getContentSize());
-                bg->setAnchorPoint({0, 0});
-                bg->setOpacity(50);
-                cell->addChild(bg);
-
                 std::string name = item["name"].asString().unwrapOr("Unknown");
                 std::string user = item["username"].asString().unwrapOr("Unknown");
                 int id = item["id"].asInt().unwrapOr(0);
@@ -166,61 +157,107 @@ void CBAdminPanelLayer::fetchPendingBanners() {
                     imageUrl = fmt::format("{}{}", comment::baseUrl, imageUrl);
                 }
 
-                auto sprite = LazySprite::create({344.f, 84.f}, true);
+                float width = 380.f;
+                float cellHeight = 96.f;
+                auto cell = CCLayer::create();
+                cell->setContentSize({width, cellHeight});
+
+                // Background
+                if (auto background = NineSlice::createWithSpriteFrameName("geode.loader/tab-bg.png")) {
+                    background->setContentSize({width - 5, cellHeight});
+                    background->setPosition({width / 2.f, cellHeight / 2.f});
+                    cell->addChild(background);
+                }
+
+                // Image
+                auto sprite = LazySprite::create({344.f, 104.f}, true);
                 sprite->setAutoResize(true);
-                sprite->setPosition({380.f / 2.f, 60.f});
+                sprite->setPosition({width / 2.f, cellHeight - 30.f});
                 if (!imageUrl.empty()) {
                     sprite->loadFromUrl(imageUrl, LazySprite::Format::kFmtWebp, false);
                 }
                 cell->addChild(sprite);
 
-                auto label = CCLabelBMFont::create(fmt::format("{} by {}", name, user).c_str(), "bigFont.fnt");
-                label->limitLabelWidth(150.f, 0.7f, 0.3f);
-                label->setAnchorPoint({0, 0.5f});
-                label->setPosition({10.f, 25.f});
-                cell->addChild(label);
-
-                float currentX = label->getPositionX() + (label->getContentSize().width * label->getScale()) + 5.f;
-
+                // Name
+                auto nameLabel = CCLabelBMFont::create(name.c_str(), "bigFont.fnt");
+                nameLabel->setAnchorPoint({0.f, 0.5f});
+                float nameX = 10.f;
                 if (isLimited) {
-                    auto amountLabel = CCLabelBMFont::create(fmt::format("{}", amount).c_str(), "bigFont.fnt");
-                    amountLabel->limitLabelWidth(50.f, 0.4f, 0.2f);
-                    amountLabel->setAnchorPoint({0, 0.5f});
-                    amountLabel->setPosition({currentX, 25.f});
-                    cell->addChild(amountLabel);
-                    currentX += (amountLabel->getContentSize().width * amountLabel->getScale()) + 2.f;
+                    if (auto starIcon = CCSprite::createWithSpriteFrameName("GJ_sRecentIcon_001.png")) {
+                        starIcon->setScale(0.8f);
+                        starIcon->setPosition({nameX, 25.f});
+                        starIcon->setAnchorPoint({0.f, 0.5f});
+                        cell->addChild(starIcon);
+                        nameLabel->runAction(CCRepeatForever::create(CCSequence::create(
+                            CCTintTo::create(1.f, 255, 150, 255),
+                            CCTintTo::create(1.f, 255, 255, 255),
+                            nullptr)));
+                        nameX += starIcon->getContentSize().width * starIcon->getScale() + 4.f;
+                    }
+                }
+                nameLabel->setPosition({nameX, 25.f});
+                nameLabel->limitLabelWidth(100.f, 0.5f, 0.2f);
+                cell->addChild(nameLabel);
 
-                    auto limitedIcon = CCSprite::createWithSpriteFrameName("GJ_sRecentIcon_001.png");
-                    limitedIcon->setScale(0.7f);
-                    limitedIcon->setAnchorPoint({0, 0.5f});
-                    limitedIcon->setPosition({currentX, 25.f});
-                    cell->addChild(limitedIcon);
-                    currentX += (limitedIcon->getContentSize().width * limitedIcon->getScale()) + 5.f;
+                float currentX = nameX + (nameLabel->getContentSize().width * nameLabel->getScale()) + 8.f;
+
+                // User
+                if (!user.empty()) {
+                    auto usernameLabel = CCLabelBMFont::create(fmt::format("By {}", user).c_str(), "goldFont.fnt");
+                    usernameLabel->setAnchorPoint({0.f, 0.5f});
+                    usernameLabel->setPosition({currentX, 25.f});
+                    usernameLabel->setScale(0.4f);
+                    cell->addChild(usernameLabel);
+                    currentX += (usernameLabel->getContentSize().width * usernameLabel->getScale()) + 15.f;
+                } else {
+                    currentX += 15.f;
                 }
 
-                auto priceLabel = CCLabelBMFont::create(fmt::format("{}", price).c_str(), "bigFont.fnt");
-                priceLabel->limitLabelWidth(50.f, 0.4f, 0.2f);
-                priceLabel->setAnchorPoint({0, 0.5f});
-                priceLabel->setPosition({currentX, 25.f});
-                cell->addChild(priceLabel);
-                currentX += (priceLabel->getContentSize().width * priceLabel->getScale()) + 2.f;
+                // Price
+                if (auto priceLabel = CCLabelBMFont::create(fmt::format("{}", price).c_str(), "bigFont.fnt")) {
+                    priceLabel->setAnchorPoint({1.f, 0.5f});
+                    priceLabel->setScale(0.5f);
+                    priceLabel->setPosition({0.f, 0.f});
 
-                if (auto amethystIcon = CCSprite::createWithSpriteFrameName("CB_amethyst_002.png"_spr)) {
-                    amethystIcon->setScale(0.45f);
-                    amethystIcon->setAnchorPoint({0, 0.5f});
-                    amethystIcon->setPosition({currentX, 25.f});
-                    cell->addChild(amethystIcon);
+                    auto priceNode = CCNode::create();
+                    priceNode->setPosition({currentX, 25.f});
+                    priceNode->addChild(priceLabel);
+
+                    if (auto amethystIcon = CCSprite::createWithSpriteFrameName("CB_amethyst_002.png"_spr)) {
+                        amethystIcon->setScale(0.5f);
+                        auto priceWidth = priceLabel->getContentSize().width * priceLabel->getScale();
+                        amethystIcon->setPosition({priceWidth + 4.f, 0.f});
+                        priceNode->addChild(amethystIcon);
+                        currentX += priceWidth + (amethystIcon->getContentSize().width * amethystIcon->getScale());
+                    } else {
+                        currentX += priceLabel->getContentSize().width * priceLabel->getScale();
+                    }
+                    cell->addChild(priceNode);
+                    currentX += 15.f;
                 }
 
-                auto descLabel = SimpleTextArea::create(desc.c_str(), "chatFont.fnt", 0.4f, 250.f);
-                descLabel->setAnchorPoint({0, 0.5f});
-                descLabel->setPosition({10.f, 10.f});
-                descLabel->setMaxLines(2);
-                cell->addChild(descLabel);
+                // Amount
+                if (isLimited) {
+                    if (auto amountLabel = CCLabelBMFont::create(fmt::format("Amount: {}", amount).c_str(), "goldFont.fnt")) {
+                        amountLabel->setAnchorPoint({0.f, 0.5f});
+                        amountLabel->limitLabelWidth(60.f, 0.4f, 0.2f);
+                        amountLabel->setPosition({currentX, 25.f});
+                        cell->addChild(amountLabel);
+                    }
+                }
+
+                // Description
+                if (!desc.empty()) {
+                    auto descLabel = SimpleTextArea::create(desc.c_str(), "chatFont.fnt", 0.4f, 280.f);
+                    descLabel->setAnchorPoint({0.f, 0.5f});
+                    descLabel->setPosition({10.f, 10.f});
+                    descLabel->setMaxLines(2);
+                    cell->addChild(descLabel);
+                }
 
                 auto menu = CCMenu::create();
-                menu->setContentSize({100.f, 30.f});
-                menu->setPosition({320.f, 20.f});
+                menu->setContentSize({70.f, 30.f});
+                menu->setPosition({335.f, 25.f});
                 menu->setLayout(RowLayout::create()
                         ->setAxisAlignment(AxisAlignment::Center)
                         ->setGap(5.f));
@@ -362,19 +399,13 @@ void CBAdminPanelLayer::fetchUsers() {
                     sprite->setAutoResize(true);
                     sprite->setPosition({190.f, 20.f});
                     sprite->loadFromUrl(equippedBannerUrl, LazySprite::Format::kFmtWebp, false);
-                    cell->addChild(sprite);
+                    cell->addChild(sprite, -2);
 
-                    auto bg = NineSlice::create("square02_001.png");
+                    auto bg = CCLayerGradient::create({0, 0, 0, 255}, {0, 0, 0, 0}, {1, 0});
                     bg->setContentSize(cell->getContentSize());
                     bg->setAnchorPoint({0, 0});
-                    bg->setOpacity(150);
-                    cell->addChild(bg);
-                } else {
-                    auto bg = NineSlice::create("square02_001.png");
-                    bg->setContentSize(cell->getContentSize());
-                    bg->setAnchorPoint({0, 0});
-                    bg->setOpacity(50);
-                    cell->addChild(bg);
+                    bg->setOpacity(255);
+                    cell->addChild(bg, -1);
                 }
 
                 std::string user = item["username"].asString().unwrapOr("Unknown");
