@@ -15,6 +15,7 @@
 using namespace geode::prelude;
 
 #include <asp/time/SystemTime.hpp>
+#include <mutex>
 
 struct CachedBanner {
     bool equipped;
@@ -23,10 +24,18 @@ struct CachedBanner {
 };
 
 static std::map<int, CachedBanner> s_bannerCache;
+static std::mutex s_cacheMutex;
 static bool s_cacheLoaded = false;
 
 static void loadCache() {
-    if (s_cacheLoaded) return;
+    {
+        std::lock_guard<std::mutex> lock(s_cacheMutex);
+        if (s_cacheLoaded) return;
+    }
+
+    std::lock_guard<std::mutex> lock(s_cacheMutex);
+    if (s_cacheLoaded) return; // double-check
+
     auto path = Mod::get()->getSaveDir() / "banner_cache.json";
     if (std::filesystem::exists(path)) {
         std::ifstream file(path);
@@ -55,9 +64,12 @@ static void loadCache() {
 static void saveCache() {
     auto path = Mod::get()->getSaveDir() / "banner_cache.json";
     matjson::Value obj = matjson::makeObject({});
-    for (auto const& [accountId, banner] : s_bannerCache) {
-        auto timeMs = banner.timestamp.timeSinceEpoch().millis();
-        obj.set(numToString(accountId), matjson::makeObject({{"equipped", banner.equipped}, {"imageUrl", banner.imageUrl}, {"timestamp", timeMs}}));
+    {
+        std::lock_guard<std::mutex> lock(s_cacheMutex);
+        for (auto const& [accountId, banner] : s_bannerCache) {
+            auto timeMs = banner.timestamp.timeSinceEpoch().millis();
+            obj.set(numToString(accountId), matjson::makeObject({{"equipped", banner.equipped}, {"imageUrl", banner.imageUrl}, {"timestamp", timeMs}}));
+        }
     }
     std::ofstream file(path);
     if (file.is_open()) {
@@ -115,43 +127,46 @@ class $modify(CBCommentCell, CommentCell) {
         loadCache();
 
         // Check cache
-        if (s_bannerCache.contains(accountId)) {
-            auto& cached = s_bannerCache[accountId];
-            auto now = asp::time::SystemTime::now();
-            auto durationHours = Mod::get()->getSettingValue<int64_t>("cache-duration-hours");
-            auto ageDur = now.durationSince(cached.timestamp);
+        {
+            std::lock_guard<std::mutex> lock(s_cacheMutex);
+            if (s_bannerCache.contains(accountId)) {
+                auto& cached = s_bannerCache[accountId];
+                auto now = asp::time::SystemTime::now();
+                auto durationHours = Mod::get()->getSettingValue<int64_t>("cache-duration-hours");
+                auto ageDur = now.durationSince(cached.timestamp);
 
-            if (ageDur && ageDur.value().hours() < durationHours) {
-                if (!cached.equipped) return;
+                if (ageDur && ageDur.value().hours() < durationHours) {
+                    if (!cached.equipped) return;
 
-                std::string imageUrl = cached.imageUrl;
-                geode::queueInMainThread([self, imageUrl]() {
-                    if (!self->m_backgroundLayer) return;
-                    auto size = self->m_backgroundLayer->getScaledContentSize();
-                    auto bannerSize = self->m_compactMode ? size : CCSize{800.f, 800.f};
-                    auto bannerSprite = LazySprite::create(bannerSize, true);
-                    bannerSprite->setAutoResize(true);
-                    bannerSprite->loadFromUrl(imageUrl, LazySprite::Format::kFmtWebp, true);
-                    bannerSprite->setPosition({size.width / 2.f, size.height / 2.f});
-                    self->m_backgroundLayer->setOpacity(100);
-                    self->m_backgroundLayer->addChild(bannerSprite, -1);
+                    std::string imageUrl = cached.imageUrl;
+                    geode::queueInMainThread([self, imageUrl]() {
+                        if (!self->m_backgroundLayer) return;
+                        auto size = self->m_backgroundLayer->getScaledContentSize();
+                        auto bannerSize = self->m_compactMode ? size : CCSize{800.f, 800.f};
+                        auto bannerSprite = LazySprite::create(bannerSize, true);
+                        bannerSprite->setAutoResize(true);
+                        bannerSprite->loadFromUrl(imageUrl, LazySprite::Format::kFmtWebp, true);
+                        bannerSprite->setPosition({size.width / 2.f, size.height / 2.f});
+                        self->m_backgroundLayer->setOpacity(100);
+                        self->m_backgroundLayer->addChild(bannerSprite, -1);
 
-                    if (self->m_compactMode) {
-                        if (auto commentText = self->m_mainLayer->getChildByIDRecursive("comment-text-label")) {
-                            if (!self->m_mainLayer->getChildByID("cb-comment-banner-bg")) {
-                                auto commentBg = NineSlice::create("square02_small.png");
-                                commentBg->setID("cb-comment-banner-bg");
-                                commentBg->setInsets({5, 5, 5, 5});
-                                commentBg->setContentSize(commentText->getScaledContentSize() + CCSize(5, 0));
-                                commentBg->setPosition({commentText->getPosition().x - 2, commentText->getPosition().y});
-                                commentBg->setOpacity(150);
-                                commentBg->setAnchorPoint(commentText->getAnchorPoint());
-                                self->m_mainLayer->addChild(commentBg, -1);
+                        if (self->m_compactMode) {
+                            if (auto commentText = self->m_mainLayer->getChildByIDRecursive("comment-text-label")) {
+                                if (!self->m_mainLayer->getChildByID("cb-comment-banner-bg")) {
+                                    auto commentBg = NineSlice::create("square02_small.png");
+                                    commentBg->setID("cb-comment-banner-bg");
+                                    commentBg->setInsets({5, 5, 5, 5});
+                                    commentBg->setContentSize(commentText->getScaledContentSize() + CCSize(5, 0));
+                                    commentBg->setPosition({commentText->getPosition().x - 2, commentText->getPosition().y});
+                                    commentBg->setOpacity(150);
+                                    commentBg->setAnchorPoint(commentText->getAnchorPoint());
+                                    self->m_mainLayer->addChild(commentBg, -1);
+                                }
                             }
                         }
-                    }
-                });
-                return;
+                    });
+                    return;
+                }
             }
         }
 
@@ -180,7 +195,10 @@ class $modify(CBCommentCell, CommentCell) {
                 newCached.equipped = false;
                 newCached.imageUrl = "";
                 newCached.timestamp = asp::time::SystemTime::now();
-                s_bannerCache[accountId] = newCached;
+                {
+                    std::lock_guard<std::mutex> lock(s_cacheMutex);
+                    s_bannerCache[accountId] = newCached;
+                }
                 saveCache();
                 co_return;
             }
@@ -198,7 +216,11 @@ class $modify(CBCommentCell, CommentCell) {
             newCached.equipped = true;
             newCached.imageUrl = imageUrl;
             newCached.timestamp = asp::time::SystemTime::now();
-            s_bannerCache[accountId] = newCached;
+
+            {
+                std::lock_guard<std::mutex> lock(s_cacheMutex);
+                s_bannerCache[accountId] = newCached;
+            }
             saveCache();
 
             geode::queueInMainThread([self, imageUrl]() {
