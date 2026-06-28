@@ -323,17 +323,21 @@ void CBManageUserPopup::createBannerCell(matjson::Value const& banner) {
     bg->setAnchorPoint({0, 0});
     cell->addChild(bg, -1);
 
-    auto label = CCLabelBMFont::create(name.c_str(), "bigFont.fnt");
-    label->limitLabelWidth(140.f, 0.5f, 0.2f);
-    label->setAnchorPoint({0, 0.5f});
-    label->setPosition({10.f, 26.f});
-    cell->addChild(label);
+    auto nameInput = TextInput::create(200.f, "Name", "bigFont.fnt");
+    nameInput->setAnchorPoint({0, 0.5f});
+    nameInput->setTextAlign(TextInputAlign::Left);
+    nameInput->setPosition({10.f, 27.f});
+    nameInput->setString(name);
+    nameInput->setScale(0.5f);
+    cell->addChild(nameInput);
 
-    auto descLabel = CCLabelBMFont::create(description.c_str(), "chatFont.fnt", 140.f);
-    descLabel->setAnchorPoint({0, 0.5f});
-    descLabel->setPosition({10.f, 13.f});
-    descLabel->limitLabelWidth(140.f, 0.3f, 0.2f);
-    cell->addChild(descLabel);
+    auto descInput = TextInput::create(200.f, "Description", "chatFont.fnt");
+    descInput->setAnchorPoint({0, 0.5f});
+    descInput->setTextAlign(TextInputAlign::Left);
+    descInput->setPosition({10.f, 12.f});
+    descInput->setString(description);
+    descInput->setScale(0.5f);
+    cell->addChild(descInput);
 
     int bannerId = banner["id"].asInt().unwrapOr(0);
     int price = banner["price"].asInt().unwrapOr(0);
@@ -358,8 +362,8 @@ void CBManageUserPopup::createBannerCell(matjson::Value const& banner) {
     savePriceSpr->setScale(0.7f);
     auto savePriceBtn = geode::Button::createWithNode(
         savePriceSpr,
-        [this, bannerId, priceInput](geode::Button*) {
-            this->updateBannerPrice(bannerId, priceInput);
+        [this, bannerId, nameInput, descInput, priceInput](geode::Button*) {
+            this->updateBannerDetails(bannerId, nameInput->getString(), descInput->getString(), numFromString<int>(priceInput->getString()).unwrapOr(0));
         });
     savePriceBtn->setAnchorPoint({0.5f, 0.5f});
     savePriceBtn->setPosition({235.f, 20.f});
@@ -426,22 +430,13 @@ void CBManageUserPopup::deleteBanner(int bannerId) {
     });
 }
 
-void CBManageUserPopup::updateBannerPrice(int bannerId, geode::TextInput* input) {
-    std::string priceStr = input->getString();
-    if (priceStr.empty()) return;
-
-    auto priceRes = numFromString<int>(priceStr);
-    if (priceRes.isErr()) {
-        return;
-    }
-    int price = priceRes.unwrap();
-
-    auto popup = UploadActionPopup::create(nullptr, "Updating Price...");
+void CBManageUserPopup::updateBannerDetails(int bannerId, std::string name, std::string description, int price) {
+    auto popup = UploadActionPopup::create(nullptr, "Updating Banner...");
     popup->show();
 
     Ref<CBManageUserPopup> retainedSelf = this;
     auto accountData = argon::getGameAccountData();
-    arc::spawn([retainedSelf, bannerId, price, popup, accountData]() -> arc::Future<> {
+    arc::spawn([retainedSelf, bannerId, name, description, price, popup, accountData]() -> arc::Future<> {
         auto authResult = co_await comment::argonToken(accountData);
         if (authResult.empty()) {
             geode::queueInMainThread([popup] { popup->showFailMessage("Authentication failed."); });
@@ -450,18 +445,20 @@ void CBManageUserPopup::updateBannerPrice(int bannerId, geode::TextInput* input)
 
         auto req = geode::utils::web::WebRequest();
         req.header("Content-Type", "application/x-www-form-urlencoded");
-        std::string body = fmt::format("accountId={}&argonToken={}&bannerId={}&price={}",
+        std::string body = fmt::format("accountId={}&argonToken={}&bannerId={}&price={}&name={}&description={}",
             accountData.accountId,
             authResult,
             bannerId,
-            price);
+            price,
+            name,
+            description);
 
-        auto res = co_await req.bodyString(body).post(fmt::format("{}/admin/updateBannerPrice", comment::baseUrl));
+        auto res = co_await req.bodyString(body).post(fmt::format("{}/admin/updateBannerDetails", comment::baseUrl));
         bool ok = res.ok();
 
         geode::queueInMainThread([retainedSelf, popup, ok] {
             if (ok) {
-                popup->showSuccessMessage("Price updated!");
+                popup->showSuccessMessage("Banner updated!");
             } else {
                 popup->showFailMessage("Failed to update price.");
             }

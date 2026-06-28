@@ -33,7 +33,7 @@ protected:
     void fetchUserBanners();
     void createBannerCell(matjson::Value const& banner);
     void deleteBanner(int bannerId);
-    void updateBannerPrice(int bannerId, geode::TextInput* input);
+    void updateBannerDetails(int bannerId, std::string name, std::string description, int price);
 
 public:
     static CBManageUserPopup* create(matjson::Value const& userData);

@@ -26,14 +26,6 @@ bool CBLogsPopup::init() {
         m_mainLayer->addChildAtPosition(m_list, Anchor::Center, {0.f, -15.f}, false);
     }
 
-    auto listBg = NineSlice::create("square02_001.png");
-    if (listBg) {
-        listBg->setPosition(m_list->getPosition());
-        listBg->setContentSize(m_list->getContentSize() + CCSize(5.f, 10.f));
-        listBg->setOpacity(100);
-        m_mainLayer->addChild(listBg, -1);
-    }
-
     fetchLogs();
 
     return true;
@@ -115,18 +107,6 @@ void CBLogsPopup::fetchLogs() {
 
                 auto cell = CCLayer::create();
                 cell->setContentSize({340.f, 60.f});
-
-                auto bg = NineSlice::create("square02_001.png");
-                bg->setContentSize(cell->getContentSize());
-                bg->setAnchorPoint({0, 0});
-                bg->setPosition({0, 0});
-                bg->setOpacity(50);
-                if (actionType == "APPROVED") {
-                    bg->setColor({100, 255, 100});
-                } else if (actionType == "REJECTED") {
-                    bg->setColor({255, 100, 100});
-                }
-                cell->addChild(bg);
 
                 auto actionLabel = CCLabelBMFont::create(actionType.c_str(), "bigFont.fnt");
                 actionLabel->setScale(0.45f);

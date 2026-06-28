@@ -3,6 +3,7 @@
 #include <Geode/ui/Popup.hpp>
 #include <cue/ListNode.hpp>
 #include <cue/LoadingCircle.hpp>
+#include <Geode/ui/Button.hpp>
 
 using namespace geode::prelude;
 
@@ -14,18 +15,20 @@ private:
     bool init();
 
     void fetchPendingBanners();
-    void fetchUsers();
+    void fetchUsers(std::string query = "");
+    void fetchBanners(std::string query = "");
 
     void onTabPending(CCObject*);
     void onTabUsers(CCObject*);
+    void onTabBanners(CCObject*);
 
     cue::ListNode* m_list = nullptr;
     cue::LoadingCircle* m_loadingCircle = nullptr;
 
     CCMenuItemToggler* m_tabPending = nullptr;
     CCMenuItemToggler* m_tabUsers = nullptr;
+    geode::Button* m_filterBtn = nullptr;
 
-    enum class Tab { Pending,
-        Users };
+    enum class Tab { Pending, Users, Banners };
     Tab m_currentTab = Tab::Pending;
 };

@@ -8,7 +8,10 @@
 #include <Geode/ui/Button.hpp>
 #include <Geode/ui/LazySprite.hpp>
 #include <Geode/binding/UploadActionPopup.hpp>
+#include <Geode/binding/SetTextPopup.hpp>
 #include "CBManageUserPopup.hpp"
+#include "CBAdminSearchPopup.hpp"
+#include "CBAdminBannerManagePopup.hpp"
 
 using namespace geode::prelude;
 
@@ -55,8 +58,31 @@ bool CBAdminPanelLayer::init() {
         [this](geode::Button* sender) { this->onTabUsers(sender); });
     tabMenu->addChild(usersBtn);
 
+    auto bannersBtn = geode::Button::createWithNode(
+        ButtonSprite::create("Banners", "goldFont.fnt", "GJ_button_01.png", .8f),
+        [this](geode::Button* sender) { this->onTabBanners(sender); });
+    tabMenu->addChild(bannersBtn);
+
     m_mainLayer->addChildAtPosition(tabMenu, Anchor::Top, {0.f, -50.f}, false);
     tabMenu->updateLayout();
+
+    auto filterMenu = CCMenu::create();
+    m_filterBtn = geode::Button::createWithNode(
+        CCSprite::createWithSpriteFrameName("gj_findBtn_001.png"),
+        [this](geode::Button*) {
+            if (m_currentTab == Tab::Users) {
+                CBAdminSearchPopup::create("Search Users", "AccountID or Username", [this](std::string query) {
+                    this->fetchUsers(query);
+                })->show();
+            } else if (m_currentTab == Tab::Banners) {
+                CBAdminSearchPopup::create("Search Banners", "Banner Name, User, or ID", [this](std::string query) {
+                    this->fetchBanners(query);
+                })->show();
+            }
+        });
+    m_filterBtn->setVisible(false);
+    filterMenu->addChild(m_filterBtn);
+    m_mainLayer->addChildAtPosition(filterMenu, Anchor::TopRight, {-25.f, -25.f});
 
     fetchPendingBanners();
 
@@ -66,13 +92,22 @@ bool CBAdminPanelLayer::init() {
 void CBAdminPanelLayer::onTabPending(CCObject*) {
     if (m_currentTab == Tab::Pending) return;
     m_currentTab = Tab::Pending;
+    m_filterBtn->setVisible(false);
     fetchPendingBanners();
 }
 
 void CBAdminPanelLayer::onTabUsers(CCObject*) {
     if (m_currentTab == Tab::Users) return;
     m_currentTab = Tab::Users;
+    m_filterBtn->setVisible(true);
     fetchUsers();
+}
+
+void CBAdminPanelLayer::onTabBanners(CCObject*) {
+    if (m_currentTab == Tab::Banners) return;
+    m_currentTab = Tab::Banners;
+    m_filterBtn->setVisible(true);
+    fetchBanners();
 }
 
 void CBAdminPanelLayer::fetchPendingBanners() {
@@ -332,7 +367,7 @@ void CBAdminPanelLayer::fetchPendingBanners() {
     });
 }
 
-void CBAdminPanelLayer::fetchUsers() {
+void CBAdminPanelLayer::fetchUsers(std::string query) {
     if (m_loadingCircle) m_loadingCircle->removeFromParent();
     m_loadingCircle = cue::LoadingCircle::create(true);
 
@@ -347,7 +382,7 @@ void CBAdminPanelLayer::fetchUsers() {
     auto accountId = accountData.accountId;
 
     Ref<CBAdminPanelLayer> retainedSelf = this;
-    arc::spawn([retainedSelf, accountId, accountData]() -> arc::Future<> {
+    arc::spawn([retainedSelf, accountId, accountData, query]() -> arc::Future<> {
         auto authResult = co_await comment::argonToken(accountData);
         if (authResult.empty()) {
             geode::queueInMainThread([retainedSelf] {
@@ -359,7 +394,14 @@ void CBAdminPanelLayer::fetchUsers() {
 
         auto authToken = std::move(authResult);
         auto req = geode::utils::web::WebRequest();
-        auto url = fmt::format("{}/admin/usersWithBanners?accountId={}&argonToken={}", comment::baseUrl, accountId, authToken);
+
+        std::string encodedQuery = query;
+        size_t pos = 0;
+        while ((pos = encodedQuery.find(" ", pos)) != std::string::npos) {
+            encodedQuery.replace(pos, 1, "%20");
+            pos += 3;
+        }
+        auto url = fmt::format("{}/admin/searchUsers?accountId={}&argonToken={}&query={}", comment::baseUrl, accountId, authToken, encodedQuery);
 
         auto response = co_await req.get(url);
         if (!response.ok()) {
@@ -472,6 +514,182 @@ void CBAdminPanelLayer::fetchUsers() {
                 menu->addChild(manageBtn);
 
                 cell->addChild(menu);
+
+                retainedSelf->m_list->setCellColor(ccColor4B{0, 0, 0, 0});
+                retainedSelf->m_list->addCell(cell);
+            }
+            retainedSelf->m_list->updateLayout();
+        });
+
+        co_return;
+    });
+}
+
+void CBAdminPanelLayer::fetchBanners(std::string query) {
+    if (m_loadingCircle) m_loadingCircle->removeFromParent();
+    m_loadingCircle = cue::LoadingCircle::create(true);
+    m_list->addChildAtPosition(m_loadingCircle, Anchor::Center, CCPointZero, false);
+    m_loadingCircle->fadeIn();
+
+    if (auto empty = m_list->getChildByID("empty-label")) {
+        empty->removeFromParent();
+    }
+
+    auto accountData = argon::getGameAccountData();
+    auto accountId = accountData.accountId;
+
+    Ref<CBAdminPanelLayer> retainedSelf = this;
+    arc::spawn([retainedSelf, accountId, accountData, query]() -> arc::Future<> {
+        auto authResult = co_await comment::argonToken(accountData);
+        if (authResult.empty()) {
+            geode::queueInMainThread([retainedSelf] {
+                retainedSelf->m_loadingCircle->fadeOut();
+                Notification::create("Authentication failed.", NotificationIcon::Error)->show();
+            });
+            co_return;
+        }
+
+        auto authToken = std::move(authResult);
+        auto req = geode::utils::web::WebRequest();
+
+        std::string encodedQuery = query;
+        size_t pos = 0;
+        while ((pos = encodedQuery.find(" ", pos)) != std::string::npos) {
+            encodedQuery.replace(pos, 1, "%20");
+            pos += 3;
+        }
+        auto url = fmt::format("{}/admin/searchBanners?accountId={}&argonToken={}&query={}", comment::baseUrl, accountId, authToken, encodedQuery);
+
+        auto response = co_await req.get(url);
+        if (!response.ok()) {
+            geode::queueInMainThread([retainedSelf] {
+                retainedSelf->m_loadingCircle->fadeOut();
+                Notification::create("Failed to fetch banners.", NotificationIcon::Error)->show();
+            });
+            co_return;
+        }
+
+        auto jsonRes = response.json();
+        if (jsonRes.isErr()) {
+            geode::queueInMainThread([retainedSelf] {
+                retainedSelf->m_loadingCircle->fadeOut();
+            });
+            co_return;
+        }
+
+        auto json = jsonRes.unwrap();
+        if (!json.isArray()) {
+            geode::queueInMainThread([retainedSelf] {
+                retainedSelf->m_loadingCircle->fadeOut();
+            });
+            co_return;
+        }
+
+        geode::queueInMainThread([retainedSelf, json = std::move(json), accountId, authToken] {
+            retainedSelf->m_loadingCircle->fadeOut();
+            if (retainedSelf->m_currentTab != Tab::Banners) return;
+            retainedSelf->m_list->clear();
+
+            if (auto empty = retainedSelf->m_list->getChildByID("empty-label")) {
+                empty->removeFromParent();
+            }
+
+            if (json.size() == 0) {
+                auto emptyLabel = CCLabelBMFont::create("No banners found.", "goldFont.fnt");
+                emptyLabel->setScale(0.8f);
+                emptyLabel->setID("empty-label");
+                retainedSelf->m_list->addChildAtPosition(emptyLabel, Anchor::Center);
+                return;
+            }
+
+            for (size_t i = 0; i < json.size(); ++i) {
+                auto item = json[i];
+                std::string name = item["name"].asString().unwrapOr("Unknown");
+                std::string user = item["username"].asString().unwrapOr("Unknown");
+                int id = item["id"].asInt().unwrapOr(0);
+                std::string desc = item["description"].asString().unwrapOr("");
+                int price = item["price"].asInt().unwrapOr(0);
+                bool isLimited = item["isLimited"].asBool().unwrapOr(false);
+                int amount = item["amount"].asInt().unwrapOr(0);
+                std::string imageUrl = item["imageUrl"].asString().unwrapOr("");
+
+                float width = 380.f;
+                float cellHeight = 96.f;
+                auto cell = CCLayer::create();
+                cell->setContentSize({width, cellHeight});
+
+                // Background
+                if (auto background = NineSlice::createWithSpriteFrameName("geode.loader/tab-bg.png")) {
+                    background->setContentSize({width - 5, cellHeight});
+                    background->setPosition({width / 2.f, cellHeight / 2.f});
+                    cell->addChild(background);
+                }
+
+                // Image
+                auto sprite = LazySprite::create({344.f, 104.f}, true);
+                sprite->setAutoResize(true);
+                sprite->setPosition({width / 2.f, cellHeight - 30.f});
+                if (!imageUrl.empty()) {
+                    sprite->loadFromUrl(imageUrl, LazySprite::Format::kFmtWebp, false);
+                }
+                cell->addChild(sprite);
+
+                // Name
+                auto nameLabel = CCLabelBMFont::create(name.c_str(), "bigFont.fnt");
+                nameLabel->setAnchorPoint({0.f, 0.5f});
+                float nameX = 10.f;
+                if (isLimited) {
+                    if (auto starIcon = CCSprite::createWithSpriteFrameName("GJ_sRecentIcon_001.png")) {
+                        starIcon->setScale(0.8f);
+                        starIcon->setPosition({nameX, 25.f});
+                        starIcon->setAnchorPoint({0.f, 0.5f});
+                        cell->addChild(starIcon);
+                        nameX += starIcon->getContentSize().width * starIcon->getScale() + 4.f;
+                    }
+                }
+                nameLabel->setPosition({nameX, 25.f});
+                nameLabel->limitLabelWidth(100.f, 0.5f, 0.2f);
+                cell->addChild(nameLabel);
+
+                float currentX = nameX + (nameLabel->getContentSize().width * nameLabel->getScale()) + 8.f;
+
+                // User
+                if (!user.empty()) {
+                    auto usernameLabel = CCLabelBMFont::create(fmt::format("By {}", user).c_str(), "goldFont.fnt");
+                    usernameLabel->setAnchorPoint({0.f, 0.5f});
+                    usernameLabel->setPosition({currentX, 25.f});
+                    usernameLabel->setScale(0.4f);
+                    cell->addChild(usernameLabel);
+                    currentX += (usernameLabel->getContentSize().width * usernameLabel->getScale()) + 15.f;
+                } else {
+                    currentX += 15.f;
+                }
+
+                // Description
+                if (!desc.empty()) {
+                    auto descLabel = SimpleTextArea::create(desc.c_str(), "chatFont.fnt", 0.4f, 280.f);
+                    descLabel->setAnchorPoint({0.f, 0.5f});
+                    descLabel->setPosition({10.f, 10.f});
+                    descLabel->setMaxLines(2);
+                    cell->addChild(descLabel);
+                }
+
+                auto menu = CCMenu::create();
+                menu->setContentSize({100.f, 30.f});
+                menu->setPosition({320.f, 25.f});
+                menu->setLayout(RowLayout::create()
+                        ->setAxisAlignment(AxisAlignment::Center)
+                        ->setGap(5.f));
+
+                auto manageBtn = geode::Button::createWithNode(
+                    ButtonSprite::create("Manage", "goldFont.fnt", "GJ_button_01.png", 0.5f),
+                    [item](geode::Button*) {
+                        CBAdminBannerManagePopup::create(item)->show();
+                    });
+                menu->addChild(manageBtn);
+
+                cell->addChild(menu);
+                menu->updateLayout();
 
                 retainedSelf->m_list->setCellColor(ccColor4B{0, 0, 0, 0});
                 retainedSelf->m_list->addCell(cell);
