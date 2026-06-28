@@ -59,13 +59,14 @@ bool CBAdminBannerManagePopup::init(matjson::Value const& bannerData) {
     menu->addChild(m_priceInput);
 
     // Amount info
+    std::string amountText = fmt::format("Bought: {}", totalBought);
     if (isLimited) {
-        std::string amountText = fmt::format("Bought: {} / Left: {}", totalBought, amount - totalBought);
-        auto amountLabel = CCLabelBMFont::create(amountText.c_str(), "chatFont.fnt");
-        amountLabel->setPosition({0, startY - gap * 3 - 5.f});
-        amountLabel->setColor(ccColor3B{200, 200, 200});
-        menu->addChild(amountLabel);
+        amountText += fmt::format(" / Left: {}", amount - totalBought);
     }
+    auto amountLabel = CCLabelBMFont::create(amountText.c_str(), "chatFont.fnt");
+    amountLabel->setPosition({0, startY - gap * 3 - 5.f});
+    amountLabel->setColor(ccColor3B{200, 200, 200});
+    menu->addChild(amountLabel);
 
     // Buttons Menu
     auto btnMenu = CCMenu::create();
