@@ -11,6 +11,7 @@
 #include "CBLogsPopup.hpp"
 #include "CBAdminPanelLayer.hpp"
 #include "CBYourBannersPopup.hpp"
+#include <Geode/binding/SetTextPopup.hpp>
 #include "Geode/ui/Layout.hpp"
 #include "Geode/utils/web.hpp"
 #include "ccTypes.h"
@@ -58,6 +59,9 @@ void CBShopLayer::fetchBanners() {
         if (m_list) {
             m_list->clear();
         }
+        if (m_noBannersLabel) {
+            m_noBannersLabel->setVisible(false);
+        }
         if (!m_loadingCircle && m_list) {
             m_loadingCircle = cue::LoadingCircle::create(true);
             if (m_loadingCircle) {
@@ -92,7 +96,14 @@ void CBShopLayer::fetchBanners() {
 
             auto authToken = std::move(authResult);
             auto req = geode::utils::web::WebRequest();
-            auto body = matjson::makeObject({{"accountId", accountId}, {"argonToken", authToken}});
+            auto body = matjson::makeObject({{"accountId", accountId},
+                {"argonToken", authToken},
+                {"page", m_currentPage},
+                {"limit", m_itemsPerPage},
+                {"filter", m_filterState}});
+            if (!m_searchQuery.empty()) {
+                body["name"] = m_searchQuery;
+            }
             auto response = co_await req.bodyJSON(body).post(fmt::format("{}/getBanners", comment::baseUrl));
             if (!response.ok()) {
                 geode::queueInMainThread([this]() {
@@ -116,7 +127,23 @@ void CBShopLayer::fetchBanners() {
             }
 
             auto json = jsonRes.unwrap();
-            if (!json.isArray()) {
+            if (!json.isObject()) {
+                geode::queueInMainThread([this]() {
+                    if (m_loadingCircle) {
+                        m_loadingCircle->fadeOut();
+                    }
+                    Notification::create("Received invalid data for banners.", NotificationIcon::Error)->show();
+                });
+                co_return;
+            }
+
+            int totalItems = 0;
+            if (auto totalRes = json["total"].asInt(); totalRes.isOk()) {
+                totalItems = static_cast<int>(totalRes.unwrap());
+            }
+
+            auto bannersArr = json["banners"];
+            if (!bannersArr.isArray()) {
                 geode::queueInMainThread([this]() {
                     if (m_loadingCircle) {
                         m_loadingCircle->fadeOut();
@@ -127,10 +154,10 @@ void CBShopLayer::fetchBanners() {
             }
 
             std::vector<CBBannerItem> banners;
-            banners.reserve(json.size());
+            banners.reserve(bannersArr.size());
 
-            for (size_t i = 0; i < json.size(); ++i) {
-                auto item = json[i];
+            for (size_t i = 0; i < bannersArr.size(); ++i) {
+                auto item = bannersArr[i];
                 CBBannerItem banner;
                 if (auto urlRes = item["imageUrl"].asString(); urlRes.isOk()) {
                     banner.imageUrl = urlRes.unwrap();
@@ -169,11 +196,12 @@ void CBShopLayer::fetchBanners() {
                 banners.push_back(std::move(banner));
             }
 
-            geode::queueInMainThread([this, banners = std::move(banners)]() mutable {
+            geode::queueInMainThread([this, totalItems, banners = std::move(banners)]() mutable {
                 if (!m_list) {
                     return;
                 }
 
+                this->m_totalItems = totalItems;
                 this->m_banners = std::move(banners);
                 this->populateList();
 
@@ -191,10 +219,8 @@ void CBShopLayer::populateList() {
 
     m_list->clear();
     float listWidth = m_list->getListSize().width;
-    for (auto const& banner : m_banners) {
-        if (m_filterState == 1 && !banner.owns) continue;
-        if (m_filterState == 2 && banner.owns) continue;
 
+    for (auto const& banner : m_banners) {
         auto cell = CBBannerCell::create(banner, listWidth);
         if (cell) {
             m_list->setCellColor(ccColor4B{0, 0, 0, 0});
@@ -202,6 +228,21 @@ void CBShopLayer::populateList() {
         }
     }
     m_list->updateLayout();
+
+    if (m_noBannersLabel) {
+        m_noBannersLabel->setVisible(m_banners.empty());
+    }
+
+    int totalPages = std::ceil((float)m_totalItems / m_itemsPerPage);
+    if (m_pageLabel) {
+        m_pageLabel->setString(fmt::format("Page {} of {} (Total: {})", m_currentPage + 1, totalPages, m_totalItems).c_str());
+    }
+    if (m_prevButton) {
+        m_prevButton->setVisible(m_currentPage > 0);
+    }
+    if (m_nextButton) {
+        m_nextButton->setVisible(m_currentPage < totalPages - 1);
+    }
 }
 
 void CBShopLayer::fetchAmethyst() {
@@ -331,6 +372,12 @@ bool CBShopLayer::init() {
         this->addChildAtPosition(m_list, Anchor::Center, {0.f, -22.f}, false);
     }
 
+    m_noBannersLabel = CCLabelBMFont::create("No Banners Found", "goldFont.fnt");
+    m_noBannersLabel->setScale(0.6f);
+    m_noBannersLabel->setVisible(false);
+    m_noBannersLabel->setZOrder(5);
+    this->addChildAtPosition(m_noBannersLabel, Anchor::Center, {0.f, -22.f}, false);
+
     if (auto refreshButton = geode::Button::createWithSpriteFrameName(
             "GJ_updateBtn_001.png",
             [this](geode::Button* sender) {
@@ -382,19 +429,28 @@ bool CBShopLayer::init() {
         this->addChildAtPosition(infoButton, Anchor::BottomLeft, {25.f, 25.f}, false);
     }
 
+    auto filterMenu = CCMenu::create();
+    filterMenu->setAnchorPoint({0.5f, 1.f});
+    filterMenu->setLayout(ColumnLayout::create()->setAxisAlignment(AxisAlignment::End)->setAutoGrowAxis(0.f));
+
     if (auto filterButton = CCMenuItemSpriteExtra::create(
             EditorButtonSprite::createWithSpriteFrameName("GJ_filterIcon_001.png", 1.0f, EditorBaseColor::Gray),
             this,
             menu_selector(CBShopLayer::onFilterClicked))) {
-        auto filterMenu = CCMenu::create();
-        filterMenu->setContentSize({40, 40});
-        filterButton->setAnchorPoint({0.5f, 0.5f});
-        filterMenu->setLayout(ColumnLayout::create());
-
         filterMenu->addChild(filterButton);
         filterMenu->updateLayout();
 
-        this->addChildAtPosition(filterMenu, Anchor::TopLeft, {25.f, -65.f}, false);
+        this->addChildAtPosition(filterMenu, Anchor::TopLeft, {25.f, -45.f}, false);
+    }
+
+    if (auto searchButton = CCMenuItemSpriteExtra::create(
+            EditorButtonSprite::createWithSpriteFrameName("edit_findBtn_001.png", 1.0f, EditorBaseColor::Gray),
+            this,
+            menu_selector(CBShopLayer::onSearchClicked))) {
+        m_searchButton = searchButton;
+
+        filterMenu->addChild(searchButton);
+        filterMenu->updateLayout();
     }
 
     // Navigation Menu
@@ -435,6 +491,29 @@ bool CBShopLayer::init() {
 
     this->addChildAtPosition(navMenu, Anchor::Top, {0.f, -35.f}, false);
     navMenu->updateLayout();
+
+    // Pagination Menu
+    auto paginationMenu = CCMenu::create();
+
+    auto prevSprite = CCSprite::createWithSpriteFrameName("GJ_arrow_01_001.png");
+    prevSprite->setScale(0.8f);
+    m_prevButton = CCMenuItemSpriteExtra::create(prevSprite, this, menu_selector(CBShopLayer::onPrevPage));
+
+    auto nextSprite = CCSprite::createWithSpriteFrameName("GJ_arrow_01_001.png");
+    nextSprite->setFlipX(true);
+    nextSprite->setScale(0.8f);
+    m_nextButton = CCMenuItemSpriteExtra::create(nextSprite, this, menu_selector(CBShopLayer::onNextPage));
+
+    m_pageLabel = CCLabelBMFont::create("Page 1 of 1 (Total: 0)", "goldFont.fnt");
+    m_pageLabel->limitLabelWidth(100.f, 0.4f, 0.1f);
+
+    paginationMenu->addChild(m_prevButton);
+    this->addChildAtPosition(m_pageLabel, Anchor::Bottom, {0, 10}, false);
+    paginationMenu->addChild(m_nextButton);
+
+    paginationMenu->setLayout(RowLayout::create()->setGap(370.f));
+    this->addChildAtPosition(paginationMenu, Anchor::Center, {0.f, 0.f}, false);
+    paginationMenu->updateLayout();
 
     this->fetchBanners();
     this->fetchAmethyst();
@@ -559,5 +638,35 @@ void CBShopLayer::onFilterClicked(CCObject* sender) {
     auto newSpr = EditorButtonSprite::createWithSpriteFrameName("GJ_filterIcon_001.png", 1.0f, baseColor);
     btn->setNormalImage(newSpr);
 
-    this->populateList();
+    m_currentPage = 0;
+    this->fetchBanners();
+}
+
+void CBShopLayer::onSearchClicked(CCObject* sender) {
+    auto popup = SetTextPopup::create(m_searchQuery, "Search by name...", 32, "Search Banner", "Search", true, 60);
+    popup->m_delegate = this;
+    popup->show();
+}
+
+void CBShopLayer::setTextPopupClosed(SetTextPopup* popup, gd::string text) {
+    m_searchQuery = text;
+
+    if (m_searchButton) {
+        EditorBaseColor baseColor = m_searchQuery.empty() ? EditorBaseColor::Gray : EditorBaseColor::Cyan;
+        auto newSpr = EditorButtonSprite::createWithSpriteFrameName("edit_findBtn_001.png", 1.0f, baseColor);
+        m_searchButton->setNormalImage(newSpr);
+    }
+
+    m_currentPage = 0;
+    this->fetchBanners();
+}
+
+void CBShopLayer::onNextPage(CCObject* sender) {
+    m_currentPage++;
+    this->fetchBanners();
+}
+
+void CBShopLayer::onPrevPage(CCObject* sender) {
+    m_currentPage--;
+    this->fetchBanners();
 }
