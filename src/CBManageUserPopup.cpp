@@ -8,6 +8,7 @@
 #include "Geode/cocos/label_nodes/CCLabelBMFont.h"
 #include "Geode/utils/general.hpp"
 #include "ccTypes.h"
+#include <Geode/ui/Scrollbar.hpp>
 
 using namespace geode::prelude;
 
@@ -102,6 +103,9 @@ bool CBManageUserPopup::init(matjson::Value const& userData) {
     // Right Side (Banners)
     m_bannersList = cue::ListNode::create({290.f, 210.f}, {0, 0, 0, 0}, cue::ListBorderStyle::CommentsBlue);
     m_mainLayer->addChildAtPosition(m_bannersList, Anchor::Center, {100.f, -15.f}, false);
+
+    auto scrollbar = Scrollbar::create(m_bannersList->getScrollLayer());
+    m_mainLayer->addChildAtPosition(scrollbar, Anchor::Center, {100.f + 290.f / 2 + 5.f, -15.f}, false);
 
     fetchUserBanners();
 

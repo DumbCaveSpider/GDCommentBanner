@@ -20,6 +20,7 @@
 #include <cue/LoadingCircle.hpp>
 #include <cue/ListBorder.hpp>
 #include <cue/ListNode.hpp>
+#include <Geode/ui/Scrollbar.hpp>
 
 using namespace geode::prelude;
 
@@ -370,6 +371,9 @@ bool CBShopLayer::init() {
     if (m_list) {
         m_list->setZOrder(2);
         this->addChildAtPosition(m_list, Anchor::Center, {0.f, -22.f}, false);
+
+        auto scrollbar = Scrollbar::create(m_list->getScrollLayer());
+        this->addChildAtPosition(scrollbar, Anchor::Center, {356.f / 2 + 15.f, -22.f}, false);
     }
 
     m_noBannersLabel = CCLabelBMFont::create("No Banners Found", "goldFont.fnt");

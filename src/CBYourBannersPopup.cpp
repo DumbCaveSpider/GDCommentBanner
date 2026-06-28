@@ -3,6 +3,7 @@
 #include <Geode/ui/LazySprite.hpp>
 #include <argon/argon.hpp>
 #include "include/CBConstant.hpp"
+#include <Geode/ui/Scrollbar.hpp>
 
 using namespace geode::prelude;
 
@@ -24,6 +25,9 @@ bool CBYourBannersPopup::init() {
     m_list = cue::ListNode::create({340.f, 220.f}, {0, 0, 0, 0}, cue::ListBorderStyle::Comments);
     if (m_list) {
         m_mainLayer->addChildAtPosition(m_list, Anchor::Center, {0.f, -15.f}, false);
+
+        auto scrollbar = Scrollbar::create(m_list->getScrollLayer());
+        m_mainLayer->addChildAtPosition(scrollbar, Anchor::Center, {340.f / 2 + 5.f, -15.f}, false);
     }
 
     auto listBg = NineSlice::create("square02_001.png");
@@ -183,7 +187,7 @@ void CBYourBannersPopup::fetchBanners() {
                 cell->addChild(statusLabel);
 
                 // Price
-                if (auto priceLabel = CCLabelBMFont::create(fmt::format("{}", price).c_str(), "bigFont.fnt")) {
+                if (auto priceLabel = CCLabelBMFont::create(fmt::format("{}", GameToolbox::pointsToString(price)).c_str(), "bigFont.fnt")) {
                     priceLabel->setAnchorPoint({0.f, 0.5f});
                     priceLabel->setScale(0.5f);
                     priceLabel->setPosition({-8.f, 0.f});
@@ -203,34 +207,52 @@ void CBYourBannersPopup::fetchBanners() {
 
                 // Details (amount/bought/earn rate)
                 auto detailNode = CCNode::create();
-                detailNode->setPosition({20.f, 10.f});
-
-                float currentDetailY = 10.f;
+                detailNode->setScale(0.6f);
+                detailNode->setAnchorPoint({1.f, 1.f});
+                detailNode->setContentSize({200.f, 75.f});
+                detailNode->setLayout(ColumnLayout::create()
+                        ->setAxisAlignment(AxisAlignment::Center)
+                        ->setCrossAxisLineAlignment(AxisAlignment::End)
+                        ->setCrossAxisAlignment(AxisAlignment::End)
+                        ->setGap(2.f)
+                        ->setAxisReverse(true)
+                        ->setAutoScale(false)
+                        ->setGrowCrossAxis(true)
+                        ->setCrossAxisOverflow(false));
 
                 if (isLimited) {
                     if (auto amountLabel = CCLabelBMFont::create(fmt::format("Amount Left: {}", amount - totalBought).c_str(), "goldFont.fnt")) {
-                        amountLabel->setAnchorPoint({1.f, 0.5f});
-                        amountLabel->limitLabelWidth(60.f, 0.4f, 0.2f);
-                        amountLabel->setPosition({0.f, currentDetailY});
+                        amountLabel->limitLabelWidth(150.f, 0.5f, 0.2f);
                         detailNode->addChild(amountLabel);
-                        currentDetailY -= 15.f;
                     }
                 }
 
                 if (auto totalBoughtLabel = CCLabelBMFont::create(fmt::format("Bought: {}", totalBought).c_str(), "goldFont.fnt")) {
-                    totalBoughtLabel->setAnchorPoint({1.f, 0.5f});
-                    totalBoughtLabel->limitLabelWidth(60.f, 0.4f, 0.2f);
-                    totalBoughtLabel->setPosition({0.f, currentDetailY});
+                    totalBoughtLabel->limitLabelWidth(150.f, 0.5f, 0.2f);
                     detailNode->addChild(totalBoughtLabel);
-                    currentDetailY -= 15.f;
                 }
 
                 if (!isPending) {
-                    totalEarnRate += equippedCount * (price * 0.05f);
+                    int rateMultiplier = equippedCount / 5;
+                    float rate = std::min(0.30f, rateMultiplier * 0.05f);
+                    float bannerEarnRate = price * rate;
+                    totalEarnRate += bannerEarnRate;
+
+                    if (auto equippedLabel = CCLabelBMFont::create(fmt::format("Total Equipped: {}", equippedCount).c_str(), "goldFont.fnt")) {
+                        equippedLabel->limitLabelWidth(150.f, 0.5f, 0.2f);
+                        detailNode->addChild(equippedLabel);
+                    }
+
+                    if (auto earnLabel = CCLabelBMFont::create(fmt::format("Earn: +{:.1f}/mo", bannerEarnRate).c_str(), "goldFont.fnt")) {
+                        earnLabel->limitLabelWidth(150.f, 0.5f, 0.2f);
+                        detailNode->addChild(earnLabel);
+                    }
                 }
 
+                detailNode->updateLayout();
+
                 if (detailNode->getChildrenCount() > 0) {
-                    cell->addChildAtPosition(detailNode, Anchor::BottomRight, {-90.f, 25.f}, false);
+                    cell->addChildAtPosition(detailNode, Anchor::BottomRight, {-90.f, 50.f}, false);
                 }
 
                 retainedSelf->m_list->setCellColor(ccColor4B{0, 0, 0, 0});
@@ -241,7 +263,7 @@ void CBYourBannersPopup::fetchBanners() {
             if (totalEarnRate >= 0.f) {
                 auto earnNode = CCNode::create();
 
-                auto earnLabel = CCLabelBMFont::create(fmt::format("+{:.1f}/day", totalEarnRate).c_str(), "bigFont.fnt");
+                auto earnLabel = CCLabelBMFont::create(fmt::format("+{:.1f}/mo", totalEarnRate).c_str(), "bigFont.fnt");
                 earnLabel->setScale(0.5f);
                 earnLabel->setAnchorPoint({1.f, 0.5f});
                 earnLabel->setPosition({0.f, 0.f});

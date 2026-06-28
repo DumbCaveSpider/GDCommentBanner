@@ -18,20 +18,15 @@ bool CBAdminSearchPopup::init(std::string title, std::string placeholder, std::f
     this->setTitle(title.c_str());
     addSideArt(m_mainLayer, SideArt::All, SideArtStyle::PopupBlue);
 
-    auto menu = CCMenu::create();
-    menu->setPosition({m_mainLayer->getContentSize().width / 2, m_mainLayer->getContentSize().height / 2 - 10.f});
-    m_mainLayer->addChild(menu);
-
     m_input = TextInput::create(250.f, placeholder.c_str());
     m_input->setPosition({0, 15.f});
-    menu->addChild(m_input);
+    m_mainLayer->addChildAtPosition(m_input, Anchor::Center, CCPointZero, false);
 
     auto confirmBtn = CCMenuItemSpriteExtra::create(
-        ButtonSprite::create("Submit", "goldFont.fnt", "GJ_button_01.png", 0.8f),
+        ButtonSprite::create("Submit", "goldFont.fnt", "GJ_button_01.png"),
         this,
         menu_selector(CBAdminSearchPopup::onConfirm));
-    confirmBtn->setPosition({0, -30.f});
-    menu->addChild(confirmBtn);
+    m_buttonMenu->addChildAtPosition(confirmBtn, Anchor::Bottom, {0.f, 25.f}, false);
 
     return true;
 }

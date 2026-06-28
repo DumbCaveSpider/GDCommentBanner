@@ -3,6 +3,7 @@
 #include <argon/argon.hpp>
 #include "Geode/ui/Notification.hpp"
 #include "include/CBConstant.hpp"
+#include <Geode/ui/Scrollbar.hpp>
 
 using namespace geode::prelude;
 
@@ -24,6 +25,9 @@ bool CBLogsPopup::init() {
     m_list = cue::ListNode::create({340.f, 220.f}, {0, 0, 0, 0}, cue::ListBorderStyle::Comments);
     if (m_list) {
         m_mainLayer->addChildAtPosition(m_list, Anchor::Center, {0.f, -15.f}, false);
+
+        auto scrollbar = Scrollbar::create(m_list->getScrollLayer());
+        m_mainLayer->addChildAtPosition(scrollbar, Anchor::Center, {340.f / 2 + 5.f, -15.f}, false);
     }
 
     fetchLogs();
@@ -123,7 +127,8 @@ void CBLogsPopup::fetchLogs() {
 
                 auto infoLabel = CCLabelBMFont::create(fmt::format("#{} - {}", id, createdAt).c_str(), "chatFont.fnt");
                 infoLabel->setScale(0.4f);
-                infoLabel->setColor({150, 150, 150});
+                infoLabel->setOpacity(200);
+                infoLabel->setColor({0, 0, 0});
                 infoLabel->setAnchorPoint({1.f, 1.f});
                 infoLabel->setPosition({330.f, 58.f});
                 cell->addChild(infoLabel);

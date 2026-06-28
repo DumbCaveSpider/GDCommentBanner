@@ -31,4 +31,17 @@ private:
 
     enum class Tab { Pending, Users, Banners };
     Tab m_currentTab = Tab::Pending;
+
+    void renderPage();
+    void onNextPage(CCObject*);
+    void onPrevPage(CCObject*);
+    void updatePagination();
+
+    matjson::Value m_currentData;
+    std::string m_authToken;
+    int m_page = 0;
+    CCLabelBMFont* m_pageLabel = nullptr;
+    CCMenuItemSpriteExtra* m_nextBtn = nullptr;
+    CCMenuItemSpriteExtra* m_prevBtn = nullptr;
+    CCMenu* m_paginationMenu = nullptr;
 };

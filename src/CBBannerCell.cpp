@@ -80,7 +80,7 @@ CBBannerCell* CBBannerCell::create(const CBBannerItem& banner, float width) {
         }
     }
 
-    if (auto price = CCLabelBMFont::create(fmt::format("{}", banner.price).c_str(), "bigFont.fnt")) {
+    if (auto price = CCLabelBMFont::create(fmt::format("{}", GameToolbox::pointsToString(banner.price)).c_str(), "bigFont.fnt")) {
         price->setAnchorPoint({0.f, 0.5f});
         price->setScale(0.5f);
         price->setPosition({0.f, 0.f});
