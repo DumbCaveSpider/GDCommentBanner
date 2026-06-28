@@ -325,6 +325,7 @@ void CBManageUserPopup::createBannerCell(matjson::Value const& banner) {
     auto nameInput = TextInput::create(200.f, "Name", "bigFont.fnt");
     nameInput->setAnchorPoint({0, 0.5f});
     nameInput->setTextAlign(TextInputAlign::Left);
+    nameInput->setCommonFilter(CommonFilter::Name);
     nameInput->setPosition({10.f, 27.f});
     nameInput->setString(name);
     nameInput->setScale(0.5f);
@@ -333,6 +334,7 @@ void CBManageUserPopup::createBannerCell(matjson::Value const& banner) {
     auto descInput = TextInput::create(200.f, "Description", "chatFont.fnt");
     descInput->setAnchorPoint({0, 0.5f});
     descInput->setTextAlign(TextInputAlign::Left);
+    descInput->setCommonFilter(CommonFilter::Any);
     descInput->setPosition({10.f, 12.f});
     descInput->setString(description);
     descInput->setScale(0.5f);

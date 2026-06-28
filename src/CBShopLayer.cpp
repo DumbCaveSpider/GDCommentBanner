@@ -311,6 +311,13 @@ void CBShopLayer::fetchAmethyst() {
                     m_isAdmin = false;
                     Mod::get()->setSavedValue("is_admin", false);
                 }
+                
+                if (auto hasCreatedRes = json["has_created_banner"].asBool(); hasCreatedRes.isOk()) {
+                    Mod::get()->setSavedValue("has_created_banner", hasCreatedRes.unwrap());
+                } else {
+                    Mod::get()->setSavedValue("has_created_banner", false);
+                }
+                
                 Mod::get()->setSavedValue("amethyst", amethyst);
 
                 if (!m_amethystLabel) {
@@ -373,8 +380,8 @@ bool CBShopLayer::init() {
         m_list->setZOrder(2);
         this->addChildAtPosition(m_list, Anchor::Center, {0.f, -22.f}, false);
 
-        auto scrollbar = Scrollbar::create(m_list->getScrollLayer());
-        this->addChildAtPosition(scrollbar, Anchor::Center, {356.f / 2 + 15.f, -22.f}, false);
+        // auto scrollbar = Scrollbar::create(m_list->getScrollLayer());
+        //this->addChildAtPosition(scrollbar, Anchor::Center, {356.f / 2 + 15.f, -22.f}, false);
     }
 
     m_noBannersLabel = CCLabelBMFont::create("No Banners Found", "goldFont.fnt");
@@ -524,7 +531,7 @@ bool CBShopLayer::init() {
     paginationMenu->addChild(m_nextButton);
 
     paginationMenu->setLayout(RowLayout::create()->setGap(370.f));
-    this->addChildAtPosition(paginationMenu, Anchor::Center, {0.f, 0.f}, false);
+    this->addChildAtPosition(paginationMenu, Anchor::Center, {0.f, -15.f}, false);
     paginationMenu->updateLayout();
 
     this->fetchBanners();

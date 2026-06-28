@@ -40,6 +40,7 @@ bool CBAdminBannerManagePopup::init(matjson::Value const& bannerData) {
     m_nameInput = TextInput::create(300.f, "Banner Name");
     m_nameInput->setPosition({0, startY - 20.f});
     m_nameInput->setString(name);
+    m_nameInput->setCommonFilter(CommonFilter::Name);
     m_nameInput->setLabel("Banner Name");
     menu->addChild(m_nameInput);
 
@@ -47,6 +48,7 @@ bool CBAdminBannerManagePopup::init(matjson::Value const& bannerData) {
     m_descInput = TextInput::create(300.f, "Description");
     m_descInput->setPosition({0, startY - gap - 20.f});
     m_descInput->setString(desc);
+    m_descInput->setCommonFilter(CommonFilter::Any);
     m_descInput->setLabel("Banner Description");
     menu->addChild(m_descInput);
 

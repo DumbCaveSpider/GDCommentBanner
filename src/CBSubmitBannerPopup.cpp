@@ -70,12 +70,19 @@ bool CBSubmitBannerPopup::init() {
     costRow->setContentSize({300.f, 20.f});
     costRow->setLayout(RowLayout::create()->setGap(5.f)->setAutoScale(false));
 
-    auto amethystSpr = CCSprite::createWithSpriteFrameName("CB_amethyst_001.png"_spr);
+    auto amethystSpr = CCSprite::createWithSpriteFrameName("CB_amethyst_002.png"_spr);
     amethystSpr->setScale(0.6f);
     costRow->addChild(amethystSpr);
 
-    auto costLabel = CCLabelBMFont::create("Submission Cost: 15,000 amethysts", "bigFont.fnt");
+    bool hasCreatedBanner = Mod::get()->getSavedValue<bool>("has_created_banner", false);
+
+    auto costLabel = CCLabelBMFont::create(
+        hasCreatedBanner ? "Submission Cost: 15,000 amethysts" : "Submission Cost: Free on first banner",
+        "bigFont.fnt");
     costLabel->setScale(0.35f);
+    if (!hasCreatedBanner) {
+        costLabel->setColor({100, 255, 100});  // Make it green if free
+    }
     costRow->addChild(costLabel);
 
     costRow->updateLayout();
@@ -267,13 +274,19 @@ void CBSubmitBannerPopup::onSubmit(CCObject*) {
             }
 
             geode::queueInMainThread([popup, retainedSelf] {
-                int current = Mod::get()->getSavedValue<int>("amethyst", 0);
-                int newAmethyst = std::max(0, current - 15000);
-                Mod::get()->setSavedValue("amethyst", newAmethyst);
-                if (auto shopLayer = CBShopLayer::getInstance()) {
-                    shopLayer->updateAmethystLabel(newAmethyst);
+                bool hasCreatedBanner = Mod::get()->getSavedValue<bool>("has_created_banner", false);
+                if (!hasCreatedBanner) {
+                    Mod::get()->setSavedValue("has_created_banner", true);
+                } else {
+                    int current = Mod::get()->getSavedValue<int>("amethyst", 0);
+                    int newAmethyst = std::max(0, current - 15000);
+                    Mod::get()->setSavedValue("amethyst", newAmethyst);
+                    if (auto shopLayer = CBShopLayer::getInstance()) {
+                        shopLayer->updateAmethystLabel(newAmethyst);
+                    }
                 }
-                popup->showSuccessMessage("Banner submitted successfully! Waiting for staff approval.");
+
+                popup->showSuccessMessage("Banner submitted successfully!");
                 retainedSelf->onClose(nullptr);
             });
 

@@ -1,3 +1,10 @@
+## v0.1.2-beta.1
+
+- Fixed the amethyst rewards showing incorrectly
+- Removed the scroll bar at the Shop due to overlapping with the pagenation buttons
+- First Banner Submission is free of charge
+- Fixed Moderation-related bugs
+
 ## v0.1.1-beta.1
 
 - For some reason, the Discord Invite got removed for no apparently reason lol

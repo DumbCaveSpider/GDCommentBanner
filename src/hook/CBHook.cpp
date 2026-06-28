@@ -266,8 +266,14 @@ class $modify(CBEndLevelLayer, EndLevelLayer) {
                 }
 
                 int amethystReward = static_cast<int>(rewardRes.unwrap());
-                auto current = Mod::get()->getSavedValue<int>("amethyst", 0);
-                Mod::get()->setSavedValue("amethyst", current + amethystReward);
+
+                int current = 0;
+                auto totalRes = json["totalAmethyst"].asInt();
+                if (totalRes.isOk()) {
+                    current = totalRes.unwrap();
+                }
+
+                Mod::get()->setSavedValue("amethyst", current);
 
                 geode::queueInMainThread([amethystReward, current]() {
                     CCNode* layerRef = CCDirector::sharedDirector()->getRunningScene();
@@ -277,16 +283,16 @@ class $modify(CBEndLevelLayer, EndLevelLayer) {
                             0, 0, 0, amethystReward, CurrencySpriteType::Star, 0, CurrencySpriteType::Star, 0, CCDirector::sharedDirector()->getWinSize() / 2, CurrencyRewardType::Default, 0.0, 1.0)) {
                         s_amethystRewardLayer = rewardLayer;
                         if (rewardLayer->m_mainNode) {
-                            rewardLayer->m_mainNode->setLayout(RowLayout::create()->setAutoScale(false));
+                            rewardLayer->m_mainNode->setLayout(RowLayout::create()->setAutoScale(false)->setCrossAxisAlignment(AxisAlignment::Start));
                             rewardLayer->m_mainNode->setScale(1.f);
                             rewardLayer->m_mainNode->setPositionX(10.f);
-                            rewardLayer->m_mainNode->setContentSize({60.f, 20.f});
+                            rewardLayer->m_mainNode->setContentSize({200.f, 20.f});
                             rewardLayer->m_mainNode->setAnchorPoint({0.f, 1.f});
                             rewardLayer->m_diamondsPosition.setPoint(rewardLayer->m_mainNode->getPositionX(), rewardLayer->m_mainNode->getPositionY());  // i dont think this is rigth
                         }
                         rewardLayer->m_particlesAdded = false;
-                        rewardLayer->m_diamonds = current;
-                        rewardLayer->incrementDiamondsCount(amethystReward);
+                        rewardLayer->m_diamonds = 0;
+                        rewardLayer->incrementDiamondsCount(current);
 
                         std::string frameName = "CB_amethyst_001.png"_spr;
                         auto displayFrame = CCSpriteFrameCache::sharedSpriteFrameCache()->spriteFrameByName((frameName).c_str());
