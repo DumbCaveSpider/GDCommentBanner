@@ -403,11 +403,11 @@ bool CBShopLayer::init() {
     if (auto infoButton = geode::Button::createWithSpriteFrameName("GJ_infoIcon_001.png", [this](geode::Button* sender) {
             MDPopup::create(
                 "About Comment Banners",
-                "<cp>**Comment Banners**</c> is a <cb>community-run</c> banner shop that lets you buy <cg>User-generated</c> banners that you can apply for your <cc>Comments Cell</c> for everyone to see using this mod.\n\n"
+                "<cp>**Comment Banners**</c> is a <cb>community-run</c> banner shop that lets you buy <cg>user-generated</c> banners to apply to your <cc>Comment Cell</c> for everyone to see using this mod.\n\n"
                 "-----\n"
                 "### About Amethysts\n"
-                "<cp>Amethysts</c> is the custom currency used for the <cp>Comment Banners</c> and can be obtain by completing any <cy>Rated Levels</c>\n\n"
-                "The following <cp>amethysts value</c> are rewarded to the <co>following difficulty</c>\n"
+                "<cp>Amethysts</c> are the custom currency used for <cp>Comment Banners</c> and can be obtained by completing any <cy>Rated Level</c>.\n\n"
+                "The following <cp>amethyst values</c> are rewarded based on <co>difficulty</c>:\n"
                 "- **<co>Auto</c>**: 50-100 Amethysts\n"
                 "- **<cl>Easy</c>**: 100-200 Amethysts\n"
                 "- **<cg>Normal</c>**: 500-1000 Amethysts\n"
@@ -417,17 +417,24 @@ bool CBShopLayer::init() {
                 "- **<cc>Demon</c>**: 10k-15k Amethysts\n"
                 "-----\n"
                 "### Submission Rules\n"
-                "To ensure that the quality of banners are high and there are no <cr>inappropriate banners</c> being uploaded, all banners must be <cc>reviewed and approved by the staff team</c> before being added to the shop.\n\n"
-                "The following rules that every submission must follow:\n\n"
+                "To ensure that the quality of banners is high and there are no <cr>inappropriate banners</c> being uploaded, all banners must be <cc>reviewed and approved by the staff team</c> before being added to the shop.\n\n"
+                "Every submission must follow these rules:\n\n"
                 "- The banner must not contain any <cr>inappropriate content, including nudity, hate speech, or gore</c>.\n"
-                "- Banners must be at an apporiate quality and must not be <cr>low-quality</c>\n"
-                "- Banners that are <cr>mostly AI-Generated</c> are <cr>not accepted</c>\n"
-                "- Banners must be in a <cg>1500 x 150</c> resolution\n"
-                "- Banners must be in a <cc>PNG/WebP</c> format\n"
-                "- Any form of <cy>self-promotion</c> on your submission are <cr>not accepted</c>\n"
-                "- Strong Profanity like swearing or slurs are <cr>not accepted</c>. Some <cg>soft profanity</c> are accepted.\n"
-                "- Any form of <cc>Plagiarism like stealing other users' banners</cc> will result a <cr>Temporary Ban</c>.\n\n"
-                "#### Any misuse of this mod or repeatedly breaking the rules will result in a <cr>temporary ban</c> on submitting your own banners depending on the <cr>severity.</c>\n\n",
+                "- Banners must be of an appropriate quality and must not be <cr>low-quality</c>.\n"
+                "- Banners that are <cr>mostly AI-Generated</c> are <cr>not accepted</c>.\n"
+                "- Banners must be in a <cg>1500 x 150</c> resolution.\n"
+                "- Banners must be in a <cc>PNG, WebP, JPEG or GIF</c> format.\n"
+                "- Any form of <cy>self-promotion</c> on your submission is <cr>not accepted</c>.\n"
+                "- Strong profanity like swearing or slurs is <cr>not accepted</c>. Some <cg>soft profanity</c> is accepted.\n"
+                "- Any form of <cc>plagiarism, like stealing other users' banners,</cc> will result in a <cr>Temporary Ban</c>.\n\n"
+                "#### Any misuse of this mod or repeatedly breaking the rules will result in a <cr>temporary ban</c> on submitting your own banners depending on the <cr>severity.</c>\n\n"
+                "-----\n"
+                "### Amethysts Economy\n"
+                "This mod also runs its own <cg>Economy</c> that allows banner creators to earn more <cp>Amethysts</c> passively. There are currently three ways to earn <cp>Amethysts</c>:\n"
+                "- Beating Rated Levels\n"
+                "- When someone buys your banner (<cg>10%</c> cut)\n"
+                "- Every month you get <cp>amethysts</c> based on the amount of users that have your banner equipped. This increases by <cg>5% for every 5 people</c> that have your banner equipped (this <cr>caps at 30%</c> so it doesn't break the economy).\n"
+                "#### The rates may change from time to time depending on the <cc>popularity of the mod</c>, thus the information about the <cg>economy</c> may be outdated.\n\n",
                 "OK")
                 ->show();
         })) {

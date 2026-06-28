@@ -35,7 +35,7 @@ bool CBSubmitBannerPopup::init() {
         menu_selector(CBSubmitBannerPopup::onPickFile));
     m_buttonMenu->addChildAtPosition(pickFileBtn, Anchor::Top, {0.f, -50.f}, false);
 
-    m_fileNameLabel = CCLabelBMFont::create("No file selected (1500x150)", "chatFont.fnt");
+    m_fileNameLabel = CCLabelBMFont::create("No file selected (1500x150) (Static or Animated)", "chatFont.fnt");
     m_fileNameLabel->limitLabelWidth(m_mainLayer->getContentWidth() - 20.f, 0.8f, 0.4f);
     m_fileNameLabel->setColor({200, 200, 200});
     m_mainLayer->addChildAtPosition(m_fileNameLabel, Anchor::Top, {0.f, -75.f}, false);
@@ -126,8 +126,8 @@ void CBSubmitBannerPopup::onPickFile(CCObject*) {
                 .defaultPath = std::nullopt,
                 .filters = {
                     geode::utils::file::FilePickOptions::Filter{
-                        .description = "PNG Image",
-                        .files = {"*.png"}}}});
+                        .description = "Image Files",
+                        .files = {"*.png", "*.webp", "*.jpg", "*.jpeg", "*.gif"}}}});
 
         auto notify = [&](std::string message) {
             geode::Loader::get()->queueInMainThread([message = std::move(message)]() {
@@ -142,20 +142,22 @@ void CBSubmitBannerPopup::onPickFile(CCObject*) {
 
                 auto extension = path.extension().string();
                 std::transform(extension.begin(), extension.end(), extension.begin(), ::tolower);
-                if (extension != ".png") {
-                    notify("Please select a PNG file");
+                if (extension != ".png" && extension != ".webp" && extension != ".jpg" && extension != ".jpeg" && extension != ".gif") {
+                    notify("Please select a PNG, JPEG, GIF or WEBP file");
                     co_return;
                 }
 
-                CCImage image;
-                if (!image.initWithImageFile(path.string().c_str())) {
-                    notify("Unable to decode image");
-                    co_return;
-                }
+                if (extension != ".gif") {
+                    CCImage image;
+                    if (!image.initWithImageFile(path.string().c_str())) {
+                        notify("Unable to decode image locally");
+                        co_return;
+                    }
 
-                if (image.getWidth() != 1500 || image.getHeight() != 150) {
-                    notify("Image must be 1500x150, got " + numToString(image.getWidth()) + "x" + numToString(image.getHeight()));
-                    co_return;
+                    if (image.getWidth() != 1500 || image.getHeight() != 150) {
+                        notify("Image must be 1500x150, got " + numToString(image.getWidth()) + "x" + numToString(image.getHeight()));
+                        co_return;
+                    }
                 }
 
                 geode::Loader::get()->queueInMainThread([retainedSelf, p = path.string(), filename = path.filename().string()]() {
@@ -215,57 +217,67 @@ void CBSubmitBannerPopup::onSubmit(CCObject*) {
         Ref<CBSubmitBannerPopup> retainedSelf = this;
         arc::spawn([retainedSelf, accountId, accountData, name, desc, price, amount, isLimited, filePath, popup]() -> arc::Future<> {
             auto authResult = co_await comment::argonToken(accountData);
-        if (authResult.empty()) {
-            geode::queueInMainThread([popup] {
-                popup->showFailMessage("Authentication failed.");
-            });
-            co_return;
-        }
-
-        auto authToken = std::move(authResult);
-
-        geode::utils::web::MultipartForm form;
-        form.param("accountId", numToString(accountId));
-        form.param("argonToken", authToken);
-        form.param("name", name);
-        form.param("description", desc);
-        form.param("price", price);
-        form.param("limited", isLimited ? "true" : "false");
-        if (isLimited) {
-            form.param("amount", amount);
-        }
-
-        auto res = form.file("image", filePath, "image/png");
-        if (!res) {
-            geode::queueInMainThread([popup] {
-                popup->showFailMessage("Failed to attach image file.");
-            });
-            co_return;
-        }
-
-        auto req = geode::utils::web::WebRequest();
-        req.bodyMultipart(std::move(form));
-
-        auto response = co_await req.post(fmt::format("{}/submitBanner", comment::baseUrl));
-        if (!response.ok()) {
-            geode::queueInMainThread([popup, response] {
-                popup->showFailMessage(comment::getResponseMessage(response, "Failed to submit banner."));
-            });
-            co_return;
-        }
-
-        geode::queueInMainThread([popup, retainedSelf] {
-            int current = Mod::get()->getSavedValue<int>("amethyst", 0);
-            int newAmethyst = std::max(0, current - 15000);
-            Mod::get()->setSavedValue("amethyst", newAmethyst);
-            if (auto shopLayer = CBShopLayer::getInstance()) {
-                shopLayer->updateAmethystLabel(newAmethyst);
+            if (authResult.empty()) {
+                geode::queueInMainThread([popup] {
+                    popup->showFailMessage("Authentication failed.");
+                });
+                co_return;
             }
-            popup->showSuccessMessage("Banner submitted successfully! Waiting for staff approval.");
-            retainedSelf->onClose(nullptr);
-        });
 
-        co_return;
-    });
+            auto authToken = std::move(authResult);
+
+            geode::utils::web::MultipartForm form;
+            form.param("accountId", numToString(accountId));
+            form.param("argonToken", authToken);
+            form.param("name", name);
+            form.param("description", desc);
+            form.param("price", price);
+            form.param("limited", isLimited ? "true" : "false");
+            if (isLimited) {
+                form.param("amount", amount);
+            }
+
+            std::string mimeType = "image/png";
+            std::string ext = filePath.substr(filePath.find_last_of(".") + 1);
+            std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
+            if (ext == "webp") {
+                mimeType = "image/webp";
+            } else if (ext == "jpg" || ext == "jpeg") {
+                mimeType = "image/jpeg";
+            } else if (ext == "gif") {
+                mimeType = "image/gif";
+            }
+            auto res = form.file("image", filePath, mimeType);
+            if (!res) {
+                geode::queueInMainThread([popup] {
+                    popup->showFailMessage("Failed to attach image file.");
+                });
+                co_return;
+            }
+
+            auto req = geode::utils::web::WebRequest();
+            req.bodyMultipart(std::move(form));
+
+            auto response = co_await req.post(fmt::format("{}/submitBanner", comment::baseUrl));
+            if (!response.ok()) {
+                geode::queueInMainThread([popup, response] {
+                    popup->showFailMessage(comment::getResponseMessage(response, "Failed to submit banner."));
+                });
+                co_return;
+            }
+
+            geode::queueInMainThread([popup, retainedSelf] {
+                int current = Mod::get()->getSavedValue<int>("amethyst", 0);
+                int newAmethyst = std::max(0, current - 15000);
+                Mod::get()->setSavedValue("amethyst", newAmethyst);
+                if (auto shopLayer = CBShopLayer::getInstance()) {
+                    shopLayer->updateAmethystLabel(newAmethyst);
+                }
+                popup->showSuccessMessage("Banner submitted successfully! Waiting for staff approval.");
+                retainedSelf->onClose(nullptr);
+            });
+
+            co_return;
+        });
     });
 }

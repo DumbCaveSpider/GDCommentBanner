@@ -6,6 +6,7 @@
 - Fixed the Banner Size on the Purchase Item Popup
 - Changed the caching system for the comment banners
 - Fixed some crashes
+- Added animated banners support
 - Internal changes
 
 ## v0.1.0-beta.1
