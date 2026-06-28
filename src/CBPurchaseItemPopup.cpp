@@ -38,7 +38,7 @@ bool CBPurchaseItemPopup::init(const CBBannerItem& banner) {
 
     auto priceNode = CCNode::create();
 
-    auto priceLabel = CCLabelBMFont::create(fmt::format("{}", m_banner.price).c_str(), "bigFont.fnt");
+    auto priceLabel = CCLabelBMFont::create(fmt::format("{}", GameToolbox::pointsToString(m_banner.price)).c_str(), "bigFont.fnt");
     if (priceLabel) {
         priceLabel->setAnchorPoint({1.f, 0.5f});
         priceLabel->setPosition({10.f, 0.f});
