@@ -207,6 +207,11 @@ class $modify(CBEndLevelLayer, EndLevelLayer) {
                 return;
             }
 
+            if (endLayer->m_playLayer->m_isPracticeMode) {
+                log::warn("Completed in Practice Mode, ignore reward");
+                return;
+            }
+
             auto level = endLayer->m_playLayer->m_level;
             if (!level->m_isCompletionLegitimate) {
                 log::warn("Level completion is not legitimate but still legit i think");
@@ -283,10 +288,10 @@ class $modify(CBEndLevelLayer, EndLevelLayer) {
                             0, 0, 0, amethystReward, CurrencySpriteType::Star, 0, CurrencySpriteType::Star, 0, CCDirector::sharedDirector()->getWinSize() / 2, CurrencyRewardType::Default, 0.0, 1.0)) {
                         s_amethystRewardLayer = rewardLayer;
                         if (rewardLayer->m_mainNode) {
-                            rewardLayer->m_mainNode->setLayout(RowLayout::create()->setAutoScale(false)->setCrossAxisAlignment(AxisAlignment::Start));
+                            rewardLayer->m_mainNode->setLayout(RowLayout::create()->setAutoScale(false)->setAxisAlignment(AxisAlignment::Start));
                             rewardLayer->m_mainNode->setScale(1.f);
                             rewardLayer->m_mainNode->setPositionX(10.f);
-                            rewardLayer->m_mainNode->setContentSize({200.f, 20.f});
+                            rewardLayer->m_mainNode->setContentSize({350.f, 20.f});
                             rewardLayer->m_mainNode->setAnchorPoint({0.f, 1.f});
                             rewardLayer->m_diamondsPosition.setPoint(rewardLayer->m_mainNode->getPositionX(), rewardLayer->m_mainNode->getPositionY());  // i dont think this is rigth
                         }

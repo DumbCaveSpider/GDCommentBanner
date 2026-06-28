@@ -4,6 +4,8 @@
 - Removed the scroll bar at the Shop due to overlapping with the pagenation buttons
 - First Banner Submission is free of charge
 - Fixed Moderation-related bugs
+- Fixed a bug where completing a level in practice mode gives rewards
+- Fixed the Amethyst Reward Animation not fitting correctly
 
 ## v0.1.1-beta.1
 
