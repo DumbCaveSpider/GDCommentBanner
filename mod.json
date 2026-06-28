@@ -8,7 +8,7 @@
 	},
 	"id": "arcticwoof.comment_banners",
 	"name": "Comment Banners",
-	"version": "v0.1.0-beta.1",
+	"version": "v0.1.1-beta.1",
 	"developer": "ArcticWoof",
 	"description": "Community-run, Custom banners for comments.",
 	"dependencies": {
@@ -24,7 +24,7 @@
 	"links": {
 		"source": "https://github.com/DumbCaveSpider/GDCommentBanner",
 		"homepage": "https://arcticwoof.xyz/",
-		"community": "https://discord.gg/duQc6EwFxZ"
+		"community": "https://discord.gg/f7Wevh3xgz"
 	},
 	"settings": {
 		"cache-duration-hours": {

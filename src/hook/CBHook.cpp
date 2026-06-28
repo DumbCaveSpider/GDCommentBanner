@@ -34,7 +34,7 @@ static void loadCache() {
     }
 
     std::lock_guard<std::mutex> lock(s_cacheMutex);
-    if (s_cacheLoaded) return; // double-check
+    if (s_cacheLoaded) return;  // double-check
 
     auto path = Mod::get()->getSaveDir() / "banner_cache.json";
     if (std::filesystem::exists(path)) {
@@ -283,12 +283,17 @@ class $modify(CBEndLevelLayer, EndLevelLayer) {
 
             auto level = endLayer->m_playLayer->m_level;
             if (!level->m_isCompletionLegitimate) {
-                log::warn("Level completion is not legitimate for amethyst reward submission.");
-                return;
+                log::warn("Level completion is not legitimate but still legit i think");
+                //return;
             }
 
             if (level->m_attemptTime <= 25 || level->m_attemptTime >= 28000000) {
                 log::warn("Attempt time is invalid for amethyst reward submission: {}", level->m_attemptTime);
+                return;
+            }
+
+            if (level->m_jumps == 0) {
+                log::warn("Level has no jumps? skip amethyst reward.");
                 return;
             }
 
