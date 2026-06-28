@@ -3,7 +3,6 @@
 #include <Geode/Geode.hpp>
 #include <Geode/binding/UploadActionPopup.hpp>
 #include <Geode/binding/UploadPopupDelegate.hpp>
-#include <Geode/ui/LazySprite.hpp>
 
 using namespace geode::prelude;
 

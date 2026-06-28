@@ -26,60 +26,7 @@ struct CachedBanner {
 
 static std::map<int, CachedBanner> s_bannerCache;
 static std::mutex s_cacheMutex;
-static bool s_cacheLoaded = false;
 static Ref<CurrencyRewardLayer> s_amethystRewardLayer;
-
-static void loadCache() {
-    {
-        std::lock_guard<std::mutex> lock(s_cacheMutex);
-        if (s_cacheLoaded) return;
-    }
-
-    std::lock_guard<std::mutex> lock(s_cacheMutex);
-    if (s_cacheLoaded) return;  // double-check
-
-    auto path = Mod::get()->getSaveDir() / "banner_cache.json";
-    std::error_code ec;
-    if (std::filesystem::exists(path, ec) && !ec) {
-        std::ifstream file(path);
-        if (file.is_open()) {
-            std::stringstream buffer;
-            buffer << file.rdbuf();
-            auto jsonParseRes = matjson::parse(buffer.str());
-            if (jsonParseRes.isOk()) {
-                auto json = jsonParseRes.unwrap();
-                if (json.isObject()) {
-                    for (auto const& [key, value] : json) {
-                        int accountId = numFromString<int>(key).unwrapOr(0);
-                        CachedBanner banner;
-                        banner.equipped = value["equipped"].asBool().unwrapOr(false);
-                        banner.imageUrl = value["imageUrl"].asString().unwrapOr("");
-                        long long timeMs = value["timestamp"].asInt().unwrapOr(0);
-                        banner.timestamp = asp::time::SystemTime::fromUnixMillis(timeMs);
-                        s_bannerCache[accountId] = banner;
-                    }
-                }
-            }
-        }
-    }
-    s_cacheLoaded = true;
-}
-
-static void saveCache() {
-    auto path = Mod::get()->getSaveDir() / "banner_cache.json";
-    matjson::Value obj = matjson::makeObject({});
-    {
-        std::lock_guard<std::mutex> lock(s_cacheMutex);
-        for (auto const& [accountId, banner] : s_bannerCache) {
-            auto timeMs = banner.timestamp.timeSinceEpoch().millis();
-            obj.set(numToString(accountId), matjson::makeObject({{"equipped", banner.equipped}, {"imageUrl", banner.imageUrl}, {"timestamp", timeMs}}));
-        }
-    }
-    std::ofstream file(path);
-    if (file.is_open()) {
-        file << obj.dump(matjson::NO_INDENTATION);
-    }
-}
 
 class $modify(GJGarageLayer) {
     bool init() {
@@ -117,6 +64,35 @@ class $modify(GJGarageLayer) {
 };
 
 // this is where to fetch the images
+static void setupBannerSprite(CommentCell* cell, std::string const& imageUrl) {
+    Ref<CommentCell> self = cell;
+    if (!self->m_backgroundLayer) return;
+
+    auto size = self->m_backgroundLayer->getScaledContentSize();
+    auto bannerSize = self->m_compactMode ? size : CCSize{800.f, 800.f};
+
+    auto bannerNode = comment::createBannerNode(imageUrl, bannerSize);
+    bannerNode->setPosition({size.width / 2.f, size.height / 2.f});
+
+    self->m_backgroundLayer->setOpacity(100);
+    self->m_backgroundLayer->addChild(bannerNode, -1);
+
+    if (self->m_compactMode) {
+        if (auto commentText = self->m_mainLayer->getChildByIDRecursive("comment-text-label")) {
+            if (!self->m_mainLayer->getChildByID("cb-comment-banner-bg")) {
+                auto commentBg = NineSlice::create("square02_small.png");
+                commentBg->setID("cb-comment-banner-bg");
+                commentBg->setInsets({5, 5, 5, 5});
+                commentBg->setContentSize(commentText->getScaledContentSize() + CCSize(5, 0));
+                commentBg->setPosition({commentText->getPosition().x - 2, commentText->getPosition().y});
+                commentBg->setOpacity(150);
+                commentBg->setAnchorPoint(commentText->getAnchorPoint());
+                self->m_mainLayer->addChild(commentBg, -1);
+            }
+        }
+    }
+}
+
 class $modify(CBCommentCell, CommentCell) {
     void loadFromComment(GJComment* comment) {
         CommentCell::loadFromComment(comment);
@@ -128,7 +104,6 @@ class $modify(CBCommentCell, CommentCell) {
 
         auto self = Ref<CBCommentCell>(this);
         int accountId = comment->m_accountID;
-        loadCache();
 
         // Check cache
         {
@@ -143,32 +118,7 @@ class $modify(CBCommentCell, CommentCell) {
                     if (!cached.equipped) return;
 
                     std::string imageUrl = cached.imageUrl;
-                    geode::queueInMainThread([self, imageUrl]() {
-                        if (!self->m_backgroundLayer) return;
-                        auto size = self->m_backgroundLayer->getScaledContentSize();
-                        auto bannerSize = self->m_compactMode ? size : CCSize{800.f, 800.f};
-                        auto bannerSprite = LazySprite::create(bannerSize, true);
-                        bannerSprite->setAutoResize(true);
-                        bannerSprite->loadFromUrl(imageUrl, LazySprite::Format::kFmtWebp, true);
-                        bannerSprite->setPosition({size.width / 2.f, size.height / 2.f});
-                        self->m_backgroundLayer->setOpacity(100);
-                        self->m_backgroundLayer->addChild(bannerSprite, -1);
-
-                        if (self->m_compactMode) {
-                            if (auto commentText = self->m_mainLayer->getChildByIDRecursive("comment-text-label")) {
-                                if (!self->m_mainLayer->getChildByID("cb-comment-banner-bg")) {
-                                    auto commentBg = NineSlice::create("square02_small.png");
-                                    commentBg->setID("cb-comment-banner-bg");
-                                    commentBg->setInsets({5, 5, 5, 5});
-                                    commentBg->setContentSize(commentText->getScaledContentSize() + CCSize(5, 0));
-                                    commentBg->setPosition({commentText->getPosition().x - 2, commentText->getPosition().y});
-                                    commentBg->setOpacity(150);
-                                    commentBg->setAnchorPoint(commentText->getAnchorPoint());
-                                    self->m_mainLayer->addChild(commentBg, -1);
-                                }
-                            }
-                        }
-                    });
+                    setupBannerSprite(self.data(), imageUrl);
                     return;
                 }
             }
@@ -203,7 +153,6 @@ class $modify(CBCommentCell, CommentCell) {
                     std::lock_guard<std::mutex> lock(s_cacheMutex);
                     s_bannerCache[accountId] = newCached;
                 }
-                saveCache();
                 co_return;
             }
 
@@ -225,36 +174,9 @@ class $modify(CBCommentCell, CommentCell) {
                 std::lock_guard<std::mutex> lock(s_cacheMutex);
                 s_bannerCache[accountId] = newCached;
             }
-            saveCache();
 
-            geode::queueInMainThread([self, imageUrl]() {
-                if (!self->m_backgroundLayer) {
-                    return;
-                }
-
-                auto size = self->m_backgroundLayer->getScaledContentSize();
-                auto bannerSize = self->m_compactMode ? size : CCSize{800.f, 800.f};
-                auto bannerSprite = LazySprite::create(bannerSize, true);
-                bannerSprite->setAutoResize(true);
-                bannerSprite->loadFromUrl(imageUrl, LazySprite::Format::kFmtWebp, true);
-                bannerSprite->setPosition({size.width / 2.f, size.height / 2.f});
-                self->m_backgroundLayer->setOpacity(100);
-                self->m_backgroundLayer->addChild(bannerSprite, -1);
-
-                if (self->m_compactMode) {
-                    if (auto commentText = self->m_mainLayer->getChildByIDRecursive("comment-text-label")) {
-                        if (!self->m_mainLayer->getChildByID("cb-comment-banner-bg")) {
-                            auto commentBg = NineSlice::create("square02_small.png");
-                            commentBg->setID("cb-comment-banner-bg");
-                            commentBg->setInsets({5, 5, 5, 5});
-                            commentBg->setContentSize(commentText->getScaledContentSize() + CCSize(5, 0));
-                            commentBg->setPosition({commentText->getPosition().x - 2, commentText->getPosition().y});
-                            commentBg->setOpacity(150);
-                            commentBg->setAnchorPoint(commentText->getAnchorPoint());
-                            self->m_mainLayer->addChild(commentBg, -1);
-                        }
-                    }
-                }
+            geode::queueInMainThread([self, imageUrl] {
+                setupBannerSprite(self.data(), imageUrl);
             });
 
             co_return;

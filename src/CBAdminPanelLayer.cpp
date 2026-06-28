@@ -6,7 +6,6 @@
 #include "Geode/ui/Layout.hpp"
 #include "include/CBConstant.hpp"
 #include <Geode/ui/Button.hpp>
-#include <Geode/ui/LazySprite.hpp>
 #include <Geode/binding/UploadActionPopup.hpp>
 #include <Geode/binding/SetTextPopup.hpp>
 #include "CBManageUserPopup.hpp"
@@ -439,12 +438,8 @@ void CBAdminPanelLayer::renderPage() {
             }
 
             // Image
-            auto sprite = LazySprite::create({344.f, 104.f}, true);
-            sprite->setAutoResize(true);
+            auto sprite = comment::createBannerNode(imageUrl, {344.f, 104.f});
             sprite->setPosition({width / 2.f, cellHeight - 30.f});
-            if (!imageUrl.empty()) {
-                sprite->loadFromUrl(imageUrl, LazySprite::Format::kFmtWebp, false);
-            }
             cell->addChild(sprite);
 
             // Name

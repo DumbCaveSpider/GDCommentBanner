@@ -293,25 +293,26 @@ void CBShopLayer::fetchAmethyst() {
             }
 
             int amethyst = static_cast<int>(amethystRes.unwrap());
-            if (auto equippedIdRes = json["equippedBanner"]["id"].asInt(); equippedIdRes.isOk()) {
-                m_equippedBannerId = static_cast<int>(equippedIdRes.unwrap());
-            } else {
-                m_equippedBannerId = -1;
-            }
-            if (auto isStaffRes = json["is_staff"].asBool(); isStaffRes.isOk()) {
-                m_isStaff = isStaffRes.unwrap();
-            } else {
-                m_isStaff = false;
-            }
-            if (auto isAdminRes = json["is_admin"].asBool(); isAdminRes.isOk()) {
-                m_isAdmin = isAdminRes.unwrap();
-                Mod::get()->setSavedValue("is_admin", m_isAdmin);
-            } else {
-                m_isAdmin = false;
-                Mod::get()->setSavedValue("is_admin", false);
-            }
-            Mod::get()->setSavedValue("amethyst", amethyst);
-            geode::queueInMainThread([this, amethyst]() {
+            geode::queueInMainThread([this, amethyst, json]() {
+                if (auto equippedIdRes = json["equippedBanner"]["id"].asInt(); equippedIdRes.isOk()) {
+                    m_equippedBannerId = static_cast<int>(equippedIdRes.unwrap());
+                } else {
+                    m_equippedBannerId = -1;
+                }
+                if (auto isStaffRes = json["is_staff"].asBool(); isStaffRes.isOk()) {
+                    m_isStaff = isStaffRes.unwrap();
+                } else {
+                    m_isStaff = false;
+                }
+                if (auto isAdminRes = json["is_admin"].asBool(); isAdminRes.isOk()) {
+                    m_isAdmin = isAdminRes.unwrap();
+                    Mod::get()->setSavedValue("is_admin", m_isAdmin);
+                } else {
+                    m_isAdmin = false;
+                    Mod::get()->setSavedValue("is_admin", false);
+                }
+                Mod::get()->setSavedValue("amethyst", amethyst);
+
                 if (!m_amethystLabel) {
                     return;
                 }

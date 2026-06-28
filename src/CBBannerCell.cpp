@@ -35,13 +35,8 @@ CBBannerCell* CBBannerCell::create(const CBBannerItem& banner, float width) {
         cellBg->addChild(background);
     }
 
-    auto sprite = LazySprite::create({324.f, 104.f}, true);
-    sprite->setAutoResize(true);
-    sprite->setScale(0.9f);
+    auto sprite = comment::createBannerNode(banner.imageUrl, {324.f, 104.f});
     sprite->setPosition({width / 2.f, cellHeight - 30.f});
-    if (!banner.imageUrl.empty()) {
-        sprite->loadFromUrl(banner.imageUrl, LazySprite::Format::kFmtWebp, false);
-    }
     cellBg->addChild(sprite);
 
     CCLabelBMFont* nameLabel = nullptr;
@@ -235,15 +230,15 @@ void CBBannerCell::applyBanner() {
                     co_return;
                 }
 
-                if (popup) {
-                    geode::queueInMainThread([popup] {
+                geode::queueInMainThread([retainedSelf, popup] {
+                    if (popup) {
                         popup->showSuccessMessage("Banner equipped successfully");
-                    });
-                }
-                if (auto shop = CBShopLayer::getInstance()) {
-                    shop->setEquippedBannerId(retainedSelf->m_banner.id);
-                    shop->refreshBanners();
-                }
+                    }
+                    if (auto shop = CBShopLayer::getInstance()) {
+                        shop->setEquippedBannerId(retainedSelf->m_banner.id);
+                        shop->refreshBanners();
+                    }
+                });
                 log::debug("banner {} equipped successfully", retainedSelf->m_banner.id);
                 co_return;
             });
@@ -287,15 +282,15 @@ void CBBannerCell::unequipBanner() {
                 co_return;
             }
 
-            if (popup) {
-                geode::queueInMainThread([popup] {
+            geode::queueInMainThread([popup] {
+                if (popup) {
                     popup->showSuccessMessage("Banner unequipped successfully");
-                });
-            }
-            if (auto shop = CBShopLayer::getInstance()) {
-                shop->setEquippedBannerId(-1);
-                shop->refreshBanners();
-            }
+                }
+                if (auto shop = CBShopLayer::getInstance()) {
+                    shop->setEquippedBannerId(-1);
+                    shop->refreshBanners();
+                }
+            });
             log::debug("banner {} unequipped successfully", retainedSelf->m_banner.id);
             co_return;
         });
@@ -352,11 +347,15 @@ void CBBannerCell::purchaseBanner() {
                 if (!retainedSelf->m_banner.owns) {
                     Mod::get()->setSavedValue("amethyst", current - retainedSelf->m_banner.price);
                 }
-                if (popup) {
-                    geode::queueInMainThread([popup] {
+                geode::queueInMainThread([retainedSelf, popup] {
+                    if (popup) {
                         popup->showSuccessMessage("Banner equipped successfully");
-                    });
-                }
+                    }
+                    if (auto shop = CBShopLayer::getInstance()) {
+                        shop->setEquippedBannerId(retainedSelf->m_banner.id);
+                        shop->refreshBanners();
+                    }
+                });
                 log::debug("banner {} equipped successfully", retainedSelf->m_banner.id);
                 co_return;
             });

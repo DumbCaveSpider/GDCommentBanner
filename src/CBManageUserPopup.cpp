@@ -3,7 +3,6 @@
 #include <Geode/binding/UploadActionPopup.hpp>
 #include <Geode/binding/ProfilePage.hpp>
 #include <Geode/ui/BasedButtonSprite.hpp>
-#include <Geode/ui/LazySprite.hpp>
 #include <Geode/ui/Button.hpp>
 #include "Geode/cocos/label_nodes/CCLabelBMFont.h"
 #include "Geode/utils/general.hpp"
@@ -314,12 +313,8 @@ void CBManageUserPopup::createBannerCell(matjson::Value const& banner) {
         imageUrl = fmt::format("{}", imageUrl);
     }
 
-    auto sprite = LazySprite::create({345.f, 40.f}, true);
-    sprite->setAutoResize(true);
+    auto sprite = comment::createBannerNode(imageUrl, {345.f, 40.f});
     sprite->setPosition({145.f, 20.f});
-    if (!imageUrl.empty()) {
-        sprite->loadFromUrl(imageUrl, LazySprite::Format::kFmtWebp, false);
-    }
     cell->addChild(sprite, -2);
 
     auto bg = CCLayerGradient::create({0, 0, 0, 255}, {0, 0, 0, 0}, {1, 0});

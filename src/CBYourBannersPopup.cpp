@@ -1,6 +1,5 @@
 #include "CBYourBannersPopup.hpp"
 #include <Geode/utils/web.hpp>
-#include <Geode/ui/LazySprite.hpp>
 #include <argon/argon.hpp>
 #include "include/CBConstant.hpp"
 #include <Geode/ui/Scrollbar.hpp>
@@ -144,13 +143,8 @@ void CBYourBannersPopup::fetchBanners() {
                 }
 
                 // Image
-                auto sprite = LazySprite::create({324.f, 104.f}, true);
-                sprite->setAutoResize(true);
-                sprite->setScale(0.9f);
+                auto sprite = comment::createBannerNode(imageUrl, {324.f, 104.f});
                 sprite->setPosition({width / 2.f, cellHeight - 30.f});
-                if (!imageUrl.empty()) {
-                    sprite->loadFromUrl(imageUrl, LazySprite::Format::kFmtWebp, false);
-                }
                 cell->addChild(sprite);
 
                 // Name
