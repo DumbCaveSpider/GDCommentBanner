@@ -1,3 +1,8 @@
+## v0.1.3-beta.1
+
+- Stupid me forgot to actually remove that code that makes the first submission free of charge. im cringing
+- Fixed the input filters on submitting banners
+
 ## v0.1.2-beta.1
 
 - Fixed the amethyst rewards showing incorrectly

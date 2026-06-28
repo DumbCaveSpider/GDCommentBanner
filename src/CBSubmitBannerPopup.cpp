@@ -42,10 +42,12 @@ bool CBSubmitBannerPopup::init() {
 
     // Name
     m_nameInput = geode::TextInput::create(300.f, "Banner Name");
+    m_nameInput->setCommonFilter(CommonFilter::Name);
     m_buttonMenu->addChildAtPosition(m_nameInput, Anchor::Center, {0.f, 30.f});
 
     // Description
     m_descInput = geode::TextInput::create(300.f, "Description");
+    m_descInput->setCommonFilter(CommonFilter::Any);
     m_buttonMenu->addChildAtPosition(m_descInput, Anchor::Center, {0.f, -10.f});
 
     // Price & Limited row
@@ -54,7 +56,7 @@ bool CBSubmitBannerPopup::init() {
     row1->setLayout(RowLayout::create()->setGap(10.f)->setAutoScale(false));
 
     m_priceInput = geode::TextInput::create(100.f, "Price");
-    m_priceInput->setFilter("0123456789");
+    m_priceInput->setCommonFilter(CommonFilter::Int);
     row1->addChild(m_priceInput);
 
     m_amountInput = geode::TextInput::create(100.f, "Amount");
@@ -181,7 +183,8 @@ void CBSubmitBannerPopup::onPickFile(CCObject*) {
 
 void CBSubmitBannerPopup::onSubmit(CCObject*) {
     int currentAmethysts = Mod::get()->getSavedValue<int>("amethyst", 0);
-    if (currentAmethysts < 15000) {
+    bool hasCreatedBanner = Mod::get()->getSavedValue<bool>("has_created_banner", false);
+    if (currentAmethysts < 15000 && hasCreatedBanner) {
         int needed = 15000 - currentAmethysts;
         geode::Notification::create(fmt::format("Not enough amethysts! You need {} more.", needed), geode::NotificationIcon::Error)->show();
         return;
