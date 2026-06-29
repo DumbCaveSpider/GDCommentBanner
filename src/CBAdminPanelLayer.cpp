@@ -463,7 +463,7 @@ void CBAdminPanelLayer::renderPage() {
                 }
             }
             nameLabel->setPosition({nameX, 25.f});
-            nameLabel->limitLabelWidth(100.f, 0.5f, 0.2f);
+            nameLabel->limitLabelWidth(60.f, 0.5f, 0.2f);
             cell->addChild(nameLabel);
 
             float currentX = nameX + (nameLabel->getContentSize().width * nameLabel->getScale()) + 8.f;
@@ -488,7 +488,7 @@ void CBAdminPanelLayer::renderPage() {
             // Price
             if (auto priceLabel = CCLabelBMFont::create(fmt::format("{}", GameToolbox::pointsToString(price)).c_str(), "bigFont.fnt")) {
                 priceLabel->setAnchorPoint({0.f, 0.5f});
-                priceLabel->setScale(0.5f);
+                priceLabel->limitLabelWidth(100.f, 0.5f, 0.2f);
                 priceLabel->setPosition({0.f, 0.f});
 
                 auto priceNode = CCNode::create();
@@ -514,7 +514,7 @@ void CBAdminPanelLayer::renderPage() {
                 if (auto amountLabel = CCLabelBMFont::create(fmt::format("Amount: {}", amount).c_str(), "goldFont.fnt")) {
                     amountLabel->setAnchorPoint({0.f, 0.5f});
                     amountLabel->limitLabelWidth(60.f, 0.4f, 0.2f);
-                    amountLabel->setPosition({currentX, 25.f});
+                    amountLabel->setPosition({26.f, 40.f});
                     cell->addChild(amountLabel);
                 }
             }

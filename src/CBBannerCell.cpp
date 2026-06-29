@@ -105,11 +105,9 @@ CBBannerCell* CBBannerCell::create(const CBBannerItem& banner, float width) {
         }
 
         cellBg->addChild(priceNode);
-
-
     }
 
-    if (auto buyButton = Button::createWithNode(ButtonSprite::create(banner.equipped ? "Unequip" : (banner.owns ? "Apply" : "Buy"), 100.f, true, "goldFont.fnt", banner.equipped ? "GJ_button_06.png" : (banner.owns ? "GJ_button_02.png" : "GJ_button_01.png"), .0f, 1.f), [cellBg, banner](geode::Button* sender) {
+    if (auto buyButton = Button::createWithNode(ButtonSprite::create(banner.equipped ? "Unequip" : (banner.owns ? "Equip" : "Buy"), 100.f, true, "goldFont.fnt", banner.equipped ? "GJ_button_06.png" : (banner.owns ? "GJ_button_02.png" : "GJ_button_01.png"), .0f, 1.f), [cellBg, banner](geode::Button* sender) {
             if (banner.equipped) {
                 cellBg->unequipBanner();
                 return;

@@ -1,4 +1,5 @@
 #include "CBYourBannersPopup.hpp"
+#include "CBUpdateAmountPopup.hpp"
 #include <Geode/utils/web.hpp>
 #include <argon/argon.hpp>
 #include "Geode/ui/Button.hpp"
@@ -252,6 +253,18 @@ void CBYourBannersPopup::fetchBanners() {
                     if (auto earnLabel = CCLabelBMFont::create(fmt::format("Earn: +{:.1f}/mo", bannerEarnRate).c_str(), "goldFont.fnt")) {
                         earnLabel->limitLabelWidth(150.f, 0.5f, 0.2f);
                         detailNode->addChild(earnLabel);
+                    }
+                }
+
+                if (isLimited) {
+                    if (auto changeAmountBtn = Button::createWithNode(ButtonSprite::create("Change Amount", "goldFont.fnt", "GJ_button_01.png", .5f), [id, amount, totalBought, retainedSelf](geode::Button* sender) {
+                            CBUpdateAmountPopup::create(id, amount, totalBought, [retainedSelf]() {
+                                retainedSelf->fetchBanners();
+                            })->show();
+                        })) {
+                        changeAmountBtn->setScale(0.6f);
+                        changeAmountBtn->setPosition({width - 45.f, 35.f});
+                        cell->addChild(changeAmountBtn);
                     }
                 }
 

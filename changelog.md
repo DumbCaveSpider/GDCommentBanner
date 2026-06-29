@@ -4,6 +4,7 @@
 - Added Refund Button on the pending banners in your banners popup
 - Added "Limited Banners" filters
 - Added "Info" button on the banner cells.
+- Added the ability to change the amount of your limited banner
 
 ## v0.1.3-beta.1
 
