@@ -25,7 +25,6 @@ bool CBViewItemPopup::init(const CBBannerItem& banner) {
 
     this->setTitle(m_banner.name.c_str());
     m_title->setFntFile("bigFont.fnt");
-    m_title->setScale(0.8f);
 
     if (!m_banner.username.empty()) {
         if (auto usernameLabel = Button::createWithLabel(fmt::format("By {}", m_banner.username).c_str(), "goldFont.fnt", [this](geode::Button* sender) {
@@ -33,7 +32,7 @@ bool CBViewItemPopup::init(const CBBannerItem& banner) {
             })) {
             usernameLabel->setAnchorPoint({0.5f, 0.5f});
             usernameLabel->setScale(0.5f);
-            m_mainLayer->addChildAtPosition(usernameLabel, Anchor::Top, {0, -40.f});
+            m_mainLayer->addChildAtPosition(usernameLabel, Anchor::Top, {0, -45.f});
         }
     }
 
