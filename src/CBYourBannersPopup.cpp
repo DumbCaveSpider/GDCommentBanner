@@ -256,7 +256,7 @@ void CBYourBannersPopup::fetchBanners() {
                     }
                 }
 
-                if (isLimited) {
+                if (isLimited && !isPending) {
                     if (auto changeAmountBtn = Button::createWithNode(ButtonSprite::create("Change Amount", "goldFont.fnt", "GJ_button_01.png", .5f), [id, amount, totalBought, retainedSelf](geode::Button* sender) {
                             CBUpdateAmountPopup::create(id, amount, totalBought, [retainedSelf]() {
                                 retainedSelf->fetchBanners();

@@ -101,7 +101,8 @@ void CBShopLayer::fetchBanners() {
                 {"argonToken", authToken},
                 {"page", m_currentPage},
                 {"limit", m_itemsPerPage},
-                {"filter", m_filterState}});
+                {"filter", m_filterState},
+                {"sort", m_sortState}});
             if (!m_searchQuery.empty()) {
                 body["name"] = m_searchQuery;
             }
@@ -311,13 +312,13 @@ void CBShopLayer::fetchAmethyst() {
                     m_isAdmin = false;
                     Mod::get()->setSavedValue("is_admin", false);
                 }
-                
+
                 if (auto hasCreatedRes = json["has_created_banner"].asBool(); hasCreatedRes.isOk()) {
                     Mod::get()->setSavedValue("has_created_banner", hasCreatedRes.unwrap());
                 } else {
                     Mod::get()->setSavedValue("has_created_banner", false);
                 }
-                
+
                 Mod::get()->setSavedValue("amethyst", amethyst);
 
                 if (!m_amethystLabel) {
@@ -457,10 +458,17 @@ bool CBShopLayer::init() {
             this,
             menu_selector(CBShopLayer::onFilterClicked))) {
         filterMenu->addChild(filterButton);
-        filterMenu->updateLayout();
-
-        this->addChildAtPosition(filterMenu, Anchor::TopLeft, {25.f, -45.f}, false);
     }
+
+    if (auto sortButton = CCMenuItemSpriteExtra::create(
+            EditorButtonSprite::createWithSpriteFrameName("GJ_sortIcon_001.png", 1.0f, EditorBaseColor::Gray),
+            this,
+            menu_selector(CBShopLayer::onSortClicked))) {
+        filterMenu->addChild(sortButton);
+    }
+
+    filterMenu->updateLayout();
+    this->addChildAtPosition(filterMenu, Anchor::TopLeft, {25.f, -45.f}, false);
 
     if (auto searchButton = CCMenuItemSpriteExtra::create(
             EditorButtonSprite::createWithSpriteFrameName("edit_findBtn_001.png", 1.0f, EditorBaseColor::Gray),
@@ -658,6 +666,42 @@ void CBShopLayer::onFilterClicked(CCObject* sender) {
     }
 
     auto newSpr = EditorButtonSprite::createWithSpriteFrameName("GJ_filterIcon_001.png", 1.0f, baseColor);
+    btn->setNormalImage(newSpr);
+
+    m_currentPage = 0;
+    this->fetchBanners();
+}
+
+void CBShopLayer::onSortClicked(CCObject* sender) {
+    auto btn = static_cast<CCMenuItemSpriteExtra*>(sender);
+
+    m_sortState = (m_sortState + 1) % 5;
+
+    EditorBaseColor baseColor = EditorBaseColor::Gray;
+    std::string text = "Sorting by Most Recent";
+
+    switch (m_sortState) {
+        case 1:
+            baseColor = EditorBaseColor::Green;
+            text = "Sorting by Most Bought";
+            break;
+        case 2:
+            baseColor = EditorBaseColor::Cyan;
+            text = "Sorting by Most Equipped";
+            break;
+        case 3:
+            baseColor = EditorBaseColor::Orange;
+            text = "Sorting by Highest Price";
+            break;
+        case 4:
+            baseColor = EditorBaseColor::Pink;
+            text = "Sorting by Lowest Price";
+            break;
+    }
+
+    Notification::create(text, NotificationIcon::Info)->show();
+
+    auto newSpr = EditorButtonSprite::createWithSpriteFrameName("GJ_sortIcon_001.png", 1.0f, baseColor);
     btn->setNormalImage(newSpr);
 
     m_currentPage = 0;

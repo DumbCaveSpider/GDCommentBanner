@@ -5,6 +5,7 @@
 - Added "Limited Banners" filters
 - Added "Info" button on the banner cells.
 - Added the ability to change the amount of your limited banner
+- Added "Recently Added", "Most Bought", "Most Equipped", "Highest Price", and "Lowest Price" sorting options
 
 ## v0.1.3-beta.1
 
