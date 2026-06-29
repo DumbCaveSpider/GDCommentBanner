@@ -1,3 +1,9 @@
+## v0.1.4-beta.1
+
+- Added Preview Banner button on the submission popup
+- Added Refund Button on the pending banners in your banners popup
+- Added "Limited Banners" filters
+
 ## v0.1.3-beta.1
 
 - Stupid me forgot to actually remove that code that makes the first submission free of charge. im cringing

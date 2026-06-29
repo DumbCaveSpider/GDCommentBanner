@@ -7,7 +7,9 @@
 
 using namespace geode::prelude;
 
-class CBAdminPanelLayer : public geode::Popup {
+#include <Geode/binding/SetTextPopupDelegate.hpp>
+
+class CBAdminPanelLayer : public geode::Popup, public SetTextPopupDelegate {
 public:
     static CBAdminPanelLayer* create();
 
@@ -17,6 +19,8 @@ private:
     void fetchPendingBanners();
     void fetchUsers(std::string query = "");
     void fetchBanners(std::string query = "");
+
+    void setTextPopupClosed(SetTextPopup* popup, gd::string text) override;
 
     void onTabPending(CCObject*);
     void onTabUsers(CCObject*);

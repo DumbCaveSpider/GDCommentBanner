@@ -13,7 +13,9 @@ public:
 private:
     bool init();
     void fetchBanners();
+    void onRefund(CCObject* sender);
 
     cue::ListNode* m_list = nullptr;
     cue::LoadingCircle* m_loadingCircle = nullptr;
+    CCLabelBMFont* m_earnLabel = nullptr;
 };

@@ -1,8 +1,10 @@
 #include "CBYourBannersPopup.hpp"
 #include <Geode/utils/web.hpp>
 #include <argon/argon.hpp>
+#include "Geode/ui/Button.hpp"
 #include "include/CBConstant.hpp"
 #include <Geode/ui/Scrollbar.hpp>
+#include "CBShopLayer.hpp"
 
 using namespace geode::prelude;
 
@@ -180,6 +182,16 @@ void CBYourBannersPopup::fetchBanners() {
                 }
                 cell->addChild(statusLabel);
 
+                if (isPending) {
+                    auto refundBtn = geode::Button::createWithNode(ButtonSprite::create("Refund"), [retainedSelf, id](geode::Button* sender) {
+                        retainedSelf->onRefund(sender);
+                    });
+                    refundBtn->setTag(id);
+                    refundBtn->setPosition({width - 45.f, 35.f});
+                    refundBtn->setScale(0.6f);
+                    cell->addChild(refundBtn);
+                }
+
                 // Price
                 if (auto priceLabel = CCLabelBMFont::create(fmt::format("{}", GameToolbox::pointsToString(price)).c_str(), "bigFont.fnt")) {
                     priceLabel->setAnchorPoint({0.f, 0.5f});
@@ -255,25 +267,104 @@ void CBYourBannersPopup::fetchBanners() {
             retainedSelf->m_list->updateLayout();
 
             if (totalEarnRate >= 0.f) {
-                auto earnNode = CCNode::create();
+                if (retainedSelf->m_earnLabel) {
+                    retainedSelf->m_earnLabel->setString(fmt::format("+{:.1f}/mo", totalEarnRate).c_str());
+                } else {
+                    auto earnNode = CCNode::create();
 
-                auto earnLabel = CCLabelBMFont::create(fmt::format("+{:.1f}/mo", totalEarnRate).c_str(), "bigFont.fnt");
-                earnLabel->setScale(0.5f);
-                earnLabel->setAnchorPoint({1.f, 0.5f});
-                earnLabel->setPosition({0.f, 0.f});
-                earnNode->addChild(earnLabel);
+                    retainedSelf->m_earnLabel = CCLabelBMFont::create(fmt::format("+{:.1f}/mo", totalEarnRate).c_str(), "bigFont.fnt");
+                    retainedSelf->m_earnLabel->setScale(0.5f);
+                    retainedSelf->m_earnLabel->setAnchorPoint({1.f, 0.5f});
+                    retainedSelf->m_earnLabel->setPosition({0.f, 0.f});
+                    earnNode->addChild(retainedSelf->m_earnLabel);
 
-                if (auto amethystIcon = CCSprite::createWithSpriteFrameName("CB_amethyst_002.png"_spr)) {
-                    amethystIcon->setScale(0.5f);
-                    amethystIcon->setPosition({5.f, 0.f});
-                    amethystIcon->setAnchorPoint({0.f, 0.5f});
-                    earnNode->addChild(amethystIcon);
+                    if (auto amethystIcon = CCSprite::createWithSpriteFrameName("CB_amethyst_002.png"_spr)) {
+                        amethystIcon->setScale(0.5f);
+                        amethystIcon->setPosition({5.f, 0.f});
+                        amethystIcon->setAnchorPoint({0.f, 0.5f});
+                        earnNode->addChild(amethystIcon);
+                    }
+
+                    retainedSelf->m_mainLayer->addChildAtPosition(earnNode, Anchor::TopRight, {-30.f, -25.f});
                 }
-
-                retainedSelf->m_mainLayer->addChildAtPosition(earnNode, Anchor::TopRight, {-30.f, -25.f});
             }
         });
 
         co_return;
+    });
+}
+
+void CBYourBannersPopup::onRefund(CCObject* sender) {
+    int id = sender->getTag();
+    geode::createQuickPopup("Refund Banner", "Are you sure you want to <cr>refund</c> this pending banner?", "Cancel", "Refund", [this, id](FLAlertLayer*, bool btn2) {
+        if (!btn2) return;
+
+        auto accountData = argon::getGameAccountData();
+        auto accountId = accountData.accountId;
+
+        if (accountId <= 0) {
+            Notification::create("Invalid account ID.", NotificationIcon::Error)->show();
+            return;
+        }
+
+        if (this->m_loadingCircle) this->m_loadingCircle->removeFromParent();
+        this->m_loadingCircle = cue::LoadingCircle::create(true);
+        this->m_list->addChildAtPosition(this->m_loadingCircle, Anchor::Center, CCPointZero, false);
+        this->m_loadingCircle->fadeIn();
+
+        Ref<CBYourBannersPopup> retainedSelf = this;
+        arc::spawn([retainedSelf, accountId, accountData, id]() -> arc::Future<> {
+            auto authResult = co_await comment::argonToken(accountData);
+            if (authResult.empty()) {
+                geode::queueInMainThread([retainedSelf] {
+                    retainedSelf->m_loadingCircle->fadeOut();
+                    Notification::create("Authentication failed.", NotificationIcon::Error)->show();
+                });
+                co_return;
+            }
+
+            auto authToken = std::move(authResult);
+
+            geode::utils::web::MultipartForm form;
+            form.param("accountId", numToString(accountId));
+            form.param("argonToken", authToken);
+            form.param("bannerId", numToString(id));
+
+            auto req = geode::utils::web::WebRequest();
+            req.bodyMultipart(std::move(form));
+
+            auto response = co_await req.post(fmt::format("{}/refundBanner", comment::baseUrl));
+            if (!response.ok()) {
+                geode::queueInMainThread([retainedSelf, response] {
+                    retainedSelf->m_loadingCircle->fadeOut();
+                    Notification::create(comment::getResponseMessage(response, "Failed to refund banner.").c_str(), NotificationIcon::Error)->show();
+                });
+                co_return;
+            }
+
+            auto jsonRes = response.json();
+            int refundedAmount = 0;
+            if (jsonRes.isOk()) {
+                refundedAmount = jsonRes.unwrap()["refunded"].asInt().unwrapOr(0);
+            }
+
+            geode::queueInMainThread([retainedSelf, refundedAmount] {
+                retainedSelf->m_loadingCircle->fadeOut();
+                Notification::create("Banner refunded!", NotificationIcon::Success)->show();
+
+                if (refundedAmount > 0) {
+                    int currentAmethyst = Mod::get()->getSavedValue<int>("amethyst", 0);
+                    int newAmethyst = currentAmethyst + refundedAmount;
+                    Mod::get()->setSavedValue("amethyst", newAmethyst);
+                    if (auto shopLayer = CBShopLayer::getInstance()) {
+                        shopLayer->updateAmethystLabel(newAmethyst);
+                    }
+                }
+
+                retainedSelf->fetchBanners();
+            });
+
+            co_return;
+        });
     });
 }

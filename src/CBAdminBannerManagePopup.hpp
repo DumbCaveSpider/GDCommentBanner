@@ -14,6 +14,7 @@ protected:
     geode::TextInput* m_nameInput;
     geode::TextInput* m_descInput;
     geode::TextInput* m_priceInput;
+    geode::TextInput* m_amountInput = nullptr;
 
     bool init(matjson::Value const& bannerData);
 

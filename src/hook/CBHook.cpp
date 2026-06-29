@@ -1,5 +1,3 @@
-#include <fstream>
-#include <sstream>
 #include <Geode/Geode.hpp>
 #include <Geode/ui/Button.hpp>
 #include <Geode/ui/LazySprite.hpp>
@@ -68,10 +66,13 @@ static void setupBannerSprite(CommentCell* cell, std::string const& imageUrl) {
     Ref<CommentCell> self = cell;
     if (!self->m_backgroundLayer) return;
 
+    if (imageUrl.empty()) return;
+
     auto size = self->m_backgroundLayer->getScaledContentSize();
     auto bannerSize = self->m_compactMode ? size : CCSize{800.f, 800.f};
 
     auto bannerNode = comment::createBannerNode(imageUrl, bannerSize);
+    bannerNode->setID("cb-comment-banner-node");
     bannerNode->setPosition({size.width / 2.f, size.height / 2.f});
 
     self->m_backgroundLayer->setOpacity(100);
@@ -98,6 +99,15 @@ class $modify(CBCommentCell, CommentCell) {
         CommentCell::loadFromComment(comment);
         if (!m_backgroundLayer) {
             return;
+        }
+
+        // Clean up recycled state
+        m_backgroundLayer->setOpacity(255);
+        if (auto bg = m_mainLayer->getChildByID("cb-comment-banner-bg")) {
+            bg->removeFromParent();
+        }
+        if (auto prevBanner = m_backgroundLayer->getChildByID("cb-comment-banner-node")) {
+            prevBanner->removeFromParent();
         }
 
         if (m_accountComment) return;  // don't load banner for account comment

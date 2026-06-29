@@ -33,7 +33,21 @@ bool CBSubmitBannerPopup::init() {
         ButtonSprite::create("Select Image", "goldFont.fnt", "GJ_button_04.png", .8f),
         this,
         menu_selector(CBSubmitBannerPopup::onPickFile));
-    m_buttonMenu->addChildAtPosition(pickFileBtn, Anchor::Top, {0.f, -50.f}, false);
+
+    m_previewBtn = CCMenuItemSpriteExtra::create(
+        ButtonSprite::create("Preview", "goldFont.fnt", "GJ_button_04.png", .8f),
+        this,
+        menu_selector(CBSubmitBannerPopup::onPreview));
+    m_previewBtn->setVisible(false);
+
+    auto topMenu = CCMenu::create();
+    topMenu->setContentSize({300.f, 40.f});
+    topMenu->setLayout(RowLayout::create()->setGap(5.f));
+    topMenu->addChild(pickFileBtn);
+    topMenu->addChild(m_previewBtn);
+    topMenu->updateLayout();
+
+    m_buttonMenu->addChildAtPosition(topMenu, Anchor::Top, {0.f, -50.f}, {0.5, 0.5});
 
     m_fileNameLabel = CCLabelBMFont::create("No file selected (1500x150) (Static or Animated)", "chatFont.fnt");
     m_fileNameLabel->limitLabelWidth(m_mainLayer->getContentWidth() - 20.f, 0.8f, 0.4f);
@@ -175,6 +189,12 @@ void CBSubmitBannerPopup::onPickFile(CCObject*) {
                         retainedSelf->m_fileNameLabel->setString(filename.c_str());
                         retainedSelf->m_fileNameLabel->setColor({100, 255, 100});
                     }
+                    if (retainedSelf->m_previewBtn) {
+                        retainedSelf->m_previewBtn->setVisible(true);
+                        if (auto menu = retainedSelf->m_previewBtn->getParent()) {
+                            static_cast<CCMenu*>(menu)->updateLayout();
+                        }
+                    }
                 });
             }
         }
@@ -296,4 +316,36 @@ void CBSubmitBannerPopup::onSubmit(CCObject*) {
             co_return;
         });
     });
+}
+
+void CBSubmitBannerPopup::onPreview(CCObject*) {
+    if (m_selectedFilePath.empty()) return;
+
+    auto blockLayer = CCBlockLayer::create();
+    blockLayer->setZOrder(105);
+
+    auto menu = CCMenu::create();
+    menu->setZOrder(1);
+
+    auto closeBtn = CCMenuItemSpriteExtra::create(
+        CCSprite::createWithSpriteFrameName("GJ_arrow_01_001.png"),
+        this,
+        menu_selector(CBSubmitBannerPopup::onClosePreview));
+    closeBtn->setUserObject(blockLayer);
+    menu->addChildAtPosition(closeBtn, Anchor::TopLeft, {25.f, -25.f});
+    blockLayer->addChild(menu);
+
+    auto winSize = CCDirector::sharedDirector()->getWinSize();
+
+    auto image = comment::createBannerNode(m_selectedFilePath, {424.f, 204.f});
+    image->setPosition(winSize / 2);
+    blockLayer->addChild(image);
+
+    CCDirector::sharedDirector()->getRunningScene()->addChild(blockLayer);
+}
+
+void CBSubmitBannerPopup::onClosePreview(CCObject* sender) {
+    if (auto node = static_cast<CCNode*>(static_cast<CCNode*>(sender)->getUserObject())) {
+        node->removeFromParent();
+    }
 }

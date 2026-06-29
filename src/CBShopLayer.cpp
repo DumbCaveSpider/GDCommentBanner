@@ -641,7 +641,7 @@ void CBShopLayer::keyBackClicked() {
 void CBShopLayer::onFilterClicked(CCObject* sender) {
     auto btn = static_cast<CCMenuItemSpriteExtra*>(sender);
 
-    m_filterState = (m_filterState + 1) % 3;
+    m_filterState = (m_filterState + 1) % 4;
 
     EditorBaseColor baseColor = EditorBaseColor::Gray;
     if (m_filterState == 1) {
@@ -650,6 +650,9 @@ void CBShopLayer::onFilterClicked(CCObject* sender) {
     } else if (m_filterState == 2) {
         baseColor = EditorBaseColor::Orange;
         Notification::create("Showing Unowned Banners", NotificationIcon::Info)->show();
+    } else if (m_filterState == 3) {
+        baseColor = EditorBaseColor::Pink;
+        Notification::create("Showing Limited Banners", NotificationIcon::Info)->show();
     } else {
         Notification::create("Showing All Banners", NotificationIcon::Info)->show();
     }

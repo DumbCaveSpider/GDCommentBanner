@@ -134,7 +134,7 @@ void CBLogsPopup::fetchLogs() {
                 cell->addChild(infoLabel);
 
                 auto msgLabel = SimpleTextArea::create(message.c_str(), "chatFont.fnt");
-                msgLabel->setWidth(330.f);
+                msgLabel->setWidth(320.f);
                 msgLabel->setMaxLines(4);
                 msgLabel->setScale(0.6f);
                 msgLabel->setAlignment(kCCTextAlignmentLeft);

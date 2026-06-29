@@ -54,11 +54,23 @@ bool CBAdminBannerManagePopup::init(matjson::Value const& bannerData) {
 
     // Price
     m_priceInput = TextInput::create(100.f, "Price");
-    m_priceInput->setPosition({0, startY - gap * 2 - 20.f});
     m_priceInput->setCommonFilter(CommonFilter::Int);
     m_priceInput->setLabel("Price");
     m_priceInput->setString(numToString(price));
     menu->addChild(m_priceInput);
+
+    if (isLimited) {
+        m_priceInput->setPosition({-60.f, startY - gap * 2 - 20.f});
+        
+        m_amountInput = TextInput::create(100.f, "Amount");
+        m_amountInput->setPosition({60.f, startY - gap * 2 - 20.f});
+        m_amountInput->setCommonFilter(CommonFilter::Int);
+        m_amountInput->setLabel("Amount");
+        m_amountInput->setString(numToString(amount));
+        menu->addChild(m_amountInput);
+    } else {
+        m_priceInput->setPosition({0, startY - gap * 2 - 20.f});
+    }
 
     // Amount info
     std::string amountText = fmt::format("Bought: {}", totalBought);
@@ -101,6 +113,8 @@ void CBAdminBannerManagePopup::onSave(CCObject*) {
     std::string newDesc = m_descInput->getString();
     std::string priceStr = m_priceInput->getString();
     int newPrice = numFromString<int>(priceStr).unwrap();
+    bool hasAmount = m_amountInput != nullptr;
+    int newAmount = hasAmount ? numFromString<int>(m_amountInput->getString()).unwrapOr(0) : 0;
 
     auto accountData = argon::getGameAccountData();
     auto accountId = accountData.accountId;
@@ -109,7 +123,7 @@ void CBAdminBannerManagePopup::onSave(CCObject*) {
     Ref<UploadActionPopup> popup = UploadActionPopup::create(nullptr, "Saving changes...");
     popup->show();
 
-    arc::spawn([retainedSelf, bannerId, accountId, accountData, newName, newDesc, newPrice, popup]() -> arc::Future<> {
+    arc::spawn([retainedSelf, bannerId, accountId, accountData, newName, newDesc, newPrice, hasAmount, newAmount, popup]() -> arc::Future<> {
         auto authResult = co_await comment::argonToken(accountData);
         if (authResult.empty()) {
             geode::queueInMainThread([popup] {
@@ -129,6 +143,10 @@ void CBAdminBannerManagePopup::onSave(CCObject*) {
             newPrice,
             newName,
             newDesc);
+
+        if (hasAmount) {
+            body += fmt::format("&amount={}", newAmount);
+        }
 
         auto res = co_await req.bodyString(body).post(fmt::format("{}/admin/updateBannerDetails", comment::baseUrl));
         bool ok = res.ok();

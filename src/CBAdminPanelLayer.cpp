@@ -9,7 +9,7 @@
 #include <Geode/binding/UploadActionPopup.hpp>
 #include <Geode/binding/SetTextPopup.hpp>
 #include "CBManageUserPopup.hpp"
-#include "CBAdminSearchPopup.hpp"
+#include <Geode/binding/SetTextPopup.hpp>
 #include "CBAdminBannerManagePopup.hpp"
 #include <Geode/ui/Scrollbar.hpp>
 
@@ -73,15 +73,9 @@ bool CBAdminPanelLayer::init() {
     m_filterBtn = geode::Button::createWithNode(
         CCSprite::createWithSpriteFrameName("gj_findBtn_001.png"),
         [this](geode::Button*) {
-            if (m_currentTab == Tab::Users) {
-                CBAdminSearchPopup::create("Search Users", "AccountID or Username", [this](std::string query) {
-                    this->fetchUsers(query);
-                })->show();
-            } else if (m_currentTab == Tab::Banners) {
-                CBAdminSearchPopup::create("Search Banners", "Banner Name, User, or ID", [this](std::string query) {
-                    this->fetchBanners(query);
-                })->show();
-            }
+            auto popup = SetTextPopup::create("", (m_currentTab == Tab::Users) ? "AccountID or Username" : "Banner Name, User, or ID", 32, (m_currentTab == Tab::Users) ? "Search Users" : "Search Banners", "Search", true, 60);
+            popup->m_delegate = this;
+            popup->show();
         });
     m_filterBtn->setVisible(false);
     filterMenu->addChild(m_filterBtn);
@@ -367,6 +361,14 @@ void CBAdminPanelLayer::updatePagination() {
     }
 }
 
+void CBAdminPanelLayer::setTextPopupClosed(SetTextPopup* popup, gd::string text) {
+    if (m_currentTab == Tab::Users) {
+        this->fetchUsers(text);
+    } else if (m_currentTab == Tab::Banners) {
+        this->fetchBanners(text);
+    }
+}
+
 void CBAdminPanelLayer::onNextPage(CCObject*) {
     m_page++;
     renderPage();
@@ -416,6 +418,7 @@ void CBAdminPanelLayer::renderPage() {
             std::string name = item["name"].asString().unwrapOr("Unknown");
             std::string user = item["username"].asString().unwrapOr("Unknown");
             int id = item["id"].asInt().unwrapOr(0);
+            int targetAccountId = item["accountId"].asInt().unwrapOr(0);
             std::string desc = item["description"].asString().unwrapOr("");
             int price = item["price"].asInt().unwrapOr(0);
             bool isLimited = item["isLimited"].asBool().unwrapOr(false);
@@ -468,10 +471,15 @@ void CBAdminPanelLayer::renderPage() {
             // User
             if (!user.empty()) {
                 auto usernameLabel = CCLabelBMFont::create(fmt::format("By {}", user).c_str(), "goldFont.fnt");
-                usernameLabel->setAnchorPoint({0.f, 0.5f});
-                usernameLabel->setPosition({currentX, 25.f});
                 usernameLabel->setScale(0.4f);
-                cell->addChild(usernameLabel);
+
+                auto userBtn = geode::Button::createWithNode(usernameLabel, [targetAccountId](geode::Button*) {
+                    ProfilePage::create(targetAccountId, false)->show();
+                });
+                userBtn->setAnchorPoint({0.f, 0.5f});
+                userBtn->setPosition({currentX, 25.f});
+                cell->addChild(userBtn);
+
                 currentX += (usernameLabel->getContentSize().width * usernameLabel->getScale()) + 15.f;
             } else {
                 currentX += 15.f;
@@ -685,6 +693,7 @@ void CBAdminPanelLayer::renderPage() {
             std::string name = item["name"].asString().unwrapOr("Unknown");
             std::string user = item["username"].asString().unwrapOr("Unknown");
             int id = item["id"].asInt().unwrapOr(0);
+            int targetAccountId = item["accountId"].asInt().unwrapOr(0);
             std::string desc = item["description"].asString().unwrapOr("");
             int price = item["price"].asInt().unwrapOr(0);
             bool isLimited = item["isLimited"].asBool().unwrapOr(false);
@@ -734,10 +743,15 @@ void CBAdminPanelLayer::renderPage() {
             // User
             if (!user.empty()) {
                 auto usernameLabel = CCLabelBMFont::create(fmt::format("By {}", user).c_str(), "goldFont.fnt");
-                usernameLabel->setAnchorPoint({0.f, 0.5f});
-                usernameLabel->setPosition({currentX, 25.f});
                 usernameLabel->setScale(0.4f);
-                cell->addChild(usernameLabel);
+
+                auto userBtn = geode::Button::createWithNode(usernameLabel, [targetAccountId](geode::Button*) {
+                    ProfilePage::create(targetAccountId, false)->show();
+                });
+                userBtn->setAnchorPoint({0.f, 0.5f});
+                userBtn->setPosition({currentX, 25.f});
+                cell->addChild(userBtn);
+
                 currentX += (usernameLabel->getContentSize().width * usernameLabel->getScale()) + 15.f;
             } else {
                 currentX += 15.f;
