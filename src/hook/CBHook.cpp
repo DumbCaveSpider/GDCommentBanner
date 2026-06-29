@@ -307,7 +307,7 @@ class $modify(CBEndLevelLayer, EndLevelLayer) {
                         }
                         rewardLayer->m_particlesAdded = false;
                         rewardLayer->m_diamonds = 0;
-                        rewardLayer->incrementDiamondsCount(current);
+                        rewardLayer->incrementDiamondsCount(current - amethystReward);
 
                         std::string frameName = "CB_amethyst_001.png"_spr;
                         auto displayFrame = CCSpriteFrameCache::sharedSpriteFrameCache()->spriteFrameByName((frameName).c_str());
