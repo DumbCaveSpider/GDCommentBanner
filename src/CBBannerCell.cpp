@@ -1,6 +1,7 @@
 #include "CBBannerCell.hpp"
 #include "CBPurchaseItemPopup.hpp"
 #include "CBViewItemPopup.hpp"
+#include "CBProfileBannerPopup.hpp"
 #include "Geode/ui/Layout.hpp"
 #include "ccTypes.h"
 #include "include/CBConstant.hpp"
@@ -76,7 +77,7 @@ CBBannerCell* CBBannerCell::create(const CBBannerItem& banner, float width) {
                     nameX += limitIcon->getContentSize().width * limitIcon->getScale() + 4.f;
                 }
             }
-            
+
             if (banner.isFeatured && banner.isLimited) {
                 nameLabel->runAction(CCRepeatForever::create(CCSequence::create(
                     CCTintTo::create(1.f, 255, 255, 50),
@@ -101,7 +102,7 @@ CBBannerCell* CBBannerCell::create(const CBBannerItem& banner, float width) {
 
     if (!banner.username.empty()) {
         if (auto usernameLabel = Button::createWithLabel(fmt::format("By {}", banner.username).c_str(), "goldFont.fnt", [banner](geode::Button* sender) {
-                ProfilePage::create(banner.accountId, false)->show();
+                CBProfileBannerPopup::create(banner.accountId, banner.username)->show();
             })) {
             usernameLabel->setAnchorPoint({0.f, 0.5f});
             usernameLabel->setPosition({10.f, 10.f});

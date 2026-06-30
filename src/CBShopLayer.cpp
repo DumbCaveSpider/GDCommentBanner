@@ -315,13 +315,18 @@ void CBShopLayer::fetchAmethyst() {
                     m_isAdmin = false;
                     Mod::get()->setSavedValue("is_admin", false);
                 }
+                bool oldHasCreated = Mod::get()->getSavedValue<bool>("has_created_banner", false);
+                bool newHasCreated = false;
 
                 if (auto hasCreatedRes = json["has_created_banner"].asBool(); hasCreatedRes.isOk()) {
-                    Mod::get()->setSavedValue("has_created_banner", hasCreatedRes.unwrap());
-                } else {
-                    Mod::get()->setSavedValue("has_created_banner", false);
+                    newHasCreated = hasCreatedRes.unwrap();
                 }
 
+                if (oldHasCreated && !newHasCreated) {
+                    log::info("Your banner was rejected, you can now create another banner for free.");
+                }
+
+                Mod::get()->setSavedValue("has_created_banner", newHasCreated);
                 Mod::get()->setSavedValue("amethyst", amethyst);
 
                 if (!m_amethystLabel) {
@@ -739,6 +744,8 @@ void CBShopLayer::onNextPage(CCObject* sender) {
 }
 
 void CBShopLayer::onPrevPage(CCObject* sender) {
-    m_currentPage--;
-    this->fetchBanners();
+    if (m_currentPage > 0) {
+        m_currentPage--;
+        this->fetchBanners();
+    }
 }

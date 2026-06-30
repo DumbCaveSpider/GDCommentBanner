@@ -9,6 +9,7 @@
 #include <Geode/binding/UploadActionPopup.hpp>
 #include <Geode/binding/SetTextPopup.hpp>
 #include "CBManageUserPopup.hpp"
+#include "CBProfileBannerPopup.hpp"
 #include <Geode/binding/SetTextPopup.hpp>
 #include "CBAdminBannerManagePopup.hpp"
 #include <Geode/ui/Scrollbar.hpp>
@@ -502,8 +503,8 @@ void CBAdminPanelLayer::renderPage() {
                 auto usernameLabel = CCLabelBMFont::create(fmt::format("By {}", user).c_str(), "goldFont.fnt");
                 usernameLabel->setScale(0.4f);
 
-                auto userBtn = geode::Button::createWithNode(usernameLabel, [targetAccountId](geode::Button*) {
-                    ProfilePage::create(targetAccountId, false)->show();
+                auto userBtn = geode::Button::createWithNode(usernameLabel, [targetAccountId, user](geode::Button*) {
+                    CBProfileBannerPopup::create(targetAccountId, user)->show();
                 });
                 userBtn->setAnchorPoint({0.f, 0.5f});
                 userBtn->setPosition({currentX, 25.f});
@@ -662,8 +663,8 @@ void CBAdminPanelLayer::renderPage() {
 
             auto btn = geode::Button::createWithNode(
                 label,
-                [targetId](geode::Button*) {
-                    ProfilePage::create(targetId, false)->show();
+                [targetId, user](geode::Button*) {
+                    CBProfileBannerPopup::create(targetId, user)->show();
                 });
             btn->setAnchorPoint({0, 0.5f});
             btn->setPosition({10.f, 26.f});
@@ -807,8 +808,8 @@ void CBAdminPanelLayer::renderPage() {
                 auto usernameLabel = CCLabelBMFont::create(fmt::format("By {}", user).c_str(), "goldFont.fnt");
                 usernameLabel->setScale(0.4f);
 
-                auto userBtn = geode::Button::createWithNode(usernameLabel, [targetAccountId](geode::Button*) {
-                    ProfilePage::create(targetAccountId, false)->show();
+                auto userBtn = geode::Button::createWithNode(usernameLabel, [targetAccountId, user](geode::Button*) {
+                    CBProfileBannerPopup::create(targetAccountId, user)->show();
                 });
                 userBtn->setAnchorPoint({0.f, 0.5f});
                 userBtn->setPosition({currentX, 25.f});

@@ -14,8 +14,11 @@ private:
     bool init();
     void fetchBanners();
     void onRefund(CCObject* sender);
+    void onEquip(CCObject* sender);
+    void onUnequip(CCObject* sender);
 
     cue::ListNode* m_list = nullptr;
     cue::LoadingCircle* m_loadingCircle = nullptr;
     CCLabelBMFont* m_earnLabel = nullptr;
+    CCLabelBMFont* m_pageLabel = nullptr;
 };

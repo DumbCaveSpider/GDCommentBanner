@@ -20,6 +20,7 @@ public:
     void onNextPage(CCObject* sender);
     void onPrevPage(CCObject* sender);
     void setEquippedBannerId(int bannerId);
+    int getEquippedBannerId() const { return m_equippedBannerId; }
 
     void setTextPopupClosed(SetTextPopup* popup, gd::string text) override;
 
@@ -40,8 +41,8 @@ private:
     cue::LoadingCircle* m_loadingCircle = nullptr;
     bool m_isStaff = false;
     bool m_isAdmin = false;
-    int m_filterState = 0; // 0 = All, 1 = Owned, 2 = Unowned, 3 = Limited, 4 = Featured
-    int m_sortState = 0; // 0 = Recent, 1 = Most Bought, 2 = Most Equipped, 3 = Highest Price, 4 = Lowest Price
+    int m_filterState = 0;  // 0 = All, 1 = Owned, 2 = Unowned, 3 = Limited, 4 = Featured
+    int m_sortState = 0;    // 0 = Recent, 1 = Most Bought, 2 = Most Equipped, 3 = Highest Price, 4 = Lowest Price
     int m_currentPage = 0;
     int m_itemsPerPage = 20;
     int m_totalItems = 0;

@@ -313,16 +313,16 @@ void CBManageUserPopup::createBannerCell(matjson::Value const& banner) {
         imageUrl = fmt::format("{}", imageUrl);
     }
 
-    auto sprite = comment::createBannerNode(imageUrl, {345.f, 40.f});
+    auto sprite = comment::createBannerNode(imageUrl, {355.f, 50.f});
     sprite->setPosition({145.f, 20.f});
     cell->addChild(sprite, -2);
 
-    auto bg = CCLayerGradient::create({0, 0, 0, 255}, {0, 0, 0, 0}, {1, 0});
-    bg->setContentSize(cell->getContentSize());
-    bg->setAnchorPoint({0, 0});
-    cell->addChild(bg, -1);
+    //auto bg = CCLayerGradient::create({0, 0, 0, 255}, {0, 0, 0, 0}, {1, 0});
+    //bg->setContentSize(cell->getContentSize());
+    //bg->setAnchorPoint({0, 0});
+    //cell->addChild(bg, -1);
 
-    auto nameInput = TextInput::create(200.f, "Name", "bigFont.fnt");
+    auto nameInput = TextInput::create(240.f, "Name", "bigFont.fnt");
     nameInput->setAnchorPoint({0, 0.5f});
     nameInput->setTextAlign(TextInputAlign::Left);
     nameInput->setCommonFilter(CommonFilter::Name);
@@ -331,7 +331,7 @@ void CBManageUserPopup::createBannerCell(matjson::Value const& banner) {
     nameInput->setScale(0.5f);
     cell->addChild(nameInput);
 
-    auto descInput = TextInput::create(200.f, "Description", "chatFont.fnt");
+    auto descInput = TextInput::create(240.f, "Description", "chatFont.fnt");
     descInput->setAnchorPoint({0, 0.5f});
     descInput->setTextAlign(TextInputAlign::Left);
     descInput->setCommonFilter(CommonFilter::Any);
@@ -352,9 +352,10 @@ void CBManageUserPopup::createBannerCell(matjson::Value const& banner) {
     amyIcon->setPosition({168.f, 20.f});
     bannerMenu->addChild(amyIcon);
 
-    auto priceInput = TextInput::create(40.f, "Price");
+    auto priceInput = TextInput::create(60.f, "Price");
     priceInput->setCommonFilter(CommonFilter::Int);
     priceInput->setString(numToString(price));
+    priceInput->setScale(0.7f);
     priceInput->setAnchorPoint({0, 0.5f});
     priceInput->setPosition({170.f, 20.f});
     bannerMenu->addChild(priceInput);

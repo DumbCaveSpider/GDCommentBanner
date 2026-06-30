@@ -14,7 +14,7 @@ public:
     static CBAdminPanelLayer* create();
 
 private:
-    bool init();
+    bool init() override;
 
     void fetchPendingBanners();
     void fetchUsers(std::string query = "");
@@ -33,7 +33,9 @@ private:
     CCMenuItemToggler* m_tabUsers = nullptr;
     geode::Button* m_filterBtn = nullptr;
 
-    enum class Tab { Pending, Users, Banners };
+    enum class Tab { Pending,
+        Users,
+        Banners };
     Tab m_currentTab = Tab::Pending;
 
     void renderPage();

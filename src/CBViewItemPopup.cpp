@@ -3,6 +3,7 @@
 #include <Geode/ui/Popup.hpp>
 #include <Geode/ui/Button.hpp>
 #include "include/CBConstant.hpp"
+#include "CBProfileBannerPopup.hpp"
 
 using namespace geode::prelude;
 
@@ -64,7 +65,7 @@ bool CBViewItemPopup::init(const CBBannerItem& banner) {
 
     if (!m_banner.username.empty()) {
         if (auto usernameLabel = Button::createWithLabel(fmt::format("By {}", m_banner.username).c_str(), "goldFont.fnt", [this](geode::Button* sender) {
-                ProfilePage::create(m_banner.accountId, false)->show();
+                CBProfileBannerPopup::create(m_banner.accountId, m_banner.username)->show();
             })) {
             usernameLabel->setAnchorPoint({0.5f, 0.5f});
             usernameLabel->setScale(0.5f);

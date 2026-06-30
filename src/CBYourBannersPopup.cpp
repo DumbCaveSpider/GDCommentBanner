@@ -26,10 +26,10 @@ bool CBYourBannersPopup::init() {
 
     m_list = cue::ListNode::create({340.f, 220.f}, {0, 0, 0, 0}, cue::ListBorderStyle::Comments);
     if (m_list) {
-        m_mainLayer->addChildAtPosition(m_list, Anchor::Center, {0.f, -15.f}, false);
+        m_mainLayer->addChildAtPosition(m_list, Anchor::Center, {0.f, -5.f}, false);
 
         auto scrollbar = Scrollbar::create(m_list->getScrollLayer());
-        m_mainLayer->addChildAtPosition(scrollbar, Anchor::Center, {340.f / 2 + 5.f, -15.f}, false);
+        m_mainLayer->addChildAtPosition(scrollbar, Anchor::Center, {340.f / 2 + 5.f, -5.f}, false);
     }
 
     auto listBg = NineSlice::create("square02_001.png");
@@ -39,6 +39,10 @@ bool CBYourBannersPopup::init() {
         listBg->setOpacity(100);
         m_mainLayer->addChild(listBg, -1);
     }
+
+    m_pageLabel = CCLabelBMFont::create("0 to 0 of 0", "goldFont.fnt");
+    m_pageLabel->limitLabelWidth(100.f, 0.4f, 0.1f);
+    m_mainLayer->addChildAtPosition(m_pageLabel, Anchor::Bottom, {0, 15}, false);
 
     fetchBanners();
 
@@ -109,7 +113,15 @@ void CBYourBannersPopup::fetchBanners() {
                 auto emptyLabel = CCLabelBMFont::create("No Banners", "goldFont.fnt");
                 emptyLabel->limitLabelWidth(retainedSelf->m_list->getContentWidth() - 20.f, 0.7f, 0.15f);
                 retainedSelf->m_list->addChildAtPosition(emptyLabel, Anchor::Center);
+                if (retainedSelf->m_pageLabel) {
+                    retainedSelf->m_pageLabel->setVisible(false);
+                }
                 return;
+            }
+
+            if (retainedSelf->m_pageLabel) {
+                retainedSelf->m_pageLabel->setVisible(true);
+                retainedSelf->m_pageLabel->setString(fmt::format("1 to {} of {}", json.size(), json.size()).c_str());
             }
 
             float totalEarnRate = 0.f;
@@ -202,15 +214,13 @@ void CBYourBannersPopup::fetchBanners() {
 
                 // Status Label
                 auto statusLabel = CCLabelBMFont::create(status, "goldFont.fnt");
-                statusLabel->setScale(0.5f);
-                statusLabel->setAnchorPoint({1.f, 0.5f});
-                statusLabel->setPosition({width - 10.f, 15.f});
+                statusLabel->setScale(0.3f);
                 if (isPending) {
                     statusLabel->setColor({255, 200, 50});
                 } else {
                     statusLabel->setColor({50, 255, 50});
                 }
-                cell->addChild(statusLabel);
+                cell->addChildAtPosition(statusLabel, Anchor::Top, {0, -8}, false);
 
                 if (isPending) {
                     auto refundBtn = geode::Button::createWithNode(ButtonSprite::create("Refund"), [retainedSelf, id](geode::Button* sender) {
@@ -286,7 +296,7 @@ void CBYourBannersPopup::fetchBanners() {
                 }
 
                 if (isLimited && !isPending) {
-                    if (auto changeAmountBtn = Button::createWithNode(ButtonSprite::create("Change Amount", "goldFont.fnt", "GJ_button_01.png", .5f), [id, amount, totalBought, retainedSelf](geode::Button* sender) {
+                    if (auto changeAmountBtn = Button::createWithNode(ButtonSprite::create("Change Amount", 100.f, true, "goldFont.fnt", "GJ_button_01.png", .0f, 1.f), [id, amount, totalBought, retainedSelf](geode::Button* sender) {
                             CBUpdateAmountPopup::create(id, amount, totalBought, [retainedSelf]() {
                                 retainedSelf->fetchBanners();
                             })->show();
@@ -297,13 +307,32 @@ void CBYourBannersPopup::fetchBanners() {
                     }
                 }
 
+                if (!isPending) {
+                    bool isEquipped = false;
+                    if (auto shop = CBShopLayer::getInstance()) {
+                        isEquipped = (shop->getEquippedBannerId() == id);
+                    }
+
+                    if (auto equipBtn = Button::createWithNode(ButtonSprite::create(isEquipped ? "Unequip" : "Equip", 100.f, true, "goldFont.fnt", isEquipped ? "GJ_button_06.png" : "GJ_button_02.png", .0f, 1.f), [retainedSelf, isEquipped](geode::Button* sender) {
+                            if (isEquipped) {
+                                retainedSelf->onUnequip(sender);
+                            } else {
+                                retainedSelf->onEquip(sender);
+                            }
+                        })) {
+                        equipBtn->setTag(id);
+                        equipBtn->setScale(0.6f);
+                        equipBtn->setPosition({width - 45.f, isLimited ? 15.f : 25.f});
+                        cell->addChild(equipBtn);
+                    }
+                }
+
                 detailNode->updateLayout();
 
                 if (detailNode->getChildrenCount() > 0) {
                     cell->addChildAtPosition(detailNode, Anchor::BottomRight, {-90.f, 50.f}, false);
                 }
 
-                retainedSelf->m_list->setCellColor(ccColor4B{0, 0, 0, 0});
                 retainedSelf->m_list->addCell(cell);
             }
             retainedSelf->m_list->updateLayout();
@@ -315,7 +344,7 @@ void CBYourBannersPopup::fetchBanners() {
                     auto earnNode = CCNode::create();
 
                     retainedSelf->m_earnLabel = CCLabelBMFont::create(fmt::format("+{:.1f}/mo", totalEarnRate).c_str(), "bigFont.fnt");
-                    retainedSelf->m_earnLabel->setScale(0.5f);
+                    retainedSelf->m_earnLabel->limitLabelWidth(80.f, 0.5f, 0.3f);
                     retainedSelf->m_earnLabel->setAnchorPoint({1.f, 0.5f});
                     retainedSelf->m_earnLabel->setPosition({0.f, 0.f});
                     earnNode->addChild(retainedSelf->m_earnLabel);
@@ -327,7 +356,7 @@ void CBYourBannersPopup::fetchBanners() {
                         earnNode->addChild(amethystIcon);
                     }
 
-                    retainedSelf->m_mainLayer->addChildAtPosition(earnNode, Anchor::TopRight, {-30.f, -25.f});
+                    retainedSelf->m_mainLayer->addChildAtPosition(earnNode, Anchor::TopRight, {-30.f, -20.f});
                 }
             }
         });
@@ -406,6 +435,107 @@ void CBYourBannersPopup::onRefund(CCObject* sender) {
                 retainedSelf->fetchBanners();
             });
 
+            co_return;
+        });
+    });
+}
+
+void CBYourBannersPopup::onEquip(CCObject* sender) {
+    int id = sender->getTag();
+    Ref<CBYourBannersPopup> retainedSelf = this;
+    geode::queueInMainThread([retainedSelf, id]() {
+        auto accountData = argon::getGameAccountData();
+        auto accountId = accountData.accountId;
+        Ref<UploadActionPopup> popup = UploadActionPopup::create(nullptr, "Equipping banner...");
+        if (popup) {
+            popup->show();
+        }
+
+        arc::spawn([retainedSelf, accountId, accountData, id, popup]() -> arc::Future<> {
+            auto authResult = co_await comment::argonToken(accountData);
+            if (authResult.empty()) {
+                log::warn("argon failed");
+                co_return;
+            }
+
+            auto authToken = std::move(authResult);
+
+            auto request = geode::utils::web::WebRequest();
+            auto body = matjson::makeObject({{"accountId", accountId},
+                {"argonToken", authToken},
+                {"bannerId", id}});
+            auto response = co_await request.bodyJSON(body).post(fmt::format("{}/equipBanner", comment::baseUrl));
+
+            if (!response.ok()) {
+                log::warn("equipBanner failed: {}", response.errorMessage());
+                if (popup) {
+                    geode::queueInMainThread([popup, error = response.errorMessage()] {
+                        popup->showFailMessage(fmt::format("Equip failed: {}", error));
+                    });
+                }
+                co_return;
+            }
+
+            geode::queueInMainThread([retainedSelf, popup, id] {
+                if (popup) {
+                    popup->showSuccessMessage("Banner equipped successfully");
+                }
+                if (auto shop = CBShopLayer::getInstance()) {
+                    shop->setEquippedBannerId(id);
+                    shop->refreshBanners();
+                }
+                retainedSelf->fetchBanners();
+            });
+            co_return;
+        });
+    });
+}
+
+void CBYourBannersPopup::onUnequip(CCObject* sender) {
+    int id = sender->getTag();
+    Ref<CBYourBannersPopup> retainedSelf = this;
+    geode::queueInMainThread([retainedSelf, id]() {
+        auto accountData = argon::getGameAccountData();
+        auto accountId = accountData.accountId;
+        Ref<UploadActionPopup> popup = UploadActionPopup::create(nullptr, "Unequipping banner...");
+        if (popup) {
+            popup->show();
+        }
+
+        arc::spawn([retainedSelf, accountId, accountData, id, popup]() -> arc::Future<> {
+            auto authResult = co_await comment::argonToken(accountData);
+            if (authResult.empty()) {
+                log::warn("argon failed");
+                co_return;
+            }
+
+            auto authToken = std::move(authResult);
+
+            auto request = geode::utils::web::WebRequest();
+            auto body = matjson::makeObject({{"accountId", accountId},
+                {"argonToken", authToken}});
+            auto response = co_await request.bodyJSON(body).post(fmt::format("{}/unequipBanner", comment::baseUrl));
+
+            if (!response.ok()) {
+                log::warn("unequipBanner failed: {}", response.errorMessage());
+                if (popup) {
+                    geode::queueInMainThread([popup, error = response.errorMessage()] {
+                        popup->showFailMessage(fmt::format("Unequip failed: {}", error));
+                    });
+                }
+                co_return;
+            }
+
+            geode::queueInMainThread([retainedSelf, popup] {
+                if (popup) {
+                    popup->showSuccessMessage("Banner unequipped successfully");
+                }
+                if (auto shop = CBShopLayer::getInstance()) {
+                    shop->setEquippedBannerId(-1);
+                    shop->refreshBanners();
+                }
+                retainedSelf->fetchBanners();
+            });
             co_return;
         });
     });

@@ -1,6 +1,8 @@
 ## v0.1.5
 
-- Added "Featured Banners" and
+- Added "Featured Banners" and filters banners to show only featured banners
+- Added "Equip/Unequip" button on your banners popup
+- Added a "User's Banner Popup" that appears when clicking on the username in the banner
 
 ## v0.1.4-beta.1
 
