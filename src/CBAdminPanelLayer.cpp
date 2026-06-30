@@ -422,6 +422,7 @@ void CBAdminPanelLayer::renderPage() {
             std::string desc = item["description"].asString().unwrapOr("");
             int price = item["price"].asInt().unwrapOr(0);
             bool isLimited = item["isLimited"].asBool().unwrapOr(false);
+            bool isFeatured = item["isFeatured"].asBool().unwrapOr(false);
             int amount = item["amount"].asInt().unwrapOr(0);
             std::string imageUrl = item["imageUrl"].asString().unwrapOr("");
             if (!imageUrl.empty()) {
@@ -437,6 +438,12 @@ void CBAdminPanelLayer::renderPage() {
             if (auto background = NineSlice::createWithSpriteFrameName("geode.loader/tab-bg.png")) {
                 background->setContentSize({width - 5, cellHeight});
                 background->setPosition({width / 2.f, cellHeight / 2.f});
+                if (isFeatured) {
+                    background->runAction(CCRepeatForever::create(CCSequence::create(
+                        CCTintTo::create(1.f, 255, 255, 50),
+                        CCTintTo::create(1.f, background->getColor().r, background->getColor().g, background->getColor().b),
+                        nullptr)));
+                }
                 cell->addChild(background);
             }
 
@@ -449,18 +456,40 @@ void CBAdminPanelLayer::renderPage() {
             auto nameLabel = CCLabelBMFont::create(name.c_str(), "bigFont.fnt");
             nameLabel->setAnchorPoint({0.f, 0.5f});
             float nameX = 10.f;
-            if (isLimited) {
-                if (auto starIcon = CCSprite::createWithSpriteFrameName("GJ_sRecentIcon_001.png")) {
+            if (isFeatured) {
+                if (auto starIcon = CCSprite::createWithSpriteFrameName("GJ_sStarsIcon_001.png")) {
                     starIcon->setScale(0.8f);
                     starIcon->setPosition({nameX, 25.f});
                     starIcon->setAnchorPoint({0.f, 0.5f});
                     cell->addChild(starIcon);
-                    nameLabel->runAction(CCRepeatForever::create(CCSequence::create(
-                        CCTintTo::create(1.f, 255, 150, 255),
-                        CCTintTo::create(1.f, 255, 255, 255),
-                        nullptr)));
                     nameX += starIcon->getContentSize().width * starIcon->getScale() + 4.f;
                 }
+            }
+            if (isLimited) {
+                if (auto limitIcon = CCSprite::createWithSpriteFrameName("GJ_sRecentIcon_001.png")) {
+                    limitIcon->setScale(0.8f);
+                    limitIcon->setPosition({nameX, 25.f});
+                    limitIcon->setAnchorPoint({0.f, 0.5f});
+                    cell->addChild(limitIcon);
+                    nameX += limitIcon->getContentSize().width * limitIcon->getScale() + 4.f;
+                }
+            }
+
+            if (isFeatured && isLimited) {
+                nameLabel->runAction(CCRepeatForever::create(CCSequence::create(
+                    CCTintTo::create(1.f, 255, 255, 50),
+                    CCTintTo::create(1.f, 255, 150, 255),
+                    nullptr)));
+            } else if (isFeatured) {
+                nameLabel->runAction(CCRepeatForever::create(CCSequence::create(
+                    CCTintTo::create(1.f, 255, 255, 50),
+                    CCTintTo::create(1.f, 255, 255, 255),
+                    nullptr)));
+            } else if (isLimited) {
+                nameLabel->runAction(CCRepeatForever::create(CCSequence::create(
+                    CCTintTo::create(1.f, 255, 150, 255),
+                    CCTintTo::create(1.f, 255, 255, 255),
+                    nullptr)));
             }
             nameLabel->setPosition({nameX, 25.f});
             nameLabel->limitLabelWidth(60.f, 0.5f, 0.2f);
@@ -697,6 +726,7 @@ void CBAdminPanelLayer::renderPage() {
             std::string desc = item["description"].asString().unwrapOr("");
             int price = item["price"].asInt().unwrapOr(0);
             bool isLimited = item["isLimited"].asBool().unwrapOr(false);
+            bool isFeatured = item["isFeatured"].asBool().unwrapOr(false);
             int amount = item["amount"].asInt().unwrapOr(0);
             std::string imageUrl = item["imageUrl"].asString().unwrapOr("");
 
@@ -709,6 +739,12 @@ void CBAdminPanelLayer::renderPage() {
             if (auto background = NineSlice::createWithSpriteFrameName("geode.loader/tab-bg.png")) {
                 background->setContentSize({width - 5, cellHeight});
                 background->setPosition({width / 2.f, cellHeight / 2.f});
+                if (isFeatured) {
+                    background->runAction(CCRepeatForever::create(CCSequence::create(
+                        CCTintTo::create(1.f, 255, 255, 50),
+                        CCTintTo::create(1.f, background->getColor().r, background->getColor().g, background->getColor().b),
+                        nullptr)));
+                }
                 cell->addChild(background);
             }
 
@@ -725,14 +761,40 @@ void CBAdminPanelLayer::renderPage() {
             auto nameLabel = CCLabelBMFont::create(name.c_str(), "bigFont.fnt");
             nameLabel->setAnchorPoint({0.f, 0.5f});
             float nameX = 10.f;
-            if (isLimited) {
-                if (auto starIcon = CCSprite::createWithSpriteFrameName("GJ_sRecentIcon_001.png")) {
+            if (isFeatured) {
+                if (auto starIcon = CCSprite::createWithSpriteFrameName("GJ_sStarsIcon_001.png")) {
                     starIcon->setScale(0.8f);
                     starIcon->setPosition({nameX, 25.f});
                     starIcon->setAnchorPoint({0.f, 0.5f});
                     cell->addChild(starIcon);
                     nameX += starIcon->getContentSize().width * starIcon->getScale() + 4.f;
                 }
+            }
+            if (isLimited) {
+                if (auto limitIcon = CCSprite::createWithSpriteFrameName("GJ_sRecentIcon_001.png")) {
+                    limitIcon->setScale(0.8f);
+                    limitIcon->setPosition({nameX, 25.f});
+                    limitIcon->setAnchorPoint({0.f, 0.5f});
+                    cell->addChild(limitIcon);
+                    nameX += limitIcon->getContentSize().width * limitIcon->getScale() + 4.f;
+                }
+            }
+
+            if (isFeatured && isLimited) {
+                nameLabel->runAction(CCRepeatForever::create(CCSequence::create(
+                    CCTintTo::create(1.f, 255, 255, 50),
+                    CCTintTo::create(1.f, 255, 150, 255),
+                    nullptr)));
+            } else if (isFeatured) {
+                nameLabel->runAction(CCRepeatForever::create(CCSequence::create(
+                    CCTintTo::create(1.f, 255, 255, 50),
+                    CCTintTo::create(1.f, 255, 255, 255),
+                    nullptr)));
+            } else if (isLimited) {
+                nameLabel->runAction(CCRepeatForever::create(CCSequence::create(
+                    CCTintTo::create(1.f, 255, 150, 255),
+                    CCTintTo::create(1.f, 255, 255, 255),
+                    nullptr)));
             }
             nameLabel->setPosition({nameX, 25.f});
             nameLabel->limitLabelWidth(100.f, 0.5f, 0.2f);

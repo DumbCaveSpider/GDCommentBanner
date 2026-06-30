@@ -1,3 +1,7 @@
+## v0.1.5
+
+- Added "Featured Banners" and
+
 ## v0.1.4-beta.1
 
 - Added Preview Banner button on the submission popup

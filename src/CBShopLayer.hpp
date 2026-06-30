@@ -40,7 +40,7 @@ private:
     cue::LoadingCircle* m_loadingCircle = nullptr;
     bool m_isStaff = false;
     bool m_isAdmin = false;
-    int m_filterState = 0; // 0 = All, 1 = Owned, 2 = Unowned, 3 = Limited
+    int m_filterState = 0; // 0 = All, 1 = Owned, 2 = Unowned, 3 = Limited, 4 = Featured
     int m_sortState = 0; // 0 = Recent, 1 = Most Bought, 2 = Most Equipped, 3 = Highest Price, 4 = Lowest Price
     int m_currentPage = 0;
     int m_itemsPerPage = 20;

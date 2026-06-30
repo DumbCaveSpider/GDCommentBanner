@@ -15,6 +15,7 @@ protected:
     geode::TextInput* m_descInput;
     geode::TextInput* m_priceInput;
     geode::TextInput* m_amountInput = nullptr;
+    CCMenuItemToggler* m_featuredToggler = nullptr;
 
     bool init(matjson::Value const& bannerData);
 

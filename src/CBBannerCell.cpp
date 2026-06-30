@@ -39,6 +39,12 @@ CBBannerCell* CBBannerCell::create(const CBBannerItem& banner, float width) {
             bgColor = {0, 200, 0};  // Green
         }
         background->setColor(bgColor);
+        if (banner.isFeatured) {
+            background->runAction(CCRepeatForever::create(CCSequence::create(
+                CCTintTo::create(1.f, 255, 255, 50),
+                CCTintTo::create(1.f, bgColor.r, bgColor.g, bgColor.b),
+                nullptr)));
+        }
         cellBg->addChild(background);
     }
 
@@ -52,18 +58,40 @@ CBBannerCell* CBBannerCell::create(const CBBannerItem& banner, float width) {
         if (nameLabel) {
             nameLabel->setAnchorPoint({0.f, 0.5f});
             float nameX = 10.f;
-            if (banner.isLimited) {
-                if (auto starIcon = CCSprite::createWithSpriteFrameName("GJ_sRecentIcon_001.png")) {
+            if (banner.isFeatured) {
+                if (auto starIcon = CCSprite::createWithSpriteFrameName("GJ_sStarsIcon_001.png")) {
                     starIcon->setScale(0.8f);
                     starIcon->setPosition({nameX, 23.f});
                     starIcon->setAnchorPoint({0.f, 0.5f});
                     cellBg->addChild(starIcon);
-                    nameLabel->runAction(CCRepeatForever::create(CCSequence::create(
-                        CCTintTo::create(1.f, 255, 150, 255),
-                        CCTintTo::create(1.f, 255, 255, 255),
-                        nullptr)));
                     nameX += starIcon->getContentSize().width * starIcon->getScale() + 4.f;
                 }
+            }
+            if (banner.isLimited) {
+                if (auto limitIcon = CCSprite::createWithSpriteFrameName("GJ_sRecentIcon_001.png")) {
+                    limitIcon->setScale(0.8f);
+                    limitIcon->setPosition({nameX, 23.f});
+                    limitIcon->setAnchorPoint({0.f, 0.5f});
+                    cellBg->addChild(limitIcon);
+                    nameX += limitIcon->getContentSize().width * limitIcon->getScale() + 4.f;
+                }
+            }
+            
+            if (banner.isFeatured && banner.isLimited) {
+                nameLabel->runAction(CCRepeatForever::create(CCSequence::create(
+                    CCTintTo::create(1.f, 255, 255, 50),
+                    CCTintTo::create(1.f, 255, 150, 255),
+                    nullptr)));
+            } else if (banner.isFeatured) {
+                nameLabel->runAction(CCRepeatForever::create(CCSequence::create(
+                    CCTintTo::create(1.f, 255, 255, 50),
+                    CCTintTo::create(1.f, 255, 255, 255),
+                    nullptr)));
+            } else if (banner.isLimited) {
+                nameLabel->runAction(CCRepeatForever::create(CCSequence::create(
+                    CCTintTo::create(1.f, 255, 150, 255),
+                    CCTintTo::create(1.f, 255, 255, 255),
+                    nullptr)));
             }
             nameLabel->setPosition({nameX, 25.f});
             nameLabel->limitLabelWidth(100.f, 0.5f, 0.2f);

@@ -26,6 +26,42 @@ bool CBViewItemPopup::init(const CBBannerItem& banner) {
     this->setTitle(m_banner.name.c_str());
     m_title->setFntFile("bigFont.fnt");
 
+    float titleWidth = m_title->getContentSize().width * m_title->getScale();
+    float currentIconX = -titleWidth / 2.f - 5.f;
+
+    if (m_banner.isLimited) {
+        if (auto limitIcon = CCSprite::createWithSpriteFrameName("GJ_sRecentIcon_001.png")) {
+            limitIcon->setScale(0.8f);
+            limitIcon->setAnchorPoint({1.f, 0.5f});
+            m_mainLayer->addChildAtPosition(limitIcon, Anchor::Top, {currentIconX, -15.f});
+            currentIconX -= limitIcon->getContentSize().width * limitIcon->getScale() + 4.f;
+        }
+    }
+    if (m_banner.isFeatured) {
+        if (auto starIcon = CCSprite::createWithSpriteFrameName("GJ_sStarsIcon_001.png")) {
+            starIcon->setScale(0.8f);
+            starIcon->setAnchorPoint({1.f, 0.5f});
+            m_mainLayer->addChildAtPosition(starIcon, Anchor::Top, {currentIconX, -15.f});
+        }
+    }
+
+    if (m_banner.isFeatured && m_banner.isLimited) {
+        m_title->runAction(CCRepeatForever::create(CCSequence::create(
+            CCTintTo::create(1.f, 255, 255, 50),
+            CCTintTo::create(1.f, 255, 150, 255),
+            nullptr)));
+    } else if (m_banner.isFeatured) {
+        m_title->runAction(CCRepeatForever::create(CCSequence::create(
+            CCTintTo::create(1.f, 255, 255, 50),
+            CCTintTo::create(1.f, 255, 255, 255),
+            nullptr)));
+    } else if (m_banner.isLimited) {
+        m_title->runAction(CCRepeatForever::create(CCSequence::create(
+            CCTintTo::create(1.f, 255, 150, 255),
+            CCTintTo::create(1.f, 255, 255, 255),
+            nullptr)));
+    }
+
     if (!m_banner.username.empty()) {
         if (auto usernameLabel = Button::createWithLabel(fmt::format("By {}", m_banner.username).c_str(), "goldFont.fnt", [this](geode::Button* sender) {
                 ProfilePage::create(m_banner.accountId, false)->show();

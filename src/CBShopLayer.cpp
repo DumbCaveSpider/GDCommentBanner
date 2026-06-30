@@ -188,6 +188,9 @@ void CBShopLayer::fetchBanners() {
                 if (auto isLimitedRes = item["isLimited"].asBool(); isLimitedRes.isOk()) {
                     banner.isLimited = isLimitedRes.unwrap();
                 }
+                if (auto isFeaturedRes = item["isFeatured"].asBool(); isFeaturedRes.isOk()) {
+                    banner.isFeatured = isFeaturedRes.unwrap();
+                }
                 if (auto amountRes = item["amount"].asInt(); amountRes.isOk()) {
                     banner.amount = static_cast<int>(amountRes.unwrap());
                 }
@@ -649,7 +652,7 @@ void CBShopLayer::keyBackClicked() {
 void CBShopLayer::onFilterClicked(CCObject* sender) {
     auto btn = static_cast<CCMenuItemSpriteExtra*>(sender);
 
-    m_filterState = (m_filterState + 1) % 4;
+    m_filterState = (m_filterState + 1) % 5;
 
     EditorBaseColor baseColor = EditorBaseColor::Gray;
     if (m_filterState == 1) {
@@ -661,6 +664,9 @@ void CBShopLayer::onFilterClicked(CCObject* sender) {
     } else if (m_filterState == 3) {
         baseColor = EditorBaseColor::Pink;
         Notification::create("Showing Limited Banners", NotificationIcon::Info)->show();
+    } else if (m_filterState == 4) {
+        baseColor = EditorBaseColor::Salmon;
+        Notification::create("Showing Featured Banners", NotificationIcon::Info)->show();
     } else {
         Notification::create("Showing All Banners", NotificationIcon::Info)->show();
     }

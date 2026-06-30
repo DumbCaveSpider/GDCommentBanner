@@ -17,6 +17,7 @@ struct CBBannerItem {
     bool owns = false;
     bool equipped = false;
     bool isLimited = false;
+    bool isFeatured = false;
     int amount = 0;
     int totalBought = 0;
 };

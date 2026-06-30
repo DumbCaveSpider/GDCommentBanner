@@ -16,7 +16,7 @@ CBAdminBannerManagePopup* CBAdminBannerManagePopup::create(matjson::Value const&
 }
 
 bool CBAdminBannerManagePopup::init(matjson::Value const& bannerData) {
-    if (!Popup::init(350.f, 240.f, "GJ_square02.png")) return false;
+    if (!Popup::init(350.f, 280.f, "GJ_square02.png")) return false;
 
     m_bannerData = bannerData;
     this->setTitle("Manage Banner");
@@ -26,6 +26,7 @@ bool CBAdminBannerManagePopup::init(matjson::Value const& bannerData) {
     std::string desc = m_bannerData["description"].asString().unwrapOr("");
     int price = m_bannerData["price"].asInt().unwrapOr(0);
     bool isLimited = m_bannerData["isLimited"].asBool().unwrapOr(false);
+    bool isFeatured = m_bannerData["isFeatured"].asBool().unwrapOr(false);
     int amount = m_bannerData["amount"].asInt().unwrapOr(0);
     int totalBought = m_bannerData["totalBought"].asInt().unwrapOr(0);
 
@@ -33,7 +34,7 @@ bool CBAdminBannerManagePopup::init(matjson::Value const& bannerData) {
     menu->setPosition({m_mainLayer->getContentSize().width / 2, m_mainLayer->getContentSize().height / 2});
     m_mainLayer->addChild(menu);
 
-    float startY = 80.f;
+    float startY = 100.f;
     float gap = 45.f;
 
     // Name
@@ -61,7 +62,7 @@ bool CBAdminBannerManagePopup::init(matjson::Value const& bannerData) {
 
     if (isLimited) {
         m_priceInput->setPosition({-60.f, startY - gap * 2 - 20.f});
-        
+
         m_amountInput = TextInput::create(100.f, "Amount");
         m_amountInput->setPosition({60.f, startY - gap * 2 - 20.f});
         m_amountInput->setCommonFilter(CommonFilter::Int);
@@ -81,6 +82,18 @@ bool CBAdminBannerManagePopup::init(matjson::Value const& bannerData) {
     amountLabel->setPosition({0, startY - gap * 3 - 5.f});
     amountLabel->setColor(ccColor3B{200, 200, 200});
     menu->addChild(amountLabel);
+
+    // Featured toggle
+    m_featuredToggler = CCMenuItemToggler::createWithStandardSprites(this, nullptr, 1.0f);
+    m_featuredToggler->toggle(isFeatured);
+    m_featuredToggler->setPosition({-45.f, startY - gap * 3 - 35.f});
+    menu->addChild(m_featuredToggler);
+
+    auto featuredLabel = CCLabelBMFont::create("Featured", "bigFont.fnt");
+    featuredLabel->setAnchorPoint({0.f, 0.5f});
+    featuredLabel->setPosition({-20.f, startY - gap * 3 - 35.f});
+    featuredLabel->setScale(0.6f);
+    menu->addChild(featuredLabel);
 
     // Buttons Menu
     auto btnMenu = CCMenu::create();
@@ -115,6 +128,7 @@ void CBAdminBannerManagePopup::onSave(CCObject*) {
     int newPrice = numFromString<int>(priceStr).unwrap();
     bool hasAmount = m_amountInput != nullptr;
     int newAmount = hasAmount ? numFromString<int>(m_amountInput->getString()).unwrapOr(0) : 0;
+    bool isFeatured = m_featuredToggler->isToggled();
 
     auto accountData = argon::getGameAccountData();
     auto accountId = accountData.accountId;
@@ -123,7 +137,7 @@ void CBAdminBannerManagePopup::onSave(CCObject*) {
     Ref<UploadActionPopup> popup = UploadActionPopup::create(nullptr, "Saving changes...");
     popup->show();
 
-    arc::spawn([retainedSelf, bannerId, accountId, accountData, newName, newDesc, newPrice, hasAmount, newAmount, popup]() -> arc::Future<> {
+    arc::spawn([retainedSelf, bannerId, accountId, accountData, newName, newDesc, newPrice, hasAmount, newAmount, isFeatured, popup]() -> arc::Future<> {
         auto authResult = co_await comment::argonToken(accountData);
         if (authResult.empty()) {
             geode::queueInMainThread([popup] {
@@ -147,6 +161,7 @@ void CBAdminBannerManagePopup::onSave(CCObject*) {
         if (hasAmount) {
             body += fmt::format("&amount={}", newAmount);
         }
+        body += fmt::format("&isFeatured={}", isFeatured ? "true" : "false");
 
         auto res = co_await req.bodyString(body).post(fmt::format("{}/admin/updateBannerDetails", comment::baseUrl));
         bool ok = res.ok();
