@@ -6,6 +6,7 @@
 - Added "Top Earners" leaderboard, shows the top 100 earned players
 - Fix issue where completing a platformer level doesn't reward amethysts
 - Added "Total Equipped" when viewing other user's banners
+- Added "User Equipped" & "User Bought" button on the info banner popup
 
 ## v0.1.4-beta.1
 

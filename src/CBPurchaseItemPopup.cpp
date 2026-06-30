@@ -31,8 +31,7 @@ bool CBPurchaseItemPopup::init(const CBBannerItem& banner) {
         return false;
     }
 
-    this->setTitle(m_banner.name.c_str());
-    m_title->setFntFile("bigFont.fnt");
+    this->setTitle(m_banner.name.c_str(), "bigFont.fnt", 0.7f);
 
     if (m_closeBtn) m_closeBtn->removeFromParent();
 
