@@ -34,7 +34,7 @@ bool CBViewItemPopup::init(const CBBannerItem& banner) {
         if (auto limitIcon = CCSprite::createWithSpriteFrameName("GJ_sRecentIcon_001.png")) {
             limitIcon->setScale(0.8f);
             limitIcon->setAnchorPoint({1.f, 0.5f});
-            m_mainLayer->addChildAtPosition(limitIcon, Anchor::Top, {currentIconX, -15.f});
+            m_mainLayer->addChildAtPosition(limitIcon, Anchor::Top, {currentIconX, -20.f});
             currentIconX -= limitIcon->getContentSize().width * limitIcon->getScale() + 4.f;
         }
     }
@@ -42,7 +42,7 @@ bool CBViewItemPopup::init(const CBBannerItem& banner) {
         if (auto starIcon = CCSprite::createWithSpriteFrameName("GJ_sStarsIcon_001.png")) {
             starIcon->setScale(0.8f);
             starIcon->setAnchorPoint({1.f, 0.5f});
-            m_mainLayer->addChildAtPosition(starIcon, Anchor::Top, {currentIconX, -15.f});
+            m_mainLayer->addChildAtPosition(starIcon, Anchor::Top, {currentIconX, -20.f});
         }
     }
 
@@ -111,11 +111,17 @@ bool CBViewItemPopup::init(const CBBannerItem& banner) {
     }
 
     auto detailNode = CCNode::create();
+    detailNode->setContentSize({200, 40});
+    detailNode->setAnchorPoint({1.f, 0.f});
+    detailNode->setLayout(ColumnLayout::create()
+            ->setCrossAxisAlignment(AxisAlignment::End)
+            ->setCrossAxisLineAlignment(AxisAlignment::End)
+            ->setAutoScale(false)
+            ->setCrossAxisOverflow(false));
     if (m_banner.isLimited) {
         if (auto amountLabel = CCLabelBMFont::create(fmt::format("Amount Left: {}", m_banner.amount - m_banner.totalBought).c_str(), "goldFont.fnt")) {
             amountLabel->setAnchorPoint({1.f, 0.5f});
             amountLabel->setScale(0.5f);
-            amountLabel->setPosition({0.f, 10.f});
             detailNode->addChild(amountLabel);
         }
     }
@@ -123,12 +129,18 @@ bool CBViewItemPopup::init(const CBBannerItem& banner) {
     if (auto totalBoughtLabel = CCLabelBMFont::create(fmt::format("Bought: {}", m_banner.totalBought).c_str(), "goldFont.fnt")) {
         totalBoughtLabel->setAnchorPoint({1.f, 0.5f});
         totalBoughtLabel->setScale(0.5f);
-        totalBoughtLabel->setPosition({0.f, m_banner.isLimited ? -8.f : 0.f});
         detailNode->addChild(totalBoughtLabel);
     }
 
+    if (auto equippedLabel = CCLabelBMFont::create(fmt::format("Equipped: {}", m_banner.equippedCount).c_str(), "goldFont.fnt")) {
+        equippedLabel->setAnchorPoint({1.f, 0.5f});
+        equippedLabel->setScale(0.5f);
+        detailNode->addChild(equippedLabel);
+    }
+
     if (detailNode->getChildrenCount() > 0) {
-        m_mainLayer->addChildAtPosition(detailNode, Anchor::BottomRight, {-15.f, 25.f}, false);
+        m_mainLayer->addChildAtPosition(detailNode, Anchor::BottomRight, {-10.f, 10.f}, false);
+        detailNode->updateLayout();
     }
 
     return true;

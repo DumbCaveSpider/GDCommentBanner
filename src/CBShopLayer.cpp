@@ -198,6 +198,9 @@ void CBShopLayer::fetchBanners() {
                 if (auto totalBoughtRes = item["totalBought"].asInt(); totalBoughtRes.isOk()) {
                     banner.totalBought = static_cast<int>(totalBoughtRes.unwrap());
                 }
+                if (auto equippedCountRes = item["equippedCount"].asInt(); equippedCountRes.isOk()) {
+                    banner.equippedCount = static_cast<int>(equippedCountRes.unwrap());
+                }
                 banner.equipped = (banner.id == m_equippedBannerId);
                 banners.push_back(std::move(banner));
             }

@@ -124,6 +124,7 @@ void CBLeaderboardLayer::fetchLeaderboard() {
                 int accountId = item["accountId"].asInt().unwrapOr(0);
                 std::string username = item["username"].asString().unwrapOr("Unknown");
                 int totalEarned = item["totalEarned"].asInt().unwrapOr(0);
+                int totalSales = item["totalSales"].asInt().unwrapOr(0);
 
                 auto cell = CCNode::create();
                 cell->setContentSize({356.f, 40.f});
@@ -159,13 +160,21 @@ void CBLeaderboardLayer::fetchLeaderboard() {
                 auto earnLabel = CCLabelBMFont::create(GameToolbox::pointsToString(totalEarned).c_str(), "bigFont.fnt");
                 earnLabel->limitLabelWidth(150, 0.5f, 0.1f);
                 earnLabel->setAnchorPoint({1.f, 0.5f});
-                earnLabel->setPosition({320.f, 20.f});
+                earnLabel->setPosition({320.f, 26.f});
                 cell->addChild(earnLabel);
 
                 auto amethystIcon = CCSprite::createWithSpriteFrameName("CB_amethyst_001.png"_spr);
                 amethystIcon->setScale(0.6f);
-                amethystIcon->setPosition({335.f, 20.f});
+                amethystIcon->setPosition({335.f, 26.f});
                 cell->addChild(amethystIcon);
+
+                // Sales
+                auto salesLabel = CCLabelBMFont::create(fmt::format("Total Sales: {}", totalSales).c_str(), "bigFont.fnt");
+                salesLabel->limitLabelWidth(150, 0.25f, 0.1f);
+                salesLabel->setAnchorPoint({1.f, 0.5f});
+                salesLabel->setPosition({320.f, 10.f});
+                salesLabel->setColor({150, 255, 150});
+                cell->addChild(salesLabel);
 
                 if (retainedSelf->m_list) {
                     retainedSelf->m_list->addCell(cell);

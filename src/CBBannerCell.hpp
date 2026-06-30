@@ -20,6 +20,7 @@ struct CBBannerItem {
     bool isFeatured = false;
     int amount = 0;
     int totalBought = 0;
+    int equippedCount = 0;
 };
 
 class CBBannerCell : public cocos2d::CCLayer, public UploadPopupDelegate {

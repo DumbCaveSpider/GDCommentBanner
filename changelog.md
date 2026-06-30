@@ -5,6 +5,7 @@
 - Added "User's Banner Popup" that appears when clicking on the username in the banner
 - Added "Top Earners" leaderboard, shows the top 100 earned players
 - Fix issue where completing a platformer level doesn't reward amethysts
+- Added "Total Equipped" when viewing other user's banners
 
 ## v0.1.4-beta.1
 

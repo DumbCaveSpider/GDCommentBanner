@@ -237,6 +237,9 @@ void CBProfileBannerPopup::fetchBanners() {
                 if (auto totalBoughtRes = item["totalBought"].asInt(); totalBoughtRes.isOk()) {
                     banner.totalBought = static_cast<int>(totalBoughtRes.unwrap());
                 }
+                if (auto equippedCountRes = item["equippedCount"].asInt(); equippedCountRes.isOk()) {
+                    banner.equippedCount = static_cast<int>(equippedCountRes.unwrap());
+                }
 
                 if (auto cell = CBBannerCell::create(banner, 340.f)) {
                     retainedSelf->m_list->addCell(cell);
