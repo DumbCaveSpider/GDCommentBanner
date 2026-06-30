@@ -20,7 +20,7 @@ protected:
     geode::TextInput* m_amethystInput;
     geode::TextInput* m_banHoursInput;
     CCMenuItemToggler* m_staffToggler;
-    
+
     cue::ListNode* m_bannersList;
     cue::LoadingCircle* m_loadingCircle;
 

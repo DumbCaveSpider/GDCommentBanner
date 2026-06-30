@@ -32,14 +32,6 @@ bool CBYourBannersPopup::init() {
         m_mainLayer->addChildAtPosition(scrollbar, Anchor::Center, {340.f / 2 + 5.f, -5.f}, false);
     }
 
-    auto listBg = NineSlice::create("square02_001.png");
-    if (listBg) {
-        listBg->setPosition(m_list->getPosition());
-        listBg->setContentSize(m_list->getContentSize() + CCSize(5.f, 10.f));
-        listBg->setOpacity(100);
-        m_mainLayer->addChild(listBg, -1);
-    }
-
     m_pageLabel = CCLabelBMFont::create("0 to 0 of 0", "goldFont.fnt");
     m_pageLabel->limitLabelWidth(100.f, 0.4f, 0.1f);
     m_mainLayer->addChildAtPosition(m_pageLabel, Anchor::Bottom, {0, 15}, false);

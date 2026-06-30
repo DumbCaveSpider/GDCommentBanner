@@ -228,7 +228,7 @@ class $modify(CBEndLevelLayer, EndLevelLayer) {
                 //return;
             }
 
-            if (level->m_attemptTime <= 25 || level->m_attemptTime >= 28000000) {
+            if ((level->m_attemptTime <= 25 || level->m_attemptTime >= 28000000) && !level->isPlatformer()) {
                 log::warn("Attempt time is invalid for amethyst reward submission: {}", level->m_attemptTime);
                 return;
             }

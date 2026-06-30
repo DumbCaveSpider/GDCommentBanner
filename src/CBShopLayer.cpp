@@ -11,6 +11,7 @@
 #include "CBLogsPopup.hpp"
 #include "CBAdminPanelLayer.hpp"
 #include "CBYourBannersPopup.hpp"
+#include "CBLeaderboardLayer.hpp"
 #include <Geode/binding/SetTextPopup.hpp>
 #include "Geode/ui/Layout.hpp"
 #include "Geode/utils/web.hpp"
@@ -399,12 +400,31 @@ bool CBShopLayer::init() {
     m_noBannersLabel->setZOrder(5);
     this->addChildAtPosition(m_noBannersLabel, Anchor::Center, {0.f, -22.f}, false);
 
+    auto bottomRightMenu = CCMenu::create();
+    bottomRightMenu->setAnchorPoint({0.5f, 0.f});
+    bottomRightMenu->setContentSize({40.f, 0.f});
+    bottomRightMenu->setLayout(ColumnLayout::create()
+            ->setAxisAlignment(AxisAlignment::Start)
+            ->setGap(10.f)
+            ->setAutoGrowAxis(0.f));
+    this->addChildAtPosition(bottomRightMenu, Anchor::BottomRight, {-30.f, 10.f}, false);
+
     if (auto refreshButton = geode::Button::createWithSpriteFrameName(
             "GJ_updateBtn_001.png",
             [this](geode::Button* sender) {
                 this->fetchBanners();
             })) {
-        this->addChildAtPosition(refreshButton, Anchor::BottomRight, {-35.f, 35.f}, false);
+        bottomRightMenu->addChild(refreshButton);
+        bottomRightMenu->updateLayout();
+    }
+
+    if (auto leaderboardButton = geode::Button::createWithSpriteFrameName("GJ_achBtn_001.png", [this](geode::Button* sender) {
+            auto scene = CCScene::create();
+            scene->addChild(CBLeaderboardLayer::create());
+            CCDirector::sharedDirector()->pushScene(CCTransitionFade::create(0.5f, scene));
+        })) {
+        bottomRightMenu->addChild(leaderboardButton);
+        bottomRightMenu->updateLayout();
     }
 
     if (auto discordButton = geode::Button::createWithSpriteFrameName("gj_discordIcon_001.png", [this](geode::Button* sender) {
@@ -413,7 +433,8 @@ bool CBShopLayer::init() {
                 geode::utils::web::openLinkInBrowser(communityUrl.value());
             }
         })) {
-        this->addChildAtPosition(discordButton, Anchor::BottomRight, {-35.f, 85.f}, false);
+        bottomRightMenu->addChild(discordButton);
+        bottomRightMenu->updateLayout();
     }
 
     if (auto infoButton = geode::Button::createWithSpriteFrameName("GJ_infoIcon_001.png", [this](geode::Button* sender) {

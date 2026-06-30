@@ -1,8 +1,10 @@
-## v0.1.5
+## v0.1.5-beta.1
 
 - Added "Featured Banners" and filters banners to show only featured banners
 - Added "Equip/Unequip" button on your banners popup
-- Added a "User's Banner Popup" that appears when clicking on the username in the banner
+- Added "User's Banner Popup" that appears when clicking on the username in the banner
+- Added "Top Earners" leaderboard, shows the top 100 earned players
+- Fix issue where completing a platformer level doesn't reward amethysts
 
 ## v0.1.4-beta.1
 
