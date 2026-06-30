@@ -9,6 +9,8 @@
 #include <cue/ListNode.hpp>
 
 class CBProfileBannerPopup : public geode::Popup {
+public:
+    void fetchBanners();
 private:
     int m_targetAccountId;
     std::string m_targetUsername;
@@ -23,7 +25,6 @@ private:
     cocos2d::CCLabelBMFont* m_pageLabel = nullptr;
 
     bool init(int targetAccountId, const std::string& targetUsername);
-    void fetchBanners();
     void updatePaginationButtons();
 
     void onNextPage(cocos2d::CCObject* sender);

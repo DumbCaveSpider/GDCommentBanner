@@ -1,4 +1,5 @@
 #include "CBLeaderboardLayer.hpp"
+#include <fmt/format.h>
 #include "CBProfileBannerPopup.hpp"
 #include "include/CBConstant.hpp"
 #include <Geode/utils/web.hpp>
@@ -36,7 +37,7 @@ bool CBLeaderboardLayer::init() {
 
         auto scrollbar = Scrollbar::create(m_list->getScrollLayer());
         scrollbar->setZOrder(5);
-        this->addChildAtPosition(scrollbar, Anchor::Center, {356.f / 2 + 25.f, 0.f}, false);
+        this->addChildAtPosition(scrollbar, Anchor::Center, {356.f / 2 + 20.f, 0.f}, false);
     }
 
     auto title = CCLabelBMFont::create("Top Earners", "bigFont.fnt");
@@ -125,9 +126,18 @@ void CBLeaderboardLayer::fetchLeaderboard() {
                 std::string username = item["username"].asString().unwrapOr("Unknown");
                 int totalEarned = item["totalEarned"].asInt().unwrapOr(0);
                 int totalSales = item["totalSales"].asInt().unwrapOr(0);
+                std::string equippedBannerUrl = item["equippedBannerUrl"].asString().unwrapOr("");
 
                 auto cell = CCNode::create();
                 cell->setContentSize({356.f, 40.f});
+
+                if (!equippedBannerUrl.empty()) {
+                    auto bannerSprite = comment::createBannerNode(fmt::format("{}{}", comment::baseUrl, equippedBannerUrl), {cell->getContentWidth() + 10, cell->getContentHeight() + 10});
+                    if (bannerSprite) {
+                        bannerSprite->setPosition({cell->getContentWidth() / 2, cell->getContentHeight() / 2});
+                        cell->addChild(bannerSprite, -2);
+                    }
+                }
 
                 // Rank
                 auto rankLabel = CCLabelBMFont::create(fmt::format("{}", i + 1).c_str(), "goldFont.fnt");

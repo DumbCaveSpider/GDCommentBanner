@@ -241,6 +241,8 @@ void CBProfileBannerPopup::fetchBanners() {
                     banner.equippedCount = static_cast<int>(equippedCountRes.unwrap());
                 }
 
+                banner.equipped = (Mod::get()->getSavedValue<int>("equipped-banner", -1) == banner.id);
+
                 if (auto cell = CBBannerCell::create(banner, 340.f)) {
                     retainedSelf->m_list->addCell(cell);
                 }

@@ -248,9 +248,15 @@ void CBBannerCell::applyBanner() {
                     if (popup) {
                         popup->showSuccessMessage("Banner equipped successfully");
                     }
+                    Mod::get()->setSavedValue("equipped-banner", retainedSelf->m_banner.id);
                     if (auto shop = CBShopLayer::getInstance()) {
                         shop->setEquippedBannerId(retainedSelf->m_banner.id);
                         shop->refreshBanners();
+                    }
+                    if (auto scene = CCDirector::sharedDirector()->getRunningScene()) {
+                        if (auto popup = scene->getChildByType<CBProfileBannerPopup>(0)) {
+                            popup->fetchBanners();
+                        }
                     }
                 });
                 log::debug("banner {} equipped successfully", retainedSelf->m_banner.id);
@@ -300,9 +306,15 @@ void CBBannerCell::unequipBanner() {
                 if (popup) {
                     popup->showSuccessMessage("Banner unequipped successfully");
                 }
+                Mod::get()->setSavedValue("equipped-banner", -1);
                 if (auto shop = CBShopLayer::getInstance()) {
                     shop->setEquippedBannerId(-1);
                     shop->refreshBanners();
+                }
+                if (auto scene = CCDirector::sharedDirector()->getRunningScene()) {
+                    if (auto popup = scene->getChildByType<CBProfileBannerPopup>(0)) {
+                        popup->fetchBanners();
+                    }
                 }
             });
             log::debug("banner {} unequipped successfully", retainedSelf->m_banner.id);
