@@ -1,3 +1,13 @@
+## v0.1.8-beta.1
+
+- Bump to Geode v5.10.1
+- Migrated Badgify to [Badgified API](mod:dasshu.badgified)
+  <mod:dasshu.badgified>
+- Fixed the crash where closing the UploadActionPopup before finishing the web requests
+- Refactored the Completion Logic for the Amethysts Reward
+- Refactored the Amethysts Animation Reward
+- Added Animated Shop/Leaderboard Background
+
 ## v0.1.7-beta.1
 
 - Hotfix the amount text input not align correctly when limited is toggled

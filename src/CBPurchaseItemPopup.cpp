@@ -102,23 +102,22 @@ void CBPurchaseItemPopup::buyBanner() {
             return;
         }
 
-        auto popup = UploadActionPopup::create(nullptr, "Purchasing banner...");
+        Ref<UploadActionPopup> popup = UploadActionPopup::create(nullptr, "Purchasing banner...");
         if (popup) {
             popup->show();
         }
 
-        arc::spawn([this, accountId, accountData, popup, itemPopup]() -> arc::Future<> {
+        auto bannerId = m_banner.id;
+        arc::spawn([bannerId, accountId, accountData, popup, itemPopup]() -> arc::Future<> {
             auto authResult = co_await comment::argonToken(accountData);
             if (authResult.empty()) {
-                if (popup) {
-                    geode::queueInMainThread([popup] {
+                geode::queueInMainThread([popup] {
+                    if (popup && popup->getParent()) {
                         popup->showFailMessage("Authentication failed.");
-                    });
-                } else {
-                    geode::queueInMainThread([]() {
+                    } else {
                         Notification::create("Authentication failed.", NotificationIcon::Error)->show();
-                    });
-                }
+                    }
+                });
                 co_return;
             }
 
@@ -127,19 +126,17 @@ void CBPurchaseItemPopup::buyBanner() {
             auto body = matjson::makeObject({
                 {"accountId", accountId},
                 {"argonToken", authToken},
-                {"bannerId", m_banner.id},
+                {"bannerId", bannerId},
             });
             auto response = co_await request.bodyJSON(body).post(fmt::format("{}/buyBanner", comment::baseUrl));
             if (!response.ok()) {
-                if (popup) {
-                    geode::queueInMainThread([popup, response] {
+                geode::queueInMainThread([popup, response] {
+                    if (popup && popup->getParent()) {
                         popup->showFailMessage(comment::getResponseMessage(response, "Failed to purchase banner."));
-                    });
-                } else {
-                    geode::queueInMainThread([response] {
+                    } else {
                         Notification::create(comment::getResponseMessage(response, "Failed to purchase banner."), NotificationIcon::Error)->show();
-                    });
-                }
+                    }
+                });
                 co_return;
             }
 
@@ -154,15 +151,13 @@ void CBPurchaseItemPopup::buyBanner() {
             auto json = jsonRes.unwrap();
             if (!json["success"].asBool().unwrapOr(false)) {
                 auto message = json["message"].asString().unwrapOr("Purchase failed.");
-                if (popup) {
-                    geode::queueInMainThread([popup, message = std::move(message)] {
+                geode::queueInMainThread([popup, message = std::move(message)] {
+                    if (popup && popup->getParent()) {
                         popup->showFailMessage(message);
-                    });
-                } else {
-                    geode::queueInMainThread([message = std::move(message)] {
+                    } else {
                         Notification::create(message, NotificationIcon::Error)->show();
-                    });
-                }
+                    }
+                });
                 co_return;
             }
 
@@ -187,7 +182,7 @@ void CBPurchaseItemPopup::buyBanner() {
             }
 
             geode::queueInMainThread([popup, itemPopup, latestAmethyst] {
-                if (popup) {
+                if (popup && popup->getParent()) {
                     popup->showSuccessMessage("Banner purchased successfully");
                 }
                 if (auto shop = CBShopLayer::getInstance()) {
@@ -196,7 +191,9 @@ void CBPurchaseItemPopup::buyBanner() {
                     }
                     shop->refreshBanners();
                 }
-                itemPopup->onClose(nullptr);
+                if (itemPopup && itemPopup->getParent()) {
+                    itemPopup->onClose(nullptr);
+                }
             });
 
             co_return;

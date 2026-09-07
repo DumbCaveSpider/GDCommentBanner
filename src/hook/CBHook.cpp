@@ -4,12 +4,13 @@
 #include <Geode/ui/LazySprite.hpp>
 #include <Geode/ui/NineSlice.hpp>
 #include <Geode/utils/web.hpp>
+#include <Geode/utils/async.hpp>
 #include <argon/argon.hpp>
 #include <Geode/modify/GJGarageLayer.hpp>
 #include <Geode/modify/CommentCell.hpp>
 #include <Geode/modify/EndLevelLayer.hpp>
 #include <Geode/modify/PlayLayer.hpp>
-#include <Geode/modify/CurrencyRewardLayer.hpp>
+#include <Geode/binding/CurrencyRewardLayer.hpp>
 #include "../CBShopLayer.hpp"
 #include "../include/CBConstant.hpp"
 #include "../include/CBLocalBanner.hpp"
@@ -27,7 +28,6 @@ struct CachedBanner {
 
 static std::map<int, CachedBanner> s_bannerCache;
 static std::mutex s_cacheMutex;
-static Ref<CurrencyRewardLayer> s_amethystRewardLayer;
 
 class $modify(GJGarageLayer) {
     bool init() {
@@ -43,18 +43,20 @@ class $modify(GJGarageLayer) {
                         FLAlertLayer::create("Compatibility Notice", "<cp>Comment Banners</c> has detected that you have <cl>Rated Layouts</c> installed.\nThe <cy>Disable Nameplate in Comments</c> setting has been forcibly <cg>enabled</c> in <cl>Rated Layouts</c>' settings to prevent conflicts.", "OK")->show();
                         return;
                     }
-                    if (GJAccountManager::sharedState()->m_accountID == 0) {
-                        FLAlertLayer::create(
-                            "Comment Banners",
-                            "You must be <cg>logged in</c> to access this feature in <cp>Comment Banners.</c>",
-                            "OK")
-                            ->show();
-                        return;
-                    }
+                }
+                if (GJAccountManager::sharedState()->m_accountID == 0) {
+                    FLAlertLayer::create(
+                        "Comment Banners",
+                        "You must be <cg>logged in</c> to access this feature in <cp>Comment Banners.</c>",
+                        "OK")
+                        ->show();
+                    return;
                 }
                 auto scene = CCScene::create();
-                scene->addChild(CBShopLayer::create());
-                CCDirector::sharedDirector()->pushScene(CCTransitionMoveInT::create(0.5f, scene));
+                if (auto shop = CBShopLayer::create()) {
+                    scene->addChild(shop);
+                    CCDirector::sharedDirector()->pushScene(CCTransitionMoveInT::create(0.5f, scene));
+                }
             });
             shardMenu->addChild(shopButton);
             shardMenu->updateLayout();
@@ -67,7 +69,7 @@ class $modify(GJGarageLayer) {
 // this is where to fetch the images
 static void setupBannerSprite(CommentCell* cell, std::string const& imageUrl) {
     Ref<CommentCell> self = cell;
-    if (!self->m_backgroundLayer) return;
+    if (!self || !self->getParent() || !self->m_backgroundLayer) return;
 
     if (imageUrl.empty()) return;
 
@@ -113,7 +115,10 @@ class $modify(CBCommentCell, CommentCell) {
             prevBanner->removeFromParent();
         }
 
-        if (m_accountComment) return;  // don't load banner for account comment
+        // account comment
+        //if (m_accountComment) {
+        //    if (Mod::get()->getSettingValue<bool>("hide-account-comment")) return;
+        //}
 
         auto self = Ref<CBCommentCell>(this);
         int accountId = comment->m_accountID;
@@ -205,6 +210,7 @@ class $modify(CBCommentCell, CommentCell) {
             }
 
             geode::queueInMainThread([self, imageUrl] {
+                if (!self || !self->getParent()) return;
                 setupBannerSprite(self.data(), imageUrl);
             });
 
@@ -228,63 +234,70 @@ class $modify(CBPlayLayer, PlayLayer) {
 };
 
 class $modify(CBEndLevelLayer, EndLevelLayer) {
-    void customSetup() {
+    struct Fields {
+        async::TaskHolder<web::WebResponse> m_submitTask;
+        ~Fields() {
+            m_submitTask.cancel();
+        }
+    };
+
+    void customSetup() override {
         EndLevelLayer::customSetup();
 
-        auto endLayer = Ref<EndLevelLayer>(this);
+        auto playLayer = PlayLayer::get();
+        if (!playLayer) return;
 
-        geode::queueInMainThread([endLayer]() {
-            auto accountId = argon::getGameAccountData().accountId;
-            if (accountId <= 0) {
-                log::warn("Invalid account ID for amethyst reward submission.");
-                return;
-            }
+        GJGameLevel* level = playLayer->m_level;
+        if (!level || level->m_levelID == 0) return;
 
-            if (endLayer->m_playLayer->m_level->m_stars == 0) {
-                log::debug("unrated level completion, skipping amethyst reward submission");
-                return;
-            }
+        if (level->m_normalPercent < 100) {
+            log::info("Level ID: {} not completed, skipping amethyst reward", level->m_levelID);
+            return;
+        }
 
-            if (!endLayer->m_playLayer || !endLayer->m_playLayer->m_level) {
-                log::warn("Unable to determine the completed level.");
-                return;
-            }
+        if (playLayer->m_isPracticeMode) {
+            log::warn("Completed in Practice Mode, ignore reward");
+            return;
+        }
 
-            if (endLayer->m_playLayer->m_isPracticeMode) {
-                log::warn("Completed in Practice Mode, ignore reward");
-                return;
-            }
+        if (level->m_stars == 0) {
+            log::debug("unrated level completion, skipping amethyst reward submission");
+            return;
+        }
 
-            auto level = endLayer->m_playLayer->m_level;
-            if (!level->m_isCompletionLegitimate) {
-                log::warn("Level completion is not legitimate but still legit i think");
-                //return;
-            }
+        auto cbPlayLayer = static_cast<CBPlayLayer*>(playLayer);
+        if (cbPlayLayer && cbPlayLayer->m_fields->m_wasCompletedBefore) {
+            log::warn("Level already completed before this run, skip amethyst reward");
+            return;
+        }
 
-            if ((level->m_attemptTime <= 25 || level->m_attemptTime >= 28000000) && !level->isPlatformer()) {
-                log::warn("Attempt time is invalid for amethyst reward submission: {}", level->m_attemptTime);
-                return;
-            }
+        if ((level->m_attemptTime <= 25 || level->m_attemptTime >= 28000000) && !level->isPlatformer()) {
+            log::warn("Attempt time is invalid for amethyst reward submission: {}", level->m_attemptTime);
+            return;
+        }
 
-            auto playLayer = static_cast<CBPlayLayer*>(endLayer->m_playLayer);
-            if (playLayer && playLayer->m_fields->m_wasCompletedBefore) {
-                log::warn("Level already completed before this run, skip amethyst reward");
-                return;
-            }
+        if (level->m_jumps == 0 && level->m_stars != 1) {
+            log::warn("Level has no jumps on non auto? skip amethyst reward.");
+            return;
+        }
 
-            if (level->m_jumps == 0 && level->m_stars != 1) {
-                log::warn("Level has no jumps on non auto? skip amethyst reward.");
-                return;
-            }
+        auto accountData = argon::getGameAccountData();
+        auto accountId = accountData.accountId;
+        if (accountId <= 0) {
+            log::warn("Invalid account ID for amethyst reward submission.");
+            return;
+        }
 
-            int levelId = level->m_levelID;
-            auto accountData = argon::getGameAccountData();
+        int levelId = level->m_levelID;
 
-            arc::spawn([accountId, accountData, levelId]() -> arc::Future<> {
+        Ref<EndLevelLayer> endLayerRef = this;
+
+        m_fields->m_submitTask.spawn(
+            [accountData, accountId, levelId]() -> arc::Future<web::WebResponse> {
                 auto authResult = co_await comment::argonToken(accountData);
                 if (authResult.empty()) {
                     log::warn("argon auth failed for amethyst reward");
-                    co_return;
+                    co_return web::WebResponse();
                 }
 
                 auto authToken = std::move(authResult);
@@ -295,128 +308,137 @@ class $modify(CBEndLevelLayer, EndLevelLayer) {
                     {"levelId", levelId},
                 });
 
-                auto response = co_await request.bodyJSON(body).post(fmt::format("{}/submitAmethystReward", comment::baseUrl));
-                if (!response.ok()) {
-                    log::warn("submitAmethystReward failed: {}", response.errorMessage());
-                    co_return;
+                co_return co_await request.bodyJSON(body).post(fmt::format("{}/submitAmethystReward", comment::baseUrl));
+            },
+            [endLayerRef, levelId](web::WebResponse submitResponse) {
+                log::info("Received submitAmethystReward response for level ID: {}", levelId);
+
+                if (!endLayerRef || !endLayerRef->m_mainLayer) {
+                    log::warn("EndLevelLayer has been destroyed or m_mainLayer is invalid");
+                    return;
                 }
 
-                auto jsonRes = response.json();
-                if (jsonRes.isErr()) {
-                    log::warn("submitAmethystReward returned invalid JSON");
-                    co_return;
+                if (!submitResponse.ok()) {
+                    log::warn("submitAmethystReward returned non-ok status: {}", submitResponse.code());
+                    return;
                 }
 
-                auto json = jsonRes.unwrap();
-                if (!json["success"].asBool().unwrapOr(false)) {
-                    log::warn("submitAmethystReward returned failure");
-                    co_return;
+                auto submitJsonRes = submitResponse.json();
+                if (!submitJsonRes) {
+                    log::warn("Failed to parse submitAmethystReward JSON response");
+                    return;
                 }
 
-                auto rewardRes = json["amethystReward"].asInt();
-                if (rewardRes.isErr()) {
-                    log::warn("submitAmethystReward missing amethystReward");
-                    co_return;
-                }
+                auto submitJson = submitJsonRes.unwrap();
+                bool success = submitJson["success"].asBool().unwrapOrDefault();
+                int amethystReward = submitJson["amethystReward"].asInt().unwrapOrDefault();
 
-                int amethystReward = static_cast<int>(rewardRes.unwrap());
+                log::info("submitAmethystReward success: {}, amethyst reward: {}", success, amethystReward);
 
-                int current = 0;
-                auto totalRes = json["totalAmethyst"].asInt();
-                if (totalRes.isOk()) {
-                    current = totalRes.unwrap();
-                }
+                if (success) {
+                    int current = submitJson["totalAmethyst"].asInt().unwrapOrDefault();
+                    Mod::get()->setSavedValue("amethyst", current);
 
-                Mod::get()->setSavedValue("amethyst", current);
+                    if (amethystReward <= 0) {
+                        log::warn("No amethyst rewarded, possibly already rewarded before");
+                        Notification::create("Amethyst has already been claimed for this level!", CCSprite::createWithSpriteFrameName("CB_amethyst_001.png"_spr))->show();
+                        return;
+                    }
 
-                geode::queueInMainThread([amethystReward, current]() {
-                    CCNode* layerRef = CCDirector::sharedDirector()->getRunningScene();
-                    if (!layerRef) return;
+                    // make the amethyst reward pop when u complete the level
+                    auto amethystPop = CCSprite::createWithSpriteFrameName("CB_amethyst_001.png"_spr);
+                    amethystPop->setScale(1.2f);
+                    amethystPop->setPosition({endLayerRef->m_mainLayer->getContentSize().width / 2 + 155,
+                        endLayerRef->m_mainLayer->getContentSize().height / 2 - 85});
+                    amethystPop->setOpacity(0);
+                    amethystPop->setID("cb-amethyst-reward-sprite");
+                    endLayerRef->m_mainLayer->addChild(amethystPop);
 
-                    if (auto rewardLayer = CurrencyRewardLayer::create(
-                            0, 0, 0, amethystReward, CurrencySpriteType::Star, 0, CurrencySpriteType::Star, 0, CCDirector::sharedDirector()->getWinSize() / 2, CurrencyRewardType::Default, 0.0, 1.0)) {
-                        s_amethystRewardLayer = rewardLayer;
-                        if (rewardLayer->m_mainNode) {
-                            rewardLayer->m_mainNode->setLayout(RowLayout::create()->setAutoScale(false)->setAxisAlignment(AxisAlignment::Start));
-                            rewardLayer->m_mainNode->setScale(1.f);
-                            rewardLayer->m_mainNode->setPositionX(10.f);
-                            rewardLayer->m_mainNode->setContentSize({350.f, 20.f});
-                            rewardLayer->m_mainNode->setAnchorPoint({0.f, 1.f});
-                            rewardLayer->m_diamondsPosition.setPoint(rewardLayer->m_mainNode->getPositionX(), rewardLayer->m_mainNode->getPositionY());  // i dont think this is rigth
-                        }
-                        rewardLayer->m_particlesAdded = false;
-                        rewardLayer->m_diamonds = 0;
-                        rewardLayer->incrementDiamondsCount(current - amethystReward);
+                    auto amethystLabel = CCLabelBMFont::create(
+                        fmt::format("+{}", amethystReward).c_str(), "bigFont.fnt");
+                    amethystLabel->setPosition({-5, amethystPop->getContentSize().height / 2});
+                    amethystLabel->setAnchorPoint({1.0f, 0.5f});
+                    amethystLabel->limitLabelWidth(80, 1.f, 0.5f);
+                    amethystLabel->setID("cb-amethyst-reward-label");
+                    amethystLabel->setOpacity(0);
+                    amethystPop->addChild(amethystLabel);
 
-                        std::string frameName = "CB_amethyst_001.png"_spr;
-                        auto displayFrame = CCSpriteFrameCache::sharedSpriteFrameCache()->spriteFrameByName((frameName).c_str());
-                        CCTexture2D* texture = nullptr;
-                        if (!displayFrame) {
-                            texture = CCTextureCache::sharedTextureCache()->addImage((frameName).c_str(), false);
-                            if (texture) {
-                                displayFrame = CCSpriteFrame::createWithTexture(texture, {{0, 0}, texture->getContentSize()});
-                            }
-                        } else {
-                            texture = displayFrame->getTexture();
-                        }
+                    auto scaleAction = CCScaleBy::create(.6f, .6f);
+                    auto bounceAction = CCEaseBounceOut::create(scaleAction);
+                    auto fadeAction = CCFadeIn::create(0.4f);
+                    auto spawnAction = CCSpawn::createWithTwoActions(bounceAction, fadeAction);
+                    amethystPop->runAction(spawnAction);
 
-                        if (rewardLayer->m_diamondsSprite && displayFrame) {
-                            rewardLayer->m_diamondsSprite->setDisplayFrame(displayFrame);
-                        }
+                    amethystLabel->runAction(CCFadeIn::create(fadeAction->getDuration()));
 
-                        if (rewardLayer->m_diamondsLabel) {
-                            rewardLayer->m_diamondsLabel->runAction(CCRepeatForever::create(CCSequence::create(
-                                CCTintTo::create(0.5f, 255, 100, 255),
-                                CCTintTo::create(0.5f, 255, 255, 255),
-                                nullptr)));
-                        }
+                    bool animationEnabled = !Mod::get()->getSettingValue<bool>("disable-reward-animation");
+                    if (animationEnabled && amethystReward > 0) {
+                        if (auto rewardLayer = CurrencyRewardLayer::create(
+                                0, 0, 0, amethystReward, CurrencySpriteType::Star, 0, CurrencySpriteType::Star, 0, amethystPop->getPosition(), CurrencyRewardType::Default, 0.0, 1.0)) {
+                            rewardLayer->setID("cb-currency-reward-layer");
 
-                        if (rewardLayer->m_currencyBatchNode && texture) {
-                            rewardLayer->m_currencyBatchNode->setTexture(texture);
-                        }
-
-                        for (auto sprite : CCArrayExt<CurrencySprite*>(rewardLayer->m_objects)) {
-                            if (!sprite) continue;
-                            if (sprite->m_burstSprite) sprite->m_burstSprite->setVisible(false);
-                            if (auto child = sprite->getChildByIndex(0)) {
-                                child->setVisible(false);
+                            if (rewardLayer->m_diamondsLabel) {
+                                rewardLayer->m_diamonds = 0;
+                                rewardLayer->incrementDiamondsCount(current - amethystReward);
+                                rewardLayer->m_diamondsLabel->runAction(CCRepeatForever::create(CCSequence::create(
+                                    CCTintTo::create(0.5f, 255, 100, 255),
+                                    CCTintTo::create(0.5f, 255, 255, 255),
+                                    nullptr)));
                             }
 
-                            if (sprite->m_spriteType == CurrencySpriteType::Diamond) {
-                                if (displayFrame) {
-                                    sprite->setDisplayFrame(displayFrame);
+                            std::string frameName = "CB_amethyst_001.png"_spr;
+                            auto displayFrame = CCSpriteFrameCache::sharedSpriteFrameCache()->spriteFrameByName(frameName.c_str());
+                            CCTexture2D* texture = nullptr;
+                            if (!displayFrame) {
+                                texture = CCTextureCache::sharedTextureCache()->addImage(frameName.c_str(), false);
+                                if (texture) {
+                                    displayFrame = CCSpriteFrame::createWithTexture(texture, {{0, 0}, texture->getContentSize()});
+                                }
+                            } else {
+                                texture = displayFrame->getTexture();
+                            }
+
+                            if (rewardLayer->m_diamondsSprite && displayFrame) {
+                                rewardLayer->m_diamondsSprite->setDisplayFrame(displayFrame);
+                            }
+
+                            if (rewardLayer->m_currencyBatchNode && texture) {
+                                rewardLayer->m_currencyBatchNode->setTexture(texture);
+                            }
+
+                            for (auto sprite : CCArrayExt<CurrencySprite*>(rewardLayer->m_objects)) {
+                                if (!sprite) continue;
+                                if (sprite->m_burstSprite) sprite->m_burstSprite->setVisible(false);
+                                if (auto child = sprite->getChildByIndex(0)) {
+                                    child->setVisible(false);
+                                }
+
+                                if (sprite->m_spriteType == CurrencySpriteType::Diamond) {
+                                    if (displayFrame) {
+                                        sprite->setDisplayFrame(displayFrame);
+                                    }
                                 }
                             }
-                        }
 
+                            endLayerRef->addChild(rewardLayer, 100);
+                            FMODAudioEngine::sharedEngine()->playEffect("secretKey.ogg");
+                        }
+                    } else {
+                        log::info("Reward animation disabled");
+                        Notification::create(
+                            fmt::format("Awarded {} amethyst", GameToolbox::pointsToString(amethystReward)),
+                            CCSprite::createWithSpriteFrameName("CB_amethyst_001.png"_spr),
+                            2.f)
+                            ->show();
                         FMODAudioEngine::sharedEngine()->playEffect("secretKey.ogg");
-                        Notification::create(fmt::format("Awarded {} amethyst", GameToolbox::pointsToString(amethystReward)), CCSprite::createWithSpriteFrameName("CB_amethyst_001.png"_spr))->show();
-
-                        if (rewardLayer->m_mainNode) {
-                            rewardLayer->m_mainNode->updateLayout();
-                        }
-
-                        if (layerRef && !Mod::get()->getSettingValue<bool>("disable-reward-animation")) {
-                            layerRef->addChild(rewardLayer, 100);
-                        }
                     }
-                });
-
-                log::debug("awarded {} amethyst from submitAmethystReward", amethystReward);
-                co_return;
+                } else if (!success && amethystReward == 0) {
+                    Notification::create(
+                        "Amethyst has already been claimed for this level!",
+                        CCSprite::createWithSpriteFrameName("CB_amethyst_001.png"_spr))
+                        ->show();
+                    log::info("already claimed for level ID: {}", levelId);
+                }
             });
-        });
-    }
-};
-
-// only wanted the amethyst reward layer itself only
-class $modify(CBCurrencyRewardLayer, CurrencyRewardLayer) {
-    void update(float dt) {
-        CurrencyRewardLayer::update(dt);
-        if (s_amethystRewardLayer == this) {
-            if (m_mainNode) {
-                m_mainNode->updateLayout();
-            }
-        }
     }
 };

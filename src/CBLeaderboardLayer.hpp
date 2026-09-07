@@ -16,7 +16,7 @@ private:
     void onBack(CCObject* sender);
     void fetchLeaderboard();
 
-    CCSprite* m_background;
-    cue::ListNode* m_list = nullptr;
-    cue::LoadingCircle* m_loadingCircle = nullptr;
+    Ref<CCSprite> m_background;
+    Ref<cue::ListNode> m_list = nullptr;
+    Ref<cue::LoadingCircle> m_loadingCircle = nullptr;
 };

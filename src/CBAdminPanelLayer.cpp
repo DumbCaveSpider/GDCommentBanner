@@ -140,20 +140,26 @@ void CBAdminPanelLayer::processPendingBanner(int id, bool approve, const std::st
 
     Ref<UploadActionPopup> popup = UploadActionPopup::create(nullptr, actionStr);
     popup->show();
-    arc::spawn([this, id, accountId, endpoint, reason, approve, popup]() -> arc::Future<> {
+    Ref<CBAdminPanelLayer> retainedSelf = this;
+    std::string authToken = this->m_authToken;
+    arc::spawn([retainedSelf, id, accountId, authToken, endpoint, reason, approve, popup]() -> arc::Future<> {
         auto req = geode::utils::web::WebRequest();
         auto body = matjson::makeObject({{"accountId", accountId},
-            {"argonToken", this->m_authToken},
+            {"argonToken", authToken},
             {"id", id},
             {"reason", reason}});
         auto res = co_await req.bodyJSON(body).post(fmt::format("{}{}", comment::baseUrl, endpoint));
         bool ok = res.ok();
-        geode::queueInMainThread([this, popup, ok, approve] {
-            if (ok) {
-                popup->showSuccessMessage(approve ? "Banner approved!" : "Banner rejected!");
-                this->fetchPendingBanners();
-            } else {
-                popup->showFailMessage(approve ? "Failed to approve banner." : "Failed to reject banner.");
+        geode::queueInMainThread([retainedSelf, popup, ok, approve] {
+            if (popup && popup->getParent()) {
+                if (ok) {
+                    popup->showSuccessMessage(approve ? "Banner approved!" : "Banner rejected!");
+                } else {
+                    popup->showFailMessage(approve ? "Failed to approve banner." : "Failed to reject banner.");
+                }
+            }
+            if (ok && retainedSelf && retainedSelf->getParent()) {
+                retainedSelf->fetchPendingBanners();
             }
         });
         co_return;

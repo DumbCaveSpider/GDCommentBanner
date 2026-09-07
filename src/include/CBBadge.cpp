@@ -1,5 +1,5 @@
 #include <Geode/Geode.hpp>
-#include <alphalaneous.badgify/include/Badgify.hpp>
+#include <dasshu.badgified/include/Badgified.hpp>
 #include "CBConstant.hpp"
 #include <unordered_map>
 #include <vector>
@@ -13,12 +13,12 @@ struct RoleCache {
 static std::unordered_map<int, RoleCache> s_roleCache;
 
 struct PendingBadge {
-    alpha::badgify::Badge badge;
+    dasshu::badgified::Badge badge;
     bool isAdminBadge;
 };
 static std::unordered_map<int, std::vector<PendingBadge>> s_pendingBadges;
 
-void checkAndShowBadge(const alpha::badgify::Badge& badge, bool isAdminBadge) {
+void checkAndShowBadge(const dasshu::badgified::Badge& badge, bool isAdminBadge) {
     if (!badge.user || !badge.target) return;
     int targetAccountId = badge.user->m_accountID;
     if (targetAccountId <= 0) return;
@@ -26,9 +26,9 @@ void checkAndShowBadge(const alpha::badgify::Badge& badge, bool isAdminBadge) {
     if (s_roleCache.contains(targetAccountId)) {
         auto const& roles = s_roleCache[targetAccountId];
         if (isAdminBadge && roles.isAdmin) {
-            alpha::badgify::showBadge(badge, CCSprite::createWithSpriteFrameName("CB_admin_badge.png"_spr));
+            dasshu::badgified::showBadge(badge, CCSprite::createWithSpriteFrameName("CB_admin_badge.png"_spr));
         } else if (!isAdminBadge && roles.isStaff) {
-            alpha::badgify::showBadge(badge, CCSprite::createWithSpriteFrameName("CB_staff_badge.png"_spr));
+            dasshu::badgified::showBadge(badge, CCSprite::createWithSpriteFrameName("CB_staff_badge.png"_spr));
         }
         return;
     }
@@ -81,9 +81,9 @@ void checkAndShowBadge(const alpha::badgify::Badge& badge, bool isAdminBadge) {
                     auto const& b = item.badge;
                     if (!b.user || !b.target) continue;
                     if (item.isAdminBadge && roles.isAdmin) {
-                        alpha::badgify::showBadge(b, CCSprite::createWithSpriteFrameName("CB_admin_badge.png"_spr));
+                        dasshu::badgified::showBadge(b, CCSprite::createWithSpriteFrameName("CB_admin_badge.png"_spr));
                     } else if (!item.isAdminBadge && roles.isStaff) {
-                        alpha::badgify::showBadge(b, CCSprite::createWithSpriteFrameName("CB_staff_badge.png"_spr));
+                        dasshu::badgified::showBadge(b, CCSprite::createWithSpriteFrameName("CB_staff_badge.png"_spr));
                     }
                 }
                 s_pendingBadges.erase(targetAccountId);
@@ -93,19 +93,21 @@ void checkAndShowBadge(const alpha::badgify::Badge& badge, bool isAdminBadge) {
 }
 
 $execute {
-    alpha::badgify::registerBadge(
-        "cb-admin"_spr,
-        "Comment Banners Admin",
-        "This user is an <cr>Administrator</c> for <cp>Comment Banners</c>. They have the ability to <co>delete/modify</c> banners as well as <cg>promote users to Staff</c>",
-        [](const alpha::badgify::Badge& badge) {
-            checkAndShowBadge(badge, true);
-        });
+    dasshu::badgified::waitForBadgified([]() {
+        dasshu::badgified::registerBadge(
+            "cb-admin"_spr,
+            "Comment Banners Admin",
+            "This user is an <cr>Administrator</c> for <cp>Comment Banners</c>. They have the ability to <co>delete/modify</c> banners as well as <cg>promote users to Staff</c>",
+            [](const dasshu::badgified::Badge& badge) {
+                checkAndShowBadge(badge, true);
+            });
 
-    alpha::badgify::registerBadge(
-        "cb-staff"_spr,
-        "Comment Banners Staff",
-        "This user is a <cg>Staff</c> for <cp>Comment Banners</c>. They have the ability to <cg>approve pending banners</c> and <cy>feature banners</c>",
-        [](const alpha::badgify::Badge& badge) {
-            checkAndShowBadge(badge, false);
-        });
+        dasshu::badgified::registerBadge(
+            "cb-staff"_spr,
+            "Comment Banners Staff",
+            "This user is a <cg>Staff</c> for <cp>Comment Banners</c>. They have the ability to <cg>approve pending banners</c> and <cy>feature banners</c>",
+            [](const dasshu::badgified::Badge& badge) {
+                checkAndShowBadge(badge, false);
+            });
+    });
 }

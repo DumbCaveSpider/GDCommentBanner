@@ -5,6 +5,7 @@
 #include <Geode/utils/web.hpp>
 #include <Geode/ui/Scrollbar.hpp>
 #include <Geode/ui/Button.hpp>
+#include <cue/RepeatingBackground.hpp>
 
 CBLeaderboardLayer* CBLeaderboardLayer::create() {
     auto ret = new CBLeaderboardLayer();
@@ -23,9 +24,9 @@ bool CBLeaderboardLayer::init() {
 
     auto winSize = CCDirector::sharedDirector()->getWinSize();
 
-    m_background = createLayerBG();
+    m_background = cue::RepeatingBackground::create("game_bg_01_001.png", 1.f, cue::RepeatMode::X);
     m_background->setColor({154, 108, 217});
-    this->addChild(m_background, -5);
+    this->addChild(m_background);
 
     addBackButton(this, BackButtonStyle::Pink);
     addSideArt(this, SideArt::All);
@@ -84,6 +85,7 @@ void CBLeaderboardLayer::fetchLeaderboard() {
 
         if (!response.ok()) {
             geode::queueInMainThread([retainedSelf] {
+                if (!retainedSelf || !retainedSelf->getParent()) return;
                 if (retainedSelf->m_loadingCircle) retainedSelf->m_loadingCircle->fadeOut();
                 Notification::create("Failed to fetch leaderboard", NotificationIcon::Error)->show();
             });
@@ -93,6 +95,7 @@ void CBLeaderboardLayer::fetchLeaderboard() {
         auto jsonRes = response.json();
         if (jsonRes.isErr()) {
             geode::queueInMainThread([retainedSelf] {
+                if (!retainedSelf || !retainedSelf->getParent()) return;
                 if (retainedSelf->m_loadingCircle) retainedSelf->m_loadingCircle->fadeOut();
                 Notification::create("Invalid JSON response", NotificationIcon::Error)->show();
             });
@@ -102,12 +105,14 @@ void CBLeaderboardLayer::fetchLeaderboard() {
         auto json = jsonRes.unwrap();
         if (!json.isArray()) {
             geode::queueInMainThread([retainedSelf] {
+                if (!retainedSelf || !retainedSelf->getParent()) return;
                 if (retainedSelf->m_loadingCircle) retainedSelf->m_loadingCircle->fadeOut();
             });
             co_return;
         }
 
         geode::queueInMainThread([retainedSelf, json = std::move(json)] {
+            if (!retainedSelf || !retainedSelf->getParent()) return;
             if (retainedSelf->m_loadingCircle) retainedSelf->m_loadingCircle->fadeOut();
             if (retainedSelf->m_list) retainedSelf->m_list->clear();
 

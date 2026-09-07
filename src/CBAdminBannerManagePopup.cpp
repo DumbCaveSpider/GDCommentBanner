@@ -141,7 +141,9 @@ void CBAdminBannerManagePopup::onSave(CCObject*) {
         auto authResult = co_await comment::argonToken(accountData);
         if (authResult.empty()) {
             geode::queueInMainThread([popup] {
-                popup->showFailMessage("Authentication failed.");
+                if (popup && popup->getParent()) {
+                    popup->showFailMessage("Authentication failed.");
+                }
             });
             co_return;
         }
@@ -165,11 +167,15 @@ void CBAdminBannerManagePopup::onSave(CCObject*) {
         bool ok = res.ok();
 
         geode::queueInMainThread([retainedSelf, popup, ok] {
-            if (ok) {
-                popup->showSuccessMessage("Banner updated!");
+            if (popup && popup->getParent()) {
+                if (ok) {
+                    popup->showSuccessMessage("Banner updated!");
+                } else {
+                    popup->showFailMessage("Failed to update banner.");
+                }
+            }
+            if (ok && retainedSelf && retainedSelf->getParent()) {
                 retainedSelf->onClose(nullptr);
-            } else {
-                popup->showFailMessage("Failed to update banner.");
             }
         });
         co_return;
@@ -191,7 +197,9 @@ void CBAdminBannerManagePopup::onDelete(CCObject*) {
                 auto authResult = co_await comment::argonToken(accountData);
                 if (authResult.empty()) {
                     geode::queueInMainThread([popup] {
-                        popup->showFailMessage("Authentication failed.");
+                        if (popup && popup->getParent()) {
+                            popup->showFailMessage("Authentication failed.");
+                        }
                     });
                     co_return;
                 }
@@ -207,11 +215,15 @@ void CBAdminBannerManagePopup::onDelete(CCObject*) {
                 bool ok = res.ok();
 
                 geode::queueInMainThread([retainedSelf, popup, ok] {
-                    if (ok) {
-                        popup->showSuccessMessage("Banner deleted!");
+                    if (popup && popup->getParent()) {
+                        if (ok) {
+                            popup->showSuccessMessage("Banner deleted!");
+                        } else {
+                            popup->showFailMessage("Failed to delete banner.");
+                        }
+                    }
+                    if (ok && retainedSelf && retainedSelf->getParent()) {
                         retainedSelf->onClose(nullptr);
-                    } else {
-                        popup->showFailMessage("Failed to delete banner.");
                     }
                 });
                 co_return;

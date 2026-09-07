@@ -1,5 +1,5 @@
 {
-	"geode": "5.7.1",
+	"geode": "5.10.1",
 	"gd": {
 		"win": "2.2081",
 		"android": "2.2081",
@@ -8,13 +8,13 @@
 	},
 	"id": "arcticwoof.comment_banners",
 	"name": "Comment Banners",
-	"version": "v0.1.7-beta.1",
+	"version": "v0.1.8-beta.1",
 	"developer": "ArcticWoof",
 	"description": "Community-run, Custom banners for comments.",
 	"dependencies": {
 		"geode.node-ids": ">=v1.23.3",
 		"prevter.imageplus": ">=1.0.0",
-		"alphalaneous.badgify": ">=1.0.0"
+		"dasshu.badgified": ">=1.0.0"
 	},
 	"resources": {
 		"spritesheets": {
@@ -42,6 +42,12 @@
 			"description": "Disables the reward animation when beated a rated level.",
 			"type": "bool",
 			"default": false
+		},
+		"hide-account-comment": {
+			"name": "Hide Account Comment Banner",
+			"description": "Hides your comment banner in the account comment/post.",
+			"type": "bool",
+			"default": true
 		}
 	},
 	"tags": ["online", "customization", "content"]

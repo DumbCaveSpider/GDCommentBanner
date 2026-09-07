@@ -310,7 +310,9 @@ void CBSubmitBannerPopup::onSubmit(CCObject*) {
         auto accountId = accountData.accountId;
 
         if (accountId <= 0) {
-            popup->showFailMessage("Invalid account ID.");
+            if (popup && popup->getParent()) {
+                popup->showFailMessage("Invalid account ID.");
+            }
             return;
         }
 
@@ -319,7 +321,9 @@ void CBSubmitBannerPopup::onSubmit(CCObject*) {
             auto authResult = co_await comment::argonToken(accountData);
             if (authResult.empty()) {
                 geode::queueInMainThread([popup] {
-                    popup->showFailMessage("Authentication failed.");
+                    if (popup && popup->getParent()) {
+                        popup->showFailMessage("Authentication failed.");
+                    }
                 });
                 co_return;
             }
@@ -350,7 +354,9 @@ void CBSubmitBannerPopup::onSubmit(CCObject*) {
             auto res = form.file("image", filePath, mimeType);
             if (!res) {
                 geode::queueInMainThread([popup] {
-                    popup->showFailMessage("Failed to attach image file.");
+                    if (popup && popup->getParent()) {
+                        popup->showFailMessage("Failed to attach image file.");
+                    }
                 });
                 co_return;
             }
@@ -361,7 +367,9 @@ void CBSubmitBannerPopup::onSubmit(CCObject*) {
             auto response = co_await req.post(fmt::format("{}/submitBanner", comment::baseUrl));
             if (!response.ok()) {
                 geode::queueInMainThread([popup, response] {
-                    popup->showFailMessage(comment::getResponseMessage(response, "Failed to submit banner."));
+                    if (popup && popup->getParent()) {
+                        popup->showFailMessage(comment::getResponseMessage(response, "Failed to submit banner."));
+                    }
                 });
                 co_return;
             }
@@ -380,8 +388,12 @@ void CBSubmitBannerPopup::onSubmit(CCObject*) {
                     }
                 }
 
-                popup->showSuccessMessage("Banner submitted successfully!");
-                retainedSelf->onClose(nullptr);
+                if (popup && popup->getParent()) {
+                    popup->showSuccessMessage("Banner submitted successfully!");
+                }
+                if (retainedSelf && retainedSelf->getParent()) {
+                    retainedSelf->onClose(nullptr);
+                }
             });
 
             co_return;

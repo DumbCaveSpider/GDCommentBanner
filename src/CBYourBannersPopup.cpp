@@ -452,6 +452,11 @@ void CBYourBannersPopup::onEquip(CCObject* sender) {
             auto authResult = co_await comment::argonToken(accountData);
             if (authResult.empty()) {
                 log::warn("argon failed");
+                geode::queueInMainThread([popup] {
+                    if (popup && popup->getParent()) {
+                        popup->showFailMessage("Authentication failed.");
+                    }
+                });
                 co_return;
             }
 
@@ -465,23 +470,25 @@ void CBYourBannersPopup::onEquip(CCObject* sender) {
 
             if (!response.ok()) {
                 log::warn("equipBanner failed: {}", response.errorMessage());
-                if (popup) {
-                    geode::queueInMainThread([popup, error = response.errorMessage()] {
+                geode::queueInMainThread([popup, error = response.errorMessage()] {
+                    if (popup && popup->getParent()) {
                         popup->showFailMessage(fmt::format("Equip failed: {}", error));
-                    });
-                }
+                    }
+                });
                 co_return;
             }
 
             geode::queueInMainThread([retainedSelf, popup, id] {
-                if (popup) {
+                if (popup && popup->getParent()) {
                     popup->showSuccessMessage("Banner equipped successfully");
                 }
                 if (auto shop = CBShopLayer::getInstance()) {
                     shop->setEquippedBannerId(id);
                     shop->refreshBanners();
                 }
-                retainedSelf->fetchBanners();
+                if (retainedSelf && retainedSelf->getParent()) {
+                    retainedSelf->fetchBanners();
+                }
             });
             co_return;
         });
@@ -503,6 +510,11 @@ void CBYourBannersPopup::onUnequip(CCObject* sender) {
             auto authResult = co_await comment::argonToken(accountData);
             if (authResult.empty()) {
                 log::warn("argon failed");
+                geode::queueInMainThread([popup] {
+                    if (popup && popup->getParent()) {
+                        popup->showFailMessage("Authentication failed.");
+                    }
+                });
                 co_return;
             }
 
@@ -515,23 +527,25 @@ void CBYourBannersPopup::onUnequip(CCObject* sender) {
 
             if (!response.ok()) {
                 log::warn("unequipBanner failed: {}", response.errorMessage());
-                if (popup) {
-                    geode::queueInMainThread([popup, error = response.errorMessage()] {
+                geode::queueInMainThread([popup, error = response.errorMessage()] {
+                    if (popup && popup->getParent()) {
                         popup->showFailMessage(fmt::format("Unequip failed: {}", error));
-                    });
-                }
+                    }
+                });
                 co_return;
             }
 
             geode::queueInMainThread([retainedSelf, popup] {
-                if (popup) {
+                if (popup && popup->getParent()) {
                     popup->showSuccessMessage("Banner unequipped successfully");
                 }
                 if (auto shop = CBShopLayer::getInstance()) {
                     shop->setEquippedBannerId(-1);
                     shop->refreshBanners();
                 }
-                retainedSelf->fetchBanners();
+                if (retainedSelf && retainedSelf->getParent()) {
+                    retainedSelf->fetchBanners();
+                }
             });
             co_return;
         });

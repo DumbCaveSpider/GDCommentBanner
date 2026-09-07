@@ -3,7 +3,6 @@
 #include <Geode/Geode.hpp>
 #include <Geode/ui/Popup.hpp>
 #include <Geode/utils/web.hpp>
-#include <string>
 
 #include <cue/LoadingCircle.hpp>
 #include <cue/ListNode.hpp>
@@ -16,7 +15,7 @@ private:
     cue::LoadingCircle* m_loadingCircle = nullptr;
 
     int m_currentPage = 0;
-    int m_itemsPerPage = 100;
+    int m_itemsPerPage = 10;
     int m_totalItems = 0;
     CCMenuItemSpriteExtra* m_nextBtn = nullptr;
     CCMenuItemSpriteExtra* m_prevBtn = nullptr;

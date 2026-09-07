@@ -2,7 +2,6 @@
 
 #include <Geode/Geode.hpp>
 #include <Geode/binding/UploadActionPopup.hpp>
-#include <Geode/binding/UploadPopupDelegate.hpp>
 
 using namespace geode::prelude;
 
@@ -24,7 +23,7 @@ struct CBBannerItem {
     bool isLocal = false;
 };
 
-class CBBannerCell : public cocos2d::CCLayer, public UploadPopupDelegate {
+class CBBannerCell : public cocos2d::CCLayer {
 public:
     static CBBannerCell* create(const CBBannerItem& banner, float width);
 
@@ -33,7 +32,6 @@ private:
     void applyBanner();
     void unequipBanner();
     void purchaseBanner();
-    void onClosePopup(UploadActionPopup* popup) override;
 
     CBBannerItem m_banner;
 };

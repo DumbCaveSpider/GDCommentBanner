@@ -23,6 +23,7 @@
 #include <cue/ListBorder.hpp>
 #include <cue/ListNode.hpp>
 #include <Geode/ui/Scrollbar.hpp>
+#include <cue/RepeatingBackground.hpp>
 
 using namespace geode::prelude;
 
@@ -33,6 +34,9 @@ CBShopLayer* CBShopLayer::getInstance() {
 }
 
 void CBShopLayer::refreshBanners() {
+    if (!this->getParent() || s_instance != this) {
+        return;
+    }
     if (m_loadingCircle) {
         m_loadingCircle->fadeIn();
     }
@@ -65,6 +69,13 @@ void CBShopLayer::updateLocalEquippedState() {
     }
 }
 
+void CBShopLayer::onExit() {
+    if (s_instance == this) {
+        s_instance = nullptr;
+    }
+    CCLayer::onExit();
+}
+
 CBShopLayer::~CBShopLayer() {
     if (s_instance == this) {
         s_instance = nullptr;
@@ -72,7 +83,7 @@ CBShopLayer::~CBShopLayer() {
 }
 
 void CBShopLayer::updateAmethystLabel(int amethyst) {
-    if (!m_amethystLabel) {
+    if (!m_amethystLabel || !this->getParent() || s_instance != this) {
         return;
     }
     m_amethystLabel->setTargetCount(amethyst);
@@ -80,39 +91,54 @@ void CBShopLayer::updateAmethystLabel(int amethyst) {
 }
 
 void CBShopLayer::fetchBanners() {
-    geode::queueInMainThread([this]() {
-        if (m_list) {
-            m_list->clear();
+    Ref<CBShopLayer> self = this;
+    geode::queueInMainThread([self]() {
+        if (!self || !self->getParent() || s_instance != self.data()) {
+            return;
         }
-        if (m_noBannersLabel) {
-            m_noBannersLabel->setVisible(false);
+
+        if (self->m_list) {
+            self->m_list->clear();
         }
-        if (!m_loadingCircle && m_list) {
-            m_loadingCircle = cue::LoadingCircle::create(true);
-            if (m_loadingCircle) {
-                m_loadingCircle->addToLayer(m_list, 10);
+        if (self->m_noBannersLabel) {
+            self->m_noBannersLabel->setVisible(false);
+        }
+        if (!self->m_loadingCircle && self->m_list) {
+            self->m_loadingCircle = cue::LoadingCircle::create(true);
+            if (self->m_loadingCircle) {
+                self->m_loadingCircle->addToLayer(self->m_list, 10);
             }
         }
-        if (m_loadingCircle) {
-            m_loadingCircle->fadeIn();
+        if (self->m_loadingCircle) {
+            self->m_loadingCircle->fadeIn();
         }
 
         auto accountData = argon::getGameAccountData();
         auto accountId = accountData.accountId;
         if (accountId <= 0) {
-            if (m_loadingCircle) {
-                m_loadingCircle->fadeOut();
+            if (self->m_loadingCircle) {
+                self->m_loadingCircle->fadeOut();
             }
             Notification::create("Failed to retrieve a valid account ID.", NotificationIcon::Error)->show();
             return;
         }
 
-        arc::spawn([this, accountId, accountData]() -> arc::Future<> {
+        int currentPage = self->m_currentPage;
+        int itemsPerPage = self->m_itemsPerPage;
+        int filterState = self->m_filterState;
+        int sortState = self->m_sortState;
+        std::string searchQuery = self->m_searchQuery;
+        int equippedBannerId = self->m_equippedBannerId;
+
+        arc::spawn([self, accountId, accountData, currentPage, itemsPerPage, filterState, sortState, searchQuery, equippedBannerId]() -> arc::Future<> {
             auto authResult = co_await comment::argonToken(accountData);
             if (authResult.empty()) {
-                geode::queueInMainThread([this]() {
-                    if (m_loadingCircle) {
-                        m_loadingCircle->fadeOut();
+                geode::queueInMainThread([self]() {
+                    if (!self || !self->getParent() || s_instance != self.data()) {
+                        return;
+                    }
+                    if (self->m_loadingCircle) {
+                        self->m_loadingCircle->fadeOut();
                     }
                     Notification::create("Failed to authenticate.", NotificationIcon::Error)->show();
                 });
@@ -123,18 +149,21 @@ void CBShopLayer::fetchBanners() {
             auto req = geode::utils::web::WebRequest();
             auto body = matjson::makeObject({{"accountId", accountId},
                 {"argonToken", authToken},
-                {"page", m_currentPage},
-                {"limit", m_itemsPerPage},
-                {"filter", m_filterState},
-                {"sort", m_sortState}});
-            if (!m_searchQuery.empty()) {
-                body["name"] = m_searchQuery;
+                {"page", currentPage},
+                {"limit", itemsPerPage},
+                {"filter", filterState},
+                {"sort", sortState}});
+            if (!searchQuery.empty()) {
+                body["name"] = searchQuery;
             }
             auto response = co_await req.bodyJSON(body).post(fmt::format("{}/getBanners", comment::baseUrl));
             if (!response.ok()) {
-                geode::queueInMainThread([this]() {
-                    if (m_loadingCircle) {
-                        m_loadingCircle->fadeOut();
+                geode::queueInMainThread([self]() {
+                    if (!self || !self->getParent() || s_instance != self.data()) {
+                        return;
+                    }
+                    if (self->m_loadingCircle) {
+                        self->m_loadingCircle->fadeOut();
                     }
                     Notification::create("Failed to fetch banners.", NotificationIcon::Error)->show();
                 });
@@ -143,9 +172,12 @@ void CBShopLayer::fetchBanners() {
 
             auto jsonRes = response.json();
             if (jsonRes.isErr()) {
-                geode::queueInMainThread([this]() {
-                    if (m_loadingCircle) {
-                        m_loadingCircle->fadeOut();
+                geode::queueInMainThread([self]() {
+                    if (!self || !self->getParent() || s_instance != self.data()) {
+                        return;
+                    }
+                    if (self->m_loadingCircle) {
+                        self->m_loadingCircle->fadeOut();
                     }
                     Notification::create("Received invalid data for banners.", NotificationIcon::Error)->show();
                 });
@@ -154,9 +186,12 @@ void CBShopLayer::fetchBanners() {
 
             auto json = jsonRes.unwrap();
             if (!json.isObject()) {
-                geode::queueInMainThread([this]() {
-                    if (m_loadingCircle) {
-                        m_loadingCircle->fadeOut();
+                geode::queueInMainThread([self]() {
+                    if (!self || !self->getParent() || s_instance != self.data()) {
+                        return;
+                    }
+                    if (self->m_loadingCircle) {
+                        self->m_loadingCircle->fadeOut();
                     }
                     Notification::create("Received invalid data for banners.", NotificationIcon::Error)->show();
                 });
@@ -170,9 +205,12 @@ void CBShopLayer::fetchBanners() {
 
             auto bannersArr = json["banners"];
             if (!bannersArr.isArray()) {
-                geode::queueInMainThread([this]() {
-                    if (m_loadingCircle) {
-                        m_loadingCircle->fadeOut();
+                geode::queueInMainThread([self]() {
+                    if (!self || !self->getParent() || s_instance != self.data()) {
+                        return;
+                    }
+                    if (self->m_loadingCircle) {
+                        self->m_loadingCircle->fadeOut();
                     }
                     Notification::create("Received invalid data for banners.", NotificationIcon::Error)->show();
                 });
@@ -224,21 +262,24 @@ void CBShopLayer::fetchBanners() {
                 if (auto equippedCountRes = item["equippedCount"].asInt(); equippedCountRes.isOk()) {
                     banner.equippedCount = static_cast<int>(equippedCountRes.unwrap());
                 }
-                banner.equipped = (banner.id == m_equippedBannerId);
+                banner.equipped = (banner.id == equippedBannerId);
                 banners.push_back(std::move(banner));
             }
 
-            geode::queueInMainThread([this, totalItems, banners = std::move(banners)]() mutable {
-                if (!m_list) {
+            geode::queueInMainThread([self, totalItems, banners = std::move(banners)]() mutable {
+                if (!self || !self->getParent() || s_instance != self.data()) {
+                    return;
+                }
+                if (!self->m_list) {
                     return;
                 }
 
-                this->m_totalItems = totalItems;
-                this->m_banners = std::move(banners);
-                this->populateList();
+                self->m_totalItems = totalItems;
+                self->m_banners = std::move(banners);
+                self->populateList();
 
-                if (m_loadingCircle) {
-                    m_loadingCircle->fadeOut();
+                if (self->m_loadingCircle) {
+                    self->m_loadingCircle->fadeOut();
                 }
             });
             co_return;
@@ -247,6 +288,7 @@ void CBShopLayer::fetchBanners() {
 }
 
 void CBShopLayer::populateList() {
+    if (!this->getParent() || s_instance != this) return;
     if (!m_list) return;
 
     m_list->clear();
@@ -279,7 +321,12 @@ void CBShopLayer::populateList() {
 }
 
 void CBShopLayer::fetchAmethyst() {
-    geode::queueInMainThread([this]() {
+    Ref<CBShopLayer> self = this;
+    geode::queueInMainThread([self]() {
+        if (!self || !self->getParent() || s_instance != self.data()) {
+            return;
+        }
+
         auto accountData = argon::getGameAccountData();
         auto accountId = accountData.accountId;
         if (accountId <= 0) {
@@ -287,10 +334,13 @@ void CBShopLayer::fetchAmethyst() {
             return;
         }
 
-        arc::spawn([this, accountId, accountData]() -> arc::Future<> {
+        arc::spawn([self, accountId, accountData]() -> arc::Future<> {
             auto authResult = co_await comment::argonToken(accountData);
             if (authResult.empty()) {
-                geode::queueInMainThread([]() {
+                geode::queueInMainThread([self]() {
+                    if (!self || !self->getParent() || s_instance != self.data()) {
+                        return;
+                    }
                     Notification::create("Failed to authenticate.", NotificationIcon::Error)->show();
                 });
                 co_return;
@@ -301,7 +351,10 @@ void CBShopLayer::fetchAmethyst() {
             auto body = matjson::makeObject({{"accountId", accountId}, {"argonToken", authToken}});
             auto response = co_await req.bodyJSON(body).post(fmt::format("{}/getUser", comment::baseUrl));
             if (!response.ok()) {
-                geode::queueInMainThread([]() {
+                geode::queueInMainThread([self]() {
+                    if (!self || !self->getParent() || s_instance != self.data()) {
+                        return;
+                    }
                     Notification::create("Failed to fetch amethyst.", NotificationIcon::Error)->show();
                 });
                 co_return;
@@ -309,7 +362,10 @@ void CBShopLayer::fetchAmethyst() {
 
             auto jsonRes = response.json();
             if (jsonRes.isErr()) {
-                geode::queueInMainThread([]() {
+                geode::queueInMainThread([self]() {
+                    if (!self || !self->getParent() || s_instance != self.data()) {
+                        return;
+                    }
                     Notification::create("Received invalid server data.", NotificationIcon::Error)->show();
                 });
                 co_return;
@@ -318,29 +374,36 @@ void CBShopLayer::fetchAmethyst() {
             auto json = jsonRes.unwrap();
             auto amethystRes = json["amethyst"].asInt();
             if (amethystRes.isErr()) {
-                geode::queueInMainThread([]() {
+                geode::queueInMainThread([self]() {
+                    if (!self || !self->getParent() || s_instance != self.data()) {
+                        return;
+                    }
                     Notification::create("Failed to parse amethyst amount.", NotificationIcon::Error)->show();
                 });
                 co_return;
             }
 
             int amethyst = static_cast<int>(amethystRes.unwrap());
-            geode::queueInMainThread([this, amethyst, json]() {
+            geode::queueInMainThread([self, amethyst, json = std::move(json)]() {
+                if (!self || !self->getParent() || s_instance != self.data()) {
+                    return;
+                }
+
                 if (auto equippedIdRes = json["equippedBanner"]["id"].asInt(); equippedIdRes.isOk()) {
-                    m_equippedBannerId = static_cast<int>(equippedIdRes.unwrap());
+                    self->m_equippedBannerId = static_cast<int>(equippedIdRes.unwrap());
                 } else {
-                    m_equippedBannerId = -1;
+                    self->m_equippedBannerId = -1;
                 }
                 if (auto isStaffRes = json["is_staff"].asBool(); isStaffRes.isOk()) {
-                    m_isStaff = isStaffRes.unwrap();
+                    self->m_isStaff = isStaffRes.unwrap();
                 } else {
-                    m_isStaff = false;
+                    self->m_isStaff = false;
                 }
                 if (auto isAdminRes = json["is_admin"].asBool(); isAdminRes.isOk()) {
-                    m_isAdmin = isAdminRes.unwrap();
-                    Mod::get()->setSavedValue("is_admin", m_isAdmin);
+                    self->m_isAdmin = isAdminRes.unwrap();
+                    Mod::get()->setSavedValue("is_admin", self->m_isAdmin);
                 } else {
-                    m_isAdmin = false;
+                    self->m_isAdmin = false;
                     Mod::get()->setSavedValue("is_admin", false);
                 }
                 bool oldHasCreated = Mod::get()->getSavedValue<bool>("has_created_banner", false);
@@ -357,18 +420,18 @@ void CBShopLayer::fetchAmethyst() {
                 Mod::get()->setSavedValue("has_created_banner", newHasCreated);
                 Mod::get()->setSavedValue("amethyst", amethyst);
 
-                if (!m_amethystLabel) {
+                if (!self->m_amethystLabel) {
                     return;
                 }
-                m_amethystLabel->setTargetCount(amethyst);
-                m_amethystLabel->updateCounter(0.f);
-                if (m_equippedBannerId >= 0) {
-                    this->refreshBanners();
+                self->m_amethystLabel->setTargetCount(amethyst);
+                self->m_amethystLabel->updateCounter(0.f);
+                if (self->m_equippedBannerId >= 0) {
+                    self->refreshBanners();
                 }
 
                 // Add Admin button dynamically if staff
-                if (m_isStaff) {
-                    if (auto navMenu = this->getChildByID("nav-menu")) {
+                if (self->m_isStaff) {
+                    if (auto navMenu = self->getChildByID("nav-menu")) {
                         if (!navMenu->getChildByID("admin-button")) {
                             auto adminBtn = geode::Button::createWithNode(
                                 ButtonSprite::create("Admin", "goldFont.fnt", "GJ_button_03.png", .8f),
@@ -404,9 +467,10 @@ bool CBShopLayer::init() {
 
     s_instance = this;
 
-    m_background = createLayerBG();
+    m_background = cue::RepeatingBackground::create("game_bg_01_001.png", 1.f, cue::RepeatMode::X);
     m_background->setColor({154, 108, 217});
     this->addChild(m_background);
+
     addBackButton(this, BackButtonStyle::Pink);
     addSideArt(this, SideArt::Bottom);
     addSideArt(this, SideArt::TopLeft);
@@ -462,6 +526,12 @@ bool CBShopLayer::init() {
         })) {
         bottomRightMenu->addChild(discordButton);
         bottomRightMenu->updateLayout();
+    }
+
+    if (auto settingsButton = geode::Button::createWithNode(CircleButtonSprite::createWithSpriteFrameName("geode.loader/settings.png", 1.f, CircleBaseColor::Green, CircleBaseSize::Small), [this](geode::Button* sender) {
+            openSettingsPopup(getMod());
+        })) {
+        this->addChildAtPosition(settingsButton, Anchor::BottomLeft, {25.f, 65.f}, false);
     }
 
     if (auto infoButton = geode::Button::createWithSpriteFrameName("GJ_infoIcon_001.png", [this](geode::Button* sender) {

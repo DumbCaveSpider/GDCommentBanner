@@ -244,17 +244,12 @@ void CBBannerCell::showPurchaseConfirm() {
         false);
 }
 
-void CBBannerCell::onClosePopup(UploadActionPopup* popup) {
-    popup->removeFromParent();
-}
-
 void CBBannerCell::applyBanner() {
     Ref<CBBannerCell> retainedSelf = this;
     geode::queueInMainThread([retainedSelf]() {
         auto accountData = argon::getGameAccountData();
         auto accountId = accountData.accountId;
-        Ref<UploadActionPopup> popup = nullptr;
-        popup = UploadActionPopup::create(nullptr, "Equipping banner...");
+        Ref<UploadActionPopup> popup = UploadActionPopup::create(nullptr, "Equipping banner...");
         if (popup) {
             popup->show();
         }
@@ -283,16 +278,16 @@ void CBBannerCell::applyBanner() {
 
                 if (!response.ok()) {
                     log::warn("equipBanner failed: {}", response.errorMessage());
-                    if (popup) {
-                        geode::queueInMainThread([popup, error = response.errorMessage()] {
+                    geode::queueInMainThread([popup, error = response.errorMessage()] {
+                        if (popup && popup->getParent()) {
                             popup->showFailMessage(fmt::format("Equip failed: {}", error));
-                        });
-                    }
+                        }
+                    });
                     co_return;
                 }
 
                 geode::queueInMainThread([retainedSelf, popup] {
-                    if (popup) {
+                    if (popup && popup->getParent()) {
                         popup->showSuccessMessage("Banner equipped successfully");
                     }
                     Mod::get()->setSavedValue("equipped-banner", retainedSelf->m_banner.id);
@@ -319,8 +314,7 @@ void CBBannerCell::unequipBanner() {
     geode::queueInMainThread([retainedSelf]() {
         auto accountData = argon::getGameAccountData();
         auto accountId = accountData.accountId;
-        Ref<UploadActionPopup> popup = nullptr;
-        popup = UploadActionPopup::create(nullptr, "Unequipping banner...");
+        Ref<UploadActionPopup> popup = UploadActionPopup::create(nullptr, "Unequipping banner...");
         if (popup) {
             popup->show();
         }
@@ -341,16 +335,16 @@ void CBBannerCell::unequipBanner() {
 
             if (!response.ok()) {
                 log::warn("unequipBanner failed: {}", response.errorMessage());
-                if (popup) {
-                    geode::queueInMainThread([popup, error = response.errorMessage()] {
+                geode::queueInMainThread([popup, error = response.errorMessage()] {
+                    if (popup && popup->getParent()) {
                         popup->showFailMessage(fmt::format("Unequip failed: {}", error));
-                    });
-                }
+                    }
+                });
                 co_return;
             }
 
             geode::queueInMainThread([popup] {
-                if (popup) {
+                if (popup && popup->getParent()) {
                     popup->showSuccessMessage("Banner unequipped successfully");
                 }
                 Mod::get()->setSavedValue("equipped-banner", -1);
@@ -375,8 +369,7 @@ void CBBannerCell::purchaseBanner() {
     geode::queueInMainThread([retainedSelf]() {
         auto accountData = argon::getGameAccountData();
         auto accountId = accountData.accountId;
-        Ref<UploadActionPopup> popup = nullptr;
-        popup = UploadActionPopup::create(retainedSelf, "Equipping banner...");
+        Ref<UploadActionPopup> popup = UploadActionPopup::create(nullptr, "Equipping banner...");
         if (popup) {
             popup->show();
         }
@@ -409,11 +402,11 @@ void CBBannerCell::purchaseBanner() {
 
                 if (!response.ok()) {
                     log::warn("equipBanner failed: {}", response.errorMessage());
-                    if (popup) {
-                        geode::queueInMainThread([popup, error = response.errorMessage()] {
+                    geode::queueInMainThread([popup, error = response.errorMessage()] {
+                        if (popup && popup->getParent()) {
                             popup->showFailMessage(fmt::format("Equip failed: {}", error));
-                        });
-                    }
+                        }
+                    });
                     co_return;
                 }
 
@@ -421,7 +414,7 @@ void CBBannerCell::purchaseBanner() {
                     Mod::get()->setSavedValue("amethyst", current - retainedSelf->m_banner.price);
                 }
                 geode::queueInMainThread([retainedSelf, popup] {
-                    if (popup) {
+                    if (popup && popup->getParent()) {
                         popup->showSuccessMessage("Banner equipped successfully");
                     }
                     if (auto shop = CBShopLayer::getInstance()) {
