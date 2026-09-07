@@ -24,7 +24,7 @@ bool CBLeaderboardLayer::init() {
 
     auto winSize = CCDirector::sharedDirector()->getWinSize();
 
-    m_background = cue::RepeatingBackground::create("game_bg_01_001.png", 1.f, cue::RepeatMode::X);
+    m_background = cue::RepeatingBackground::create("game_bg_57_001.png", 1.f, cue::RepeatMode::X);
     m_background->setColor({154, 108, 217});
     this->addChild(m_background);
 

@@ -26,14 +26,19 @@ namespace comment {
         Ref<LazySprite> sprite = LazySprite::create(bannerSize, true);
         sprite->setAutoResize(true);
 
-        if (imageUrl.starts_with("http")) {
+        if (imageUrl.starts_with("http://") || imageUrl.starts_with("https://")) {
             sprite->loadFromUrl(imageUrl, LazySprite::Format::kFmtWebp, false);
+        } else if (imageUrl.starts_with("/")) {
+            sprite->loadFromUrl(fmt::format("{}{}", comment::baseUrl, imageUrl), LazySprite::Format::kFmtWebp, false);
         } else {
             sprite->loadFromFile(imageUrl);
         }
 
         return sprite;
     }
+
+    void invalidateBannerCache(int accountId = 0);
+    void updateBannerCache(int accountId, bool equipped, std::string const& imageUrl = "");
 
     inline std::string getResponseMessage(web::WebResponse const& response,
         std::string const& fallback) {

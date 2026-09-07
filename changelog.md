@@ -2,11 +2,19 @@
 
 - Bump to Geode v5.10.1
 - Migrated Badgify to [Badgified API](mod:dasshu.badgified)
-  <mod:dasshu.badgified>
+
+<mod:dasshu.badgified>
+
 - Fixed the crash where closing the UploadActionPopup before finishing the web requests
 - Refactored the Completion Logic for the Amethysts Reward
 - Refactored the Amethysts Animation Reward
+
+<c-33333b>(dont complain why the amethysts overlaps with the orbs counter, I blame gd ahh code)</c>
+
 - Added Animated Shop/Leaderboard Background
+- Added Filter/Sort Label in the Shop Layer
+- Improved Banners Caching
+- Fixed issue where loading too many banners crashes the game on moblie (or devices with low memory)
 
 ## v0.1.7-beta.1
 

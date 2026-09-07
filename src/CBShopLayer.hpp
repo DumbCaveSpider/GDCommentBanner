@@ -4,6 +4,7 @@
 #include <cue/ListNode.hpp>
 #include <cue/RepeatingBackground.hpp>
 #include "CBBannerCell.hpp"
+#include "Geode/cocos/label_nodes/CCLabelBMFont.h"
 #include <Geode/binding/SetTextPopupDelegate.hpp>
 
 using namespace geode::prelude;
@@ -23,6 +24,7 @@ public:
     void setEquippedBannerId(int bannerId);
     int getEquippedBannerId() const { return m_equippedBannerId; }
     void updateLocalEquippedState();
+    void updateFilterSortLabel();
 
     void setTextPopupClosed(SetTextPopup* popup, gd::string text) override;
 
@@ -55,6 +57,7 @@ private:
     Ref<CCMenuItemSpriteExtra> m_nextButton = nullptr;
     Ref<CCLabelBMFont> m_pageLabel = nullptr;
     Ref<CCLabelBMFont> m_noBannersLabel = nullptr;
+    Ref<CCLabelBMFont> m_filterSortLabel = nullptr;
     Ref<CCNode> m_localOverlay = nullptr;
     std::vector<CBBannerItem> m_banners;
 };

@@ -17,17 +17,37 @@
 
 using namespace geode::prelude;
 
-#include <asp/time/SystemTime.hpp>
 #include <mutex>
+#include <unordered_map>
+#include <unordered_set>
+#include <vector>
 
 struct CachedBanner {
-    bool equipped;
-    std::string imageUrl;
-    asp::time::SystemTime timestamp;
+    bool equipped = false;
+    std::string imageUrl = "";
 };
 
-static std::map<int, CachedBanner> s_bannerCache;
+static std::unordered_map<int, CachedBanner> s_bannerCache;
+static std::unordered_set<int> s_fetchingAccounts;
+static std::unordered_map<int, std::vector<Ref<CommentCell>>> s_pendingCells;
 static std::mutex s_cacheMutex;
+
+namespace comment {
+    void invalidateBannerCache(int accountId) {
+        std::lock_guard<std::mutex> lock(s_cacheMutex);
+        if (accountId <= 0) {
+            s_bannerCache.clear();
+        } else {
+            s_bannerCache.erase(accountId);
+        }
+    }
+
+    void updateBannerCache(int accountId, bool equipped, std::string const& imageUrl) {
+        if (accountId <= 0) return;
+        std::lock_guard<std::mutex> lock(s_cacheMutex);
+        s_bannerCache[accountId] = CachedBanner{equipped, imageUrl};
+    }
+}
 
 class $modify(GJGarageLayer) {
     bool init() {
@@ -69,14 +89,26 @@ class $modify(GJGarageLayer) {
 // this is where to fetch the images
 static void setupBannerSprite(CommentCell* cell, std::string const& imageUrl) {
     Ref<CommentCell> self = cell;
-    if (!self || !self->getParent() || !self->m_backgroundLayer) return;
+    if (!self || !self->m_backgroundLayer) return;
 
     if (imageUrl.empty()) return;
 
+    if (auto prevBanner = self->m_backgroundLayer->getChildByID("cb-comment-banner-node")) {
+        prevBanner->removeFromParent();
+    }
+
     auto size = self->m_backgroundLayer->getScaledContentSize();
+    if (size.width <= 0.f || size.height <= 0.f) {
+        size = self->m_backgroundLayer->getContentSize();
+    }
+    if (size.width <= 0.f || size.height <= 0.f) {
+        size = self->getContentSize();
+    }
+
     auto bannerSize = self->m_compactMode ? size : CCSize{800.f, 800.f};
 
     auto bannerNode = comment::createBannerNode(imageUrl, bannerSize);
+    if (!bannerNode) return;
     bannerNode->setID("cb-comment-banner-node");
     bannerNode->setPosition({size.width / 2.f, size.height / 2.f});
 
@@ -100,9 +132,13 @@ static void setupBannerSprite(CommentCell* cell, std::string const& imageUrl) {
 }
 
 class $modify(CBCommentCell, CommentCell) {
+    struct Fields {
+        int m_currentAccountId = 0;
+    };
+
     void loadFromComment(GJComment* comment) {
         CommentCell::loadFromComment(comment);
-        if (!m_backgroundLayer) {
+        if (!m_backgroundLayer || !comment) {
             return;
         }
 
@@ -115,13 +151,15 @@ class $modify(CBCommentCell, CommentCell) {
             prevBanner->removeFromParent();
         }
 
-        // account comment
-        //if (m_accountComment) {
-        //    if (Mod::get()->getSettingValue<bool>("hide-account-comment")) return;
-        //}
-
-        auto self = Ref<CBCommentCell>(this);
         int accountId = comment->m_accountID;
+        m_fields->m_currentAccountId = accountId;
+        if (accountId <= 0) {
+            return;
+        }
+
+        if (m_accountComment) {
+            if (Mod::get()->getSettingValue<bool>("hide-account-comment")) return;
+        }
 
         // Check local banner priority for own comment
         int myAccountId = GJAccountManager::sharedState()->m_accountID;
@@ -133,32 +171,37 @@ class $modify(CBCommentCell, CommentCell) {
             if (!equippedLocal.empty()) {
                 auto localPath = comment::local::getLocalBannersDir() / equippedLocal;
                 if (std::filesystem::exists(localPath)) {
-                    setupBannerSprite(self.data(), localPath.string());
+                    setupBannerSprite(this, localPath.string());
                     return;
                 }
             }
         }
 
-        // Check cache
+        // Check session cache
         {
             std::lock_guard<std::mutex> lock(s_cacheMutex);
-            if (s_bannerCache.contains(accountId)) {
-                auto& cached = s_bannerCache[accountId];
-                auto now = asp::time::SystemTime::now();
-                auto durationHours = Mod::get()->getSettingValue<int64_t>("cache-duration-hours");
-                auto ageDur = now.durationSince(cached.timestamp);
-
-                if (ageDur && ageDur.value().hours() < durationHours) {
-                    if (!cached.equipped) return;
-
-                    std::string imageUrl = cached.imageUrl;
-                    setupBannerSprite(self.data(), imageUrl);
-                    return;
+            auto it = s_bannerCache.find(accountId);
+            if (it != s_bannerCache.end()) {
+                if (it->second.equipped && !it->second.imageUrl.empty()) {
+                    setupBannerSprite(this, it->second.imageUrl);
                 }
+                return;
             }
         }
 
-        arc::spawn([self, accountId]() -> arc::Future<> {
+        // Register cell as pending and deduplicate in-flight fetches
+        Ref<CommentCell> self = this;
+        {
+            std::lock_guard<std::mutex> lock(s_cacheMutex);
+            if (s_fetchingAccounts.contains(accountId)) {
+                s_pendingCells[accountId].push_back(self);
+                return;
+            }
+            s_fetchingAccounts.insert(accountId);
+            s_pendingCells[accountId].push_back(self);
+        }
+
+        arc::spawn([accountId]() -> arc::Future<> {
             auto request = geode::utils::web::WebRequest();
             auto body = matjson::makeObject({
                 {"targetAccountId", accountId},
@@ -166,52 +209,64 @@ class $modify(CBCommentCell, CommentCell) {
 
             auto response = co_await request.bodyJSON(body).post(fmt::format("{}/getImageBanner", comment::baseUrl));
             if (!response.ok()) {
-                log::debug("getImageBanner failed: {}", response.errorMessage());
+                log::debug("getImageBanner failed for account {}: {}", accountId, response.errorMessage());
+                geode::queueInMainThread([accountId] {
+                    std::lock_guard<std::mutex> lock(s_cacheMutex);
+                    s_fetchingAccounts.erase(accountId);
+                    s_pendingCells.erase(accountId);
+                });
                 co_return;
             }
 
             auto jsonRes = response.json();
             if (jsonRes.isErr()) {
-                log::debug("getImageBanner returned invalid JSON");
+                log::debug("getImageBanner returned invalid JSON for account {}", accountId);
+                geode::queueInMainThread([accountId] {
+                    std::lock_guard<std::mutex> lock(s_cacheMutex);
+                    s_fetchingAccounts.erase(accountId);
+                    s_pendingCells.erase(accountId);
+                });
                 co_return;
             }
 
             auto json = jsonRes.unwrap();
             auto equipped = json["equipped"].asBool().unwrapOr(false);
-            if (!equipped) {
+            std::string imageUrl = "";
+            if (equipped) {
+                if (auto urlRes = json["imageUrl"].asString(); urlRes.isOk()) {
+                    imageUrl = urlRes.unwrap();
+                } else {
+                    equipped = false;
+                }
+            }
+
+            geode::queueInMainThread([accountId, equipped, imageUrl = std::move(imageUrl)]() {
                 CachedBanner newCached;
-                newCached.equipped = false;
-                newCached.imageUrl = "";
-                newCached.timestamp = asp::time::SystemTime::now();
+                newCached.equipped = equipped;
+                newCached.imageUrl = imageUrl;
+
+                std::vector<Ref<CommentCell>> cellsToUpdate;
                 {
                     std::lock_guard<std::mutex> lock(s_cacheMutex);
                     s_bannerCache[accountId] = newCached;
+                    s_fetchingAccounts.erase(accountId);
+                    auto it = s_pendingCells.find(accountId);
+                    if (it != s_pendingCells.end()) {
+                        cellsToUpdate = std::move(it->second);
+                        s_pendingCells.erase(it);
+                    }
                 }
-                co_return;
-            }
 
-            auto imageUrlRes = json["imageUrl"].asString();
-            if (imageUrlRes.isErr()) {
-                log::debug("getImageBanner missing imageUrl");
-                co_return;
-            }
-
-            auto imageUrl = imageUrlRes.unwrap();
-
-            // Save to cache
-            CachedBanner newCached;
-            newCached.equipped = true;
-            newCached.imageUrl = imageUrl;
-            newCached.timestamp = asp::time::SystemTime::now();
-
-            {
-                std::lock_guard<std::mutex> lock(s_cacheMutex);
-                s_bannerCache[accountId] = newCached;
-            }
-
-            geode::queueInMainThread([self, imageUrl] {
-                if (!self || !self->getParent()) return;
-                setupBannerSprite(self.data(), imageUrl);
+                if (equipped && !imageUrl.empty()) {
+                    for (auto& cell : cellsToUpdate) {
+                        if (cell) {
+                            auto cbCell = static_cast<CBCommentCell*>(cell.data());
+                            if (cbCell->m_fields->m_currentAccountId == accountId) {
+                                setupBannerSprite(cell.data(), imageUrl);
+                            }
+                        }
+                    }
+                }
             });
 
             co_return;

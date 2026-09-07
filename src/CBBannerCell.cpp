@@ -291,6 +291,9 @@ void CBBannerCell::applyBanner() {
                         popup->showSuccessMessage("Banner equipped successfully");
                     }
                     Mod::get()->setSavedValue("equipped-banner", retainedSelf->m_banner.id);
+                    int myAccountId = GJAccountManager::sharedState()->m_accountID;
+                    if (myAccountId <= 0) myAccountId = argon::getGameAccountData().accountId;
+                    comment::updateBannerCache(myAccountId, true, retainedSelf->m_banner.imageUrl);
                     if (auto shop = CBShopLayer::getInstance()) {
                         shop->setEquippedBannerId(retainedSelf->m_banner.id);
                         shop->refreshBanners();
@@ -348,6 +351,9 @@ void CBBannerCell::unequipBanner() {
                     popup->showSuccessMessage("Banner unequipped successfully");
                 }
                 Mod::get()->setSavedValue("equipped-banner", -1);
+                int myAccountId = GJAccountManager::sharedState()->m_accountID;
+                if (myAccountId <= 0) myAccountId = argon::getGameAccountData().accountId;
+                comment::updateBannerCache(myAccountId, false, "");
                 if (auto shop = CBShopLayer::getInstance()) {
                     shop->setEquippedBannerId(-1);
                     shop->refreshBanners();

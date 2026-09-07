@@ -4,6 +4,7 @@
 #include <Geode/binding/UploadActionPopup.hpp>
 #include <Geode/ui/Button.hpp>
 #include "CBShopLayer.hpp"
+#include "Geode/cocos/label_nodes/CCLabelBMFont.h"
 #include "Geode/ui/TextArea.hpp"
 #include "include/CBLocalBanner.hpp"
 #include "CBBannerCell.hpp"
@@ -61,12 +62,55 @@ void CBShopLayer::updateLocalEquippedState() {
     } else if (m_noBannersLabel && !isLocalEquipped) {
         m_noBannersLabel->setVisible(m_banners.empty());
     }
+    if (m_filterSortLabel) {
+        m_filterSortLabel->setVisible(!isLocalEquipped);
+    }
     if (auto paginationMenu = this->getChildByID("pagination-menu")) {
         paginationMenu->setVisible(!isLocalEquipped);
     }
     if (m_pageLabel) {
         m_pageLabel->setVisible(!isLocalEquipped);
     }
+}
+
+void CBShopLayer::updateFilterSortLabel() {
+    if (!m_filterSortLabel) return;
+
+    std::string filterName;
+    switch (m_filterState) {
+        case 1: filterName = "Owned"; break;
+        case 2: filterName = "Unowned"; break;
+        case 3: filterName = "Limited"; break;
+        case 4: filterName = "Featured"; break;
+        default: filterName = "All"; break;
+    }
+
+    std::string sortName;
+    switch (m_sortState) {
+        case 1: sortName = "Most Bought"; break;
+        case 2: sortName = "Most Equipped"; break;
+        case 3: sortName = "Highest Price"; break;
+        case 4: sortName = "Lowest Price"; break;
+        default: sortName = "Recent"; break;
+    }
+
+    std::string text;
+    if (m_filterState == 0 && m_sortState == 0) {
+        text = "All Banners";
+    } else if (m_sortState == 0) {
+        text = fmt::format("{} Banners", filterName);
+    } else if (m_filterState == 0) {
+        text = fmt::format("All Banners ({})", sortName);
+    } else {
+        text = fmt::format("{} Banners ({})", filterName, sortName);
+    }
+
+    if (!m_searchQuery.empty()) {
+        text += fmt::format(" - \"{}\"", m_searchQuery);
+    }
+
+    m_filterSortLabel->setString(text.c_str());
+    m_filterSortLabel->limitLabelWidth(300.f, 0.6f, 0.2f);
 }
 
 void CBShopLayer::onExit() {
@@ -467,7 +511,7 @@ bool CBShopLayer::init() {
 
     s_instance = this;
 
-    m_background = cue::RepeatingBackground::create("game_bg_01_001.png", 1.f, cue::RepeatMode::X);
+    m_background = cue::RepeatingBackground::create("game_bg_57_001.png", 1.f, cue::RepeatMode::X);
     m_background->setColor({154, 108, 217});
     this->addChild(m_background);
 
@@ -484,6 +528,15 @@ bool CBShopLayer::init() {
         // auto scrollbar = Scrollbar::create(m_list->getScrollLayer());
         //this->addChildAtPosition(scrollbar, Anchor::Center, {356.f / 2 + 15.f, -22.f}, false);
     }
+
+    // label that shows what filters/sort it is
+    m_filterSortLabel = CCLabelBMFont::create("All Banners", "goldFont.fnt");
+    m_filterSortLabel->setScale(0.5f);
+    m_filterSortLabel->setAlignment(CCTextAlignment::kCCTextAlignmentLeft);
+    m_filterSortLabel->setVisible(true);
+    m_filterSortLabel->setZOrder(5);
+    this->addChildAtPosition(m_filterSortLabel, Anchor::Top, {0.f, -15.f}, false);
+    this->updateFilterSortLabel();
 
     m_noBannersLabel = CCLabelBMFont::create("No Banners Found", "goldFont.fnt");
     m_noBannersLabel->setScale(0.6f);
@@ -828,6 +881,8 @@ void CBShopLayer::onFilterClicked(CCObject* sender) {
     auto newSpr = EditorButtonSprite::createWithSpriteFrameName("GJ_filterIcon_001.png", 1.0f, baseColor);
     btn->setNormalImage(newSpr);
 
+    this->updateFilterSortLabel();
+
     m_currentPage = 0;
     this->fetchBanners();
 }
@@ -864,6 +919,8 @@ void CBShopLayer::onSortClicked(CCObject* sender) {
     auto newSpr = EditorButtonSprite::createWithSpriteFrameName("GJ_sortIcon_001.png", 1.0f, baseColor);
     btn->setNormalImage(newSpr);
 
+    this->updateFilterSortLabel();
+
     m_currentPage = 0;
     this->fetchBanners();
 }
@@ -882,6 +939,8 @@ void CBShopLayer::setTextPopupClosed(SetTextPopup* popup, gd::string text) {
         auto newSpr = EditorButtonSprite::createWithSpriteFrameName("edit_findBtn_001.png", 1.0f, baseColor);
         m_searchButton->setNormalImage(newSpr);
     }
+
+    this->updateFilterSortLabel();
 
     m_currentPage = 0;
     this->fetchBanners();
