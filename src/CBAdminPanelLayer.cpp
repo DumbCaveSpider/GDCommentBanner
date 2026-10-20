@@ -649,10 +649,8 @@ void CBAdminPanelLayer::renderPage() {
             }
 
             if (!equippedBannerUrl.empty()) {
-                Ref<LazySprite> sprite = LazySprite::create({380.f, 40.f}, true);
-                sprite->setAutoResize(true);
+                auto sprite = comment::createBannerNode(equippedBannerUrl, {380.f, 40.f});
                 sprite->setPosition({190.f, 20.f});
-                sprite->loadFromUrl(equippedBannerUrl, LazySprite::Format::kFmtWebp, false);
                 cell->addChild(sprite, -2);
 
                 auto bg = CCLayerGradient::create({0, 0, 0, 255}, {0, 0, 0, 0}, {1, 0});
@@ -761,12 +759,8 @@ void CBAdminPanelLayer::renderPage() {
             }
 
             // Image
-            Ref<LazySprite> sprite = LazySprite::create({344.f, 104.f}, true);
-            sprite->setAutoResize(true);
+            auto sprite = comment::createBannerNode(imageUrl, {344.f, 104.f});
             sprite->setPosition({width / 2.f, cellHeight - 30.f});
-            if (!imageUrl.empty()) {
-                sprite->loadFromUrl(imageUrl, LazySprite::Format::kFmtWebp, false);
-            }
             cell->addChild(sprite);
 
             // Name

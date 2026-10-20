@@ -8,7 +8,7 @@
 	},
 	"id": "arcticwoof.comment_banners",
 	"name": "Comment Banners",
-	"version": "v0.1.8-beta.1",
+	"version": "v1.0.0",
 	"developer": "ArcticWoof",
 	"description": "Community-run, Custom banners for comments.",
 	"dependencies": {
@@ -48,6 +48,18 @@
 			"description": "Hides your comment banner in the account comment/post.",
 			"type": "bool",
 			"default": true
+		},
+		"disable-animated-background": {
+			"name": "Disable Animated Background",
+			"description": "Disables the animated background on the main comment banner layer.",
+			"type": "bool",
+			"default": false
+		},
+		"disable-banner-leaderboard": {
+			"name": "Disable Banner Leaderboard",
+			"description": "Disables the banner leaderboard.",
+			"type": "bool",
+			"default": false
 		}
 	},
 	"tags": ["online", "customization", "content"]

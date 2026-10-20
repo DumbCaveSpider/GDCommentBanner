@@ -1,3 +1,13 @@
+# v1.0.0
+
+- Bump to Geode v6
+- Improved Banner Caching
+- Updated Sprites
+- Fixed crashes for low end devices when loading too many banners
+- Added Disable Animated Background
+- Added Disable Banner Leaderboard
+- Added Top Sales on the Leaderboard
+
 ## v0.1.8-beta.1
 
 - Bump to Geode v5.10.1

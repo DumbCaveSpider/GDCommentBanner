@@ -511,9 +511,15 @@ bool CBShopLayer::init() {
 
     s_instance = this;
 
-    m_background = cue::RepeatingBackground::create("game_bg_57_001.png", 1.f, cue::RepeatMode::X);
-    m_background->setColor({154, 108, 217});
-    this->addChild(m_background);
+    if (!Mod::get()->getSettingValue<bool>("disable-animated-background")) {
+        m_background = cue::RepeatingBackground::create("game_bg_57_001.png", 1.f, cue::RepeatMode::X);
+        m_background->setColor({154, 108, 217});
+        this->addChild(m_background);
+    } else {
+        m_background = createLayerBG();
+        m_background->setColor({154, 108, 217});
+        this->addChild(m_background);
+    }
 
     addBackButton(this, BackButtonStyle::Pink);
     addSideArt(this, SideArt::Bottom);
@@ -549,12 +555,11 @@ bool CBShopLayer::init() {
     bottomRightMenu->setContentSize({40.f, 0.f});
     bottomRightMenu->setLayout(ColumnLayout::create()
             ->setAxisAlignment(AxisAlignment::Start)
-            ->setGap(10.f)
+            ->setGap(0.f)
             ->setAutoGrowAxis(0.f));
     this->addChildAtPosition(bottomRightMenu, Anchor::BottomRight, {-30.f, 10.f}, false);
 
-    if (auto refreshButton = geode::Button::createWithSpriteFrameName(
-            "GJ_updateBtn_001.png",
+    if (auto refreshButton = geode::Button::createWithNode(CircleButtonSprite::createWithSpriteFrameName("CB_refresh.png"_spr, 1.2f, CircleBaseColor::DarkPurple, CircleBaseSize::Small),
             [this](geode::Button* sender) {
                 this->fetchBanners();
             })) {
@@ -562,7 +567,7 @@ bool CBShopLayer::init() {
         bottomRightMenu->updateLayout();
     }
 
-    if (auto leaderboardButton = geode::Button::createWithSpriteFrameName("GJ_achBtn_001.png", [this](geode::Button* sender) {
+    if (auto leaderboardButton = geode::Button::createWithNode(CircleButtonSprite::createWithSpriteFrameName("CB_leaderboard.png"_spr, 1.f, CircleBaseColor::DarkPurple, CircleBaseSize::Small), [this](geode::Button* sender) {
             auto scene = CCScene::create();
             scene->addChild(CBLeaderboardLayer::create());
             CCDirector::sharedDirector()->pushScene(CCTransitionFade::create(0.5f, scene));
@@ -571,7 +576,7 @@ bool CBShopLayer::init() {
         bottomRightMenu->updateLayout();
     }
 
-    if (auto discordButton = geode::Button::createWithSpriteFrameName("gj_discordIcon_001.png", [this](geode::Button* sender) {
+    if (auto discordButton = geode::Button::createWithNode(CircleButtonSprite::createWithSpriteFrameName("CB_discord.png"_spr, 1.f, CircleBaseColor::DarkPurple, CircleBaseSize::Small), [this](geode::Button* sender) {
             auto communityUrl = getMod()->getMetadata().getLinks().getCommunityURL();
             if (communityUrl.has_value()) {
                 geode::utils::web::openLinkInBrowser(communityUrl.value());
@@ -581,13 +586,13 @@ bool CBShopLayer::init() {
         bottomRightMenu->updateLayout();
     }
 
-    if (auto settingsButton = geode::Button::createWithNode(CircleButtonSprite::createWithSpriteFrameName("geode.loader/settings.png", 1.f, CircleBaseColor::Green, CircleBaseSize::Small), [this](geode::Button* sender) {
+    if (auto settingsButton = geode::Button::createWithNode(CircleButtonSprite::createWithSpriteFrameName("geode.loader/settings.png", 1.f, CircleBaseColor::DarkPurple , CircleBaseSize::Small), [this](geode::Button* sender) {
             openSettingsPopup(getMod());
         })) {
         this->addChildAtPosition(settingsButton, Anchor::BottomLeft, {25.f, 65.f}, false);
     }
 
-    if (auto infoButton = geode::Button::createWithSpriteFrameName("GJ_infoIcon_001.png", [this](geode::Button* sender) {
+    if (auto infoButton = geode::Button::createWithNode(CircleButtonSprite::createWithSpriteFrameName("CB_info.png"_spr, 1.f, CircleBaseColor::DarkPurple, CircleBaseSize::Small), [this](geode::Button* sender) {
             MDPopup::create(
                 "About Comment Banners",
                 "<cp>**Comment Banners**</c> is a <cb>community-run</c> banner shop that lets you buy <cg>user-generated</c> banners to apply to your <cc>Comment Cell</c> for everyone to see using this mod.\n\n"
@@ -862,21 +867,21 @@ void CBShopLayer::onFilterClicked(CCObject* sender) {
     m_filterState = (m_filterState + 1) % 5;
 
     EditorBaseColor baseColor = EditorBaseColor::Gray;
-    if (m_filterState == 1) {
-        baseColor = EditorBaseColor::Green;
-        Notification::create("Showing Owned Banners", NotificationIcon::Info)->show();
-    } else if (m_filterState == 2) {
-        baseColor = EditorBaseColor::Orange;
-        Notification::create("Showing Unowned Banners", NotificationIcon::Info)->show();
-    } else if (m_filterState == 3) {
-        baseColor = EditorBaseColor::Pink;
-        Notification::create("Showing Limited Banners", NotificationIcon::Info)->show();
-    } else if (m_filterState == 4) {
-        baseColor = EditorBaseColor::Salmon;
-        Notification::create("Showing Featured Banners", NotificationIcon::Info)->show();
-    } else {
-        Notification::create("Showing All Banners", NotificationIcon::Info)->show();
-    }
+    // if (m_filterState == 1) {
+    //     baseColor = EditorBaseColor::Green;
+    //     Notification::create("Showing Owned Banners", NotificationIcon::Info)->show();
+    // } else if (m_filterState == 2) {
+    //     baseColor = EditorBaseColor::Orange;
+    //     Notification::create("Showing Unowned Banners", NotificationIcon::Info)->show();
+    // } else if (m_filterState == 3) {
+    //     baseColor = EditorBaseColor::Pink;
+    //     Notification::create("Showing Limited Banners", NotificationIcon::Info)->show();
+    // } else if (m_filterState == 4) {
+    //     baseColor = EditorBaseColor::Salmon;
+    //     Notification::create("Showing Featured Banners", NotificationIcon::Info)->show();
+    // } else {
+    //     Notification::create("Showing All Banners", NotificationIcon::Info)->show();
+    // }
 
     auto newSpr = EditorButtonSprite::createWithSpriteFrameName("GJ_filterIcon_001.png", 1.0f, baseColor);
     btn->setNormalImage(newSpr);
@@ -914,7 +919,7 @@ void CBShopLayer::onSortClicked(CCObject* sender) {
             break;
     }
 
-    Notification::create(text, NotificationIcon::Info)->show();
+    //Notification::create(text, NotificationIcon::Info)->show();
 
     auto newSpr = EditorButtonSprite::createWithSpriteFrameName("GJ_sortIcon_001.png", 1.0f, baseColor);
     btn->setNormalImage(newSpr);

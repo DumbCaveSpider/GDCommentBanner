@@ -39,7 +39,7 @@ private:
     static CBShopLayer* s_instance;
 
     // members
-    Ref<cue::RepeatingBackground> m_background;
+    Ref<CCSprite> m_background;
     Ref<cue::ListNode> m_list = nullptr;
     Ref<CCCounterLabel> m_amethystLabel = nullptr;
     int m_equippedBannerId = -1;

@@ -2,6 +2,7 @@
 #include <Geode/Geode.hpp>
 #include <argon/argon.hpp>
 #include <Geode/ui/LazySprite.hpp>
+#include "CBBannerLoader.hpp"
 
 using namespace geode::prelude;
 namespace comment {
@@ -23,15 +24,14 @@ namespace comment {
             return node;
         }
 
-        Ref<LazySprite> sprite = LazySprite::create(bannerSize, true);
+        auto sprite = LazySprite::create(bannerSize, true);
         sprite->setAutoResize(true);
 
-        if (imageUrl.starts_with("http://") || imageUrl.starts_with("https://")) {
-            sprite->loadFromUrl(imageUrl, LazySprite::Format::kFmtWebp, false);
-        } else if (imageUrl.starts_with("/")) {
-            sprite->loadFromUrl(fmt::format("{}{}", comment::baseUrl, imageUrl), LazySprite::Format::kFmtWebp, false);
+        // loading is deferred until the banner is on screen, see CBBannerLoader
+        if (imageUrl.starts_with("/")) {
+            loader::queue(sprite, fmt::format("{}{}", comment::baseUrl, imageUrl));
         } else {
-            sprite->loadFromFile(imageUrl);
+            loader::queue(sprite, imageUrl);
         }
 
         return sprite;

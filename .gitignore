@@ -58,6 +58,7 @@ build-*/
 
 # Visual Studio
 .vs/
+CommentBanner.code-workspace
 
 # CLion
 .idea/

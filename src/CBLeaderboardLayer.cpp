@@ -1,3 +1,4 @@
+
 #include "CBLeaderboardLayer.hpp"
 #include <fmt/format.h>
 #include "CBProfileBannerPopup.hpp"
@@ -6,6 +7,29 @@
 #include <Geode/ui/Scrollbar.hpp>
 #include <Geode/ui/Button.hpp>
 #include <cue/RepeatingBackground.hpp>
+
+struct LeaderboardTabInfo {
+    LeaderboardTab tab;
+    char const* name;
+    char const* type;  // ?type= query param for /getLeaderboard
+    char const* emptyText;
+    char const* infoText;
+};
+
+static constexpr LeaderboardTabInfo kTabs[] = {
+    {LeaderboardTab::Earners, "Top Earners", "earners", "No earners found.",
+        "<cy>Top Earners</c> only shows the total <cp>Amethysts</c> earned from users purchasing <cg>banners</c> these users created with <co>taxes</c>.\n"
+        "<cy>This leaderboard does not include the amethysts earned from beating rated levels</c>"},
+    {LeaderboardTab::Sales, "Top Sales", "sales", "No sales found.",
+        "<cy>Top Sales</c> shows the users whose <cg>banners</c> have been <cl>purchased</c> the most times."},
+};
+
+static LeaderboardTabInfo const& getTabInfo(LeaderboardTab tab) {
+    for (auto const& info : kTabs) {
+        if (info.tab == tab) return info;
+    }
+    return kTabs[0];
+}
 
 CBLeaderboardLayer* CBLeaderboardLayer::create() {
     auto ret = new CBLeaderboardLayer();
@@ -24,14 +48,20 @@ bool CBLeaderboardLayer::init() {
 
     auto winSize = CCDirector::sharedDirector()->getWinSize();
 
-    m_background = cue::RepeatingBackground::create("game_bg_57_001.png", 1.f, cue::RepeatMode::X);
-    m_background->setColor({154, 108, 217});
-    this->addChild(m_background);
+    if (!Mod::get()->getSettingValue<bool>("disable-animated-background")) {
+        m_background = cue::RepeatingBackground::create("game_bg_57_001.png", 1.f, cue::RepeatMode::X);
+        m_background->setColor({154, 108, 217});
+        this->addChild(m_background);
+    } else {
+        m_background = createLayerBG();
+        m_background->setColor({154, 108, 217});
+        this->addChild(m_background);
+    }
 
     addBackButton(this, BackButtonStyle::Pink);
     addSideArt(this, SideArt::All);
 
-    m_list = cue::ListNode::create({356.f, 220}, {0, 0, 0, 0}, cue::ListBorderStyle::Levels);
+    m_list = cue::ListNode::create({356.f, 220}, {0, 0, 0, 0}, cue::ListBorderStyle::SlimLevels);
     if (m_list) {
         m_list->setZOrder(2);
         this->addChildAtPosition(m_list, Anchor::Center, CCPointZero, false);
@@ -41,18 +71,14 @@ bool CBLeaderboardLayer::init() {
         this->addChildAtPosition(scrollbar, Anchor::Center, {356.f / 2 + 20.f, 0.f}, false);
     }
 
-    auto title = CCLabelBMFont::create("Top Earners", "bigFont.fnt");
-    title->setPosition({m_list->getContentSize().width / 2, m_list->getContentSize().height + 19.f});
-    title->setScale(0.8f);
-    m_list->addChild(title, 5);
+    // tabs
+    
 
-    if (auto infoButton = geode::Button::createWithSpriteFrameName("GJ_infoIcon_001.png", [this](geode::Button* sender) {
-            FLAlertLayer::create(
-                "Amethysts Top Earners",
-                "<cy>Top Earners</c> only shows the total <cp>Amethysts</c> earned from users purchasing <cg>banners</c> these users created with <co>taxes</c>.\n"
-                "<cy>This leaderboard does not include the amethysts earned from beating rated levels</c>",
-                "OK")
-                ->show();
+    createTabs();
+
+    if (auto infoButton = geode::Button::createWithNode(CircleButtonSprite::createWithSpriteFrameName("CB_info.png"_spr, 1.f, CircleBaseColor::DarkPurple, CircleBaseSize::Small), [this](geode::Button* sender) {
+            auto const& info = getTabInfo(m_currentTab);
+            FLAlertLayer::create(fmt::format("Amethysts {}", info.name).c_str(), info.infoText, "OK")->show();
         })) {
         this->addChildAtPosition(infoButton, Anchor::BottomLeft, {25.f, 25.f}, false);
     }
@@ -70,22 +96,68 @@ void CBLeaderboardLayer::onBack(CCObject* sender) {
     keyBackClicked();
 }
 
+void CBLeaderboardLayer::createTabs() {
+    if (!m_list) return;
+
+    auto tabMenu = CCMenu::create();
+    tabMenu->setLayout(RowLayout::create()->setGap(10.f)->setAxisAlignment(AxisAlignment::Center));
+
+    m_tabs.clear();
+    for (auto const& info : kTabs) {
+        auto tab = TabButton::create(TabBaseColor::Unselected, TabBaseColor::UnselectedDark, info.name, this, menu_selector(CBLeaderboardLayer::onTabSelected));
+        if (!tab) continue;
+        tab->setTag(static_cast<int>(info.tab));
+        // selection state is handled by updateTabSelection, not by the toggler itself
+        tab->setClickable(false);
+        tabMenu->addChild(tab);
+        m_tabs.push_back(tab);
+    }
+
+    updateTabSelection();
+    tabMenu->setZOrder(-1);
+    tabMenu->setContentWidth(m_list->getContentWidth());
+    tabMenu->updateLayout();
+    m_list->addChildAtPosition(tabMenu, Anchor::Top, {0.f, 10.f}, {0.5f, 0.f});
+}
+
+void CBLeaderboardLayer::updateTabSelection() {
+    for (auto& tab : m_tabs) {
+        tab->toggle(tab->getTag() == static_cast<int>(m_currentTab));
+    }
+}
+
+void CBLeaderboardLayer::onTabSelected(CCObject* sender) {
+    auto tab = static_cast<LeaderboardTab>(sender->getTag());
+    if (tab == m_currentTab) return;
+
+    m_currentTab = tab;
+    updateTabSelection();
+    fetchLeaderboard();
+}
+
 void CBLeaderboardLayer::fetchLeaderboard() {
     if (m_loadingCircle) m_loadingCircle->removeFromParent();
     m_loadingCircle = cue::LoadingCircle::create(true);
     if (m_list) {
+        m_list->clear();
         m_loadingCircle->addToLayer(m_list, 10);
     }
     m_loadingCircle->fadeIn();
 
     Ref<CBLeaderboardLayer> retainedSelf = this;
-    arc::spawn([retainedSelf]() -> arc::Future<> {
+    auto tab = m_currentTab;
+    arc::spawn([retainedSelf, tab]() -> arc::Future<> {
         auto req = geode::utils::web::WebRequest();
-        auto response = co_await req.get(fmt::format("{}/getLeaderboard", comment::baseUrl));
+        auto response = co_await req.get(fmt::format("{}/getLeaderboard?type={}", comment::baseUrl, getTabInfo(tab).type));
+
+        // ignore responses for a tab the user already switched away from
+        auto isStale = [retainedSelf, tab] {
+            return !retainedSelf || !retainedSelf->getParent() || retainedSelf->m_currentTab != tab;
+        };
 
         if (!response.ok()) {
-            geode::queueInMainThread([retainedSelf] {
-                if (!retainedSelf || !retainedSelf->getParent()) return;
+            geode::queueInMainThread([retainedSelf, isStale] {
+                if (isStale()) return;
                 if (retainedSelf->m_loadingCircle) retainedSelf->m_loadingCircle->fadeOut();
                 Notification::create("Failed to fetch leaderboard", NotificationIcon::Error)->show();
             });
@@ -94,8 +166,8 @@ void CBLeaderboardLayer::fetchLeaderboard() {
 
         auto jsonRes = response.json();
         if (jsonRes.isErr()) {
-            geode::queueInMainThread([retainedSelf] {
-                if (!retainedSelf || !retainedSelf->getParent()) return;
+            geode::queueInMainThread([retainedSelf, isStale] {
+                if (isStale()) return;
                 if (retainedSelf->m_loadingCircle) retainedSelf->m_loadingCircle->fadeOut();
                 Notification::create("Invalid JSON response", NotificationIcon::Error)->show();
             });
@@ -104,20 +176,20 @@ void CBLeaderboardLayer::fetchLeaderboard() {
 
         auto json = jsonRes.unwrap();
         if (!json.isArray()) {
-            geode::queueInMainThread([retainedSelf] {
-                if (!retainedSelf || !retainedSelf->getParent()) return;
+            geode::queueInMainThread([retainedSelf, isStale] {
+                if (isStale()) return;
                 if (retainedSelf->m_loadingCircle) retainedSelf->m_loadingCircle->fadeOut();
             });
             co_return;
         }
 
-        geode::queueInMainThread([retainedSelf, json = std::move(json)] {
-            if (!retainedSelf || !retainedSelf->getParent()) return;
+        geode::queueInMainThread([retainedSelf, isStale, tab, json = std::move(json)] {
+            if (isStale()) return;
             if (retainedSelf->m_loadingCircle) retainedSelf->m_loadingCircle->fadeOut();
             if (retainedSelf->m_list) retainedSelf->m_list->clear();
 
             if (json.size() == 0) {
-                auto emptyLabel = CCLabelBMFont::create("No earners found.", "bigFont.fnt");
+                auto emptyLabel = CCLabelBMFont::create(getTabInfo(tab).emptyText, "bigFont.fnt");
                 emptyLabel->setScale(0.5f);
                 if (retainedSelf->m_list) {
                     retainedSelf->m_list->addChildAtPosition(emptyLabel, Anchor::Center);
@@ -140,10 +212,12 @@ void CBLeaderboardLayer::fetchLeaderboard() {
                 cell->setContentSize({356.f, 40.f});
 
                 if (!equippedBannerUrl.empty()) {
-                    auto bannerSprite = comment::createBannerNode(fmt::format("{}{}", comment::baseUrl, equippedBannerUrl), {cell->getContentWidth() + 10, cell->getContentHeight() + 10});
-                    if (bannerSprite) {
-                        bannerSprite->setPosition({cell->getContentWidth() / 2, cell->getContentHeight() / 2});
-                        cell->addChild(bannerSprite, -2);
+                    if (!Mod::get()->getSettingValue<bool>("disable-banner-leaderboard")) {
+                        auto bannerSprite = comment::createBannerNode(fmt::format("{}{}", comment::baseUrl, equippedBannerUrl), {cell->getContentWidth() + 10, cell->getContentHeight() + 10});
+                        if (bannerSprite) {
+                            bannerSprite->setPosition({cell->getContentWidth() / 2, cell->getContentHeight() / 2});
+                            cell->addChild(bannerSprite, -2);
+                        }
                     }
                 }
 
@@ -215,23 +289,39 @@ void CBLeaderboardLayer::fetchLeaderboard() {
                 usernameBtn->setPosition({currentX, 20.f});
                 menu->addChild(usernameBtn);
 
-                // Earned
-                auto earnLabel = CCLabelBMFont::create(GameToolbox::pointsToString(totalEarned).c_str(), "bigFont.fnt");
+                // Main stat for the current tab, with a secondary stat underneath
+                std::string mainText;
+                std::string subText;
+                bool showAmethyst = true;
+                switch (tab) {
+                    case LeaderboardTab::Earners:
+                        mainText = GameToolbox::pointsToString(totalEarned);
+                        subText = fmt::format("Total Sales: {}", totalSales);
+                        break;
+                    case LeaderboardTab::Sales:
+                        mainText = fmt::format("{} Sales", GameToolbox::pointsToString(totalSales));
+                        subText = fmt::format("Total Earned: {}", GameToolbox::pointsToString(totalEarned));
+                        showAmethyst = false;
+                        break;
+                }
+
+                auto earnLabel = CCLabelBMFont::create(mainText.c_str(), "bigFont.fnt");
                 earnLabel->limitLabelWidth(150, 0.5f, 0.1f);
                 earnLabel->setAnchorPoint({1.f, 0.5f});
-                earnLabel->setPosition({320.f, 26.f});
+                earnLabel->setPosition({showAmethyst ? 320.f : 345.f, 26.f});
                 cell->addChild(earnLabel);
 
-                auto amethystIcon = CCSprite::createWithSpriteFrameName("CB_amethyst_001.png"_spr);
-                amethystIcon->setScale(0.6f);
-                amethystIcon->setPosition({335.f, 26.f});
-                cell->addChild(amethystIcon);
+                if (showAmethyst) {
+                    auto amethystIcon = CCSprite::createWithSpriteFrameName("CB_amethyst_001.png"_spr);
+                    amethystIcon->setScale(0.6f);
+                    amethystIcon->setPosition({335.f, 26.f});
+                    cell->addChild(amethystIcon);
+                }
 
-                // Sales
-                auto salesLabel = CCLabelBMFont::create(fmt::format("Total Sales: {}", totalSales).c_str(), "bigFont.fnt");
+                auto salesLabel = CCLabelBMFont::create(subText.c_str(), "bigFont.fnt");
                 salesLabel->limitLabelWidth(150, 0.25f, 0.1f);
                 salesLabel->setAnchorPoint({1.f, 0.5f});
-                salesLabel->setPosition({320.f, 10.f});
+                salesLabel->setPosition({345.f, 10.f});
                 salesLabel->setColor({150, 255, 150});
                 cell->addChild(salesLabel);
 
