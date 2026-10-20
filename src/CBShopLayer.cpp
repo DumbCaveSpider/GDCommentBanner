@@ -113,6 +113,15 @@ void CBShopLayer::updateFilterSortLabel() {
     m_filterSortLabel->limitLabelWidth(300.f, 0.6f, 0.2f);
 }
 
+void CBShopLayer::onEnter() {
+    CCLayer::onEnter();
+    s_instance = this;
+}
+
+bool CBShopLayer::isStaleFetch(int fetchId) {
+    return !this->getParent() || s_instance != this || m_fetchId != fetchId;
+}
+
 void CBShopLayer::onExit() {
     if (s_instance == this) {
         s_instance = nullptr;
@@ -173,12 +182,13 @@ void CBShopLayer::fetchBanners() {
         int sortState = self->m_sortState;
         std::string searchQuery = self->m_searchQuery;
         int equippedBannerId = self->m_equippedBannerId;
+        int fetchId = ++self->m_fetchId;
 
-        arc::spawn([self, accountId, accountData, currentPage, itemsPerPage, filterState, sortState, searchQuery, equippedBannerId]() -> arc::Future<> {
+        arc::spawn([self, fetchId, accountId, accountData, currentPage, itemsPerPage, filterState, sortState, searchQuery, equippedBannerId]() -> arc::Future<> {
             auto authResult = co_await comment::argonToken(accountData);
             if (authResult.empty()) {
-                geode::queueInMainThread([self]() {
-                    if (!self || !self->getParent() || s_instance != self.data()) {
+                geode::queueInMainThread([self, fetchId]() {
+                    if (!self || self->isStaleFetch(fetchId)) {
                         return;
                     }
                     if (self->m_loadingCircle) {
@@ -202,8 +212,8 @@ void CBShopLayer::fetchBanners() {
             }
             auto response = co_await req.bodyJSON(body).post(fmt::format("{}/getBanners", comment::baseUrl));
             if (!response.ok()) {
-                geode::queueInMainThread([self]() {
-                    if (!self || !self->getParent() || s_instance != self.data()) {
+                geode::queueInMainThread([self, fetchId]() {
+                    if (!self || self->isStaleFetch(fetchId)) {
                         return;
                     }
                     if (self->m_loadingCircle) {
@@ -216,8 +226,8 @@ void CBShopLayer::fetchBanners() {
 
             auto jsonRes = response.json();
             if (jsonRes.isErr()) {
-                geode::queueInMainThread([self]() {
-                    if (!self || !self->getParent() || s_instance != self.data()) {
+                geode::queueInMainThread([self, fetchId]() {
+                    if (!self || self->isStaleFetch(fetchId)) {
                         return;
                     }
                     if (self->m_loadingCircle) {
@@ -230,8 +240,8 @@ void CBShopLayer::fetchBanners() {
 
             auto json = jsonRes.unwrap();
             if (!json.isObject()) {
-                geode::queueInMainThread([self]() {
-                    if (!self || !self->getParent() || s_instance != self.data()) {
+                geode::queueInMainThread([self, fetchId]() {
+                    if (!self || self->isStaleFetch(fetchId)) {
                         return;
                     }
                     if (self->m_loadingCircle) {
@@ -249,8 +259,8 @@ void CBShopLayer::fetchBanners() {
 
             auto bannersArr = json["banners"];
             if (!bannersArr.isArray()) {
-                geode::queueInMainThread([self]() {
-                    if (!self || !self->getParent() || s_instance != self.data()) {
+                geode::queueInMainThread([self, fetchId]() {
+                    if (!self || self->isStaleFetch(fetchId)) {
                         return;
                     }
                     if (self->m_loadingCircle) {
@@ -310,8 +320,8 @@ void CBShopLayer::fetchBanners() {
                 banners.push_back(std::move(banner));
             }
 
-            geode::queueInMainThread([self, totalItems, banners = std::move(banners)]() mutable {
-                if (!self || !self->getParent() || s_instance != self.data()) {
+            geode::queueInMainThread([self, fetchId, totalItems, banners = std::move(banners)]() mutable {
+                if (!self || self->isStaleFetch(fetchId)) {
                     return;
                 }
                 if (!self->m_list) {

@@ -2,11 +2,13 @@
 
 - Bump to Geode v6
 - Improved Banner Caching
+- Improved Loading Banners, banners will only load when they are visible on the screen
 - Updated Sprites
 - Fixed crashes for low end devices when loading too many banners
 - Added Disable Animated Background
 - Added Disable Banner Leaderboard
 - Added Top Sales on the Leaderboard
+- Fixed bug where leaving the shop and navigating the shop breaks the shop
 
 ## v0.1.8-beta.1
 

@@ -30,7 +30,9 @@ public:
 
 private:
     bool init() override;
+    void onEnter() override;
     void onExit() override;
+    bool isStaleFetch(int fetchId);
     ~CBShopLayer() override;
     void keyBackClicked() override;
     void fetchBanners();
@@ -51,6 +53,7 @@ private:
     int m_currentPage = 0;
     int m_itemsPerPage = 10;
     int m_totalItems = 0;
+    int m_fetchId = 0;  // bumped on every fetchBanners, older responses are ignored
     std::string m_searchQuery = "";
     Ref<CCMenuItemSpriteExtra> m_searchButton = nullptr;
     Ref<CCMenuItemSpriteExtra> m_prevButton = nullptr;
