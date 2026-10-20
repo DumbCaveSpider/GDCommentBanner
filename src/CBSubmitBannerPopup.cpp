@@ -6,6 +6,7 @@
 #include "Geode/ui/General.hpp"
 #include "Geode/utils/general.hpp"
 #include "include/CBConstant.hpp"
+#include "include/CBCommentPreview.hpp"
 #include "include/CBLocalBanner.hpp"
 #include "CBLocalBannersPopup.hpp"
 #include <Geode/utils/file.hpp>
@@ -420,46 +421,13 @@ void CBSubmitBannerPopup::onPreview(CCObject*) {
 
     auto winSize = CCDirector::sharedDirector()->getWinSize();
 
-    auto createPreviewNode = [](std::string const& filePath, CCSize const& size) -> CCNode* {
-        auto clip = CCClippingNode::create();
-        clip->setContentSize(size);
-        clip->setAnchorPoint({0.5f, 0.5f});
-        //clip->setAlphaThreshold(0.01f);
-
-        auto stencil = CCLayerColor::create(ccColor4B{255, 255, 255, 255}, size.width, size.height);
-        clip->setStencil(stencil);
-
-        auto bg = NineSlice::create("square02_small.png");
-        bg->setContentSize(size);
-        bg->setPosition(size / 2.f);
-        bg->setOpacity(100);
-        clip->addChild(bg);
-
-        auto image = comment::createBannerNode(filePath, size);
-        image->setPosition(size / 2.f);
-        if (auto lazy = static_cast<LazySprite*>(image)) {
-            lazy->setAutoResize(false);
-            auto applyScale = [lazy, size]() {
-                if (!lazy->getTexture()) return;
-                auto texSize = lazy->getTexture()->getContentSize();
-                if (texSize.width <= 0 || texSize.height <= 0) return;
-                float scale = std::max(size.width / texSize.width, size.height / texSize.height);
-                lazy->setScale(scale);
-            };
-            if (lazy->isLoaded()) {
-                applyScale();
-            }
-            lazy->setLoadCallback([applyScale](auto) {
-                applyScale();
-            });
-        }
-        clip->addChild(image);
-
-        return clip;
+    // mockup of the in-game comment cell, banner applied the same way as CBHook
+    auto createPreviewNode = [](std::string const& filePath, bool compact) -> CCNode* {
+        return comment::createCommentPreview(filePath, compact);
     };
 
     auto container = CCNode::create();
-    container->setContentSize({340.f, 160.f});
+    container->setContentSize({comment::kCommentCellWidth, 160.f});
     container->setAnchorPoint({0.5f, 0.5f});
     container->setPosition(winSize / 2);
     container->setLayout(ColumnLayout::create()
@@ -467,14 +435,14 @@ void CBSubmitBannerPopup::onPreview(CCObject*) {
             ->setAutoScale(false)
             ->setAxisAlignment(AxisAlignment::Center));
 
-    auto nonCompactPreview = createPreviewNode(m_selectedFilePath, {340.f, 80.f});
+    auto nonCompactPreview = createPreviewNode(m_selectedFilePath, false);
     container->addChild(nonCompactPreview);
 
     auto nonCompactLabel = CCLabelBMFont::create("Non-Compact Mode", "goldFont.fnt");
     nonCompactLabel->setScale(0.45f);
     container->addChild(nonCompactLabel);
 
-    auto compactPreview = createPreviewNode(m_selectedFilePath, {340.f, 36.f});
+    auto compactPreview = createPreviewNode(m_selectedFilePath, true);
     container->addChild(compactPreview);
 
     auto compactLabel = CCLabelBMFont::create("Compact Mode", "goldFont.fnt");

@@ -107,8 +107,6 @@ class BannerLoader : public CCObject {
                 co_return;
             }
 
-            // copy instead of std::move(response).data(): that buffer is allocated by
-            // Geode.dll, and freeing it from this dll trips the STL heap checks
             auto const& body = response.data();
             std::vector<uint8_t> data(body.begin(), body.end());
 
@@ -144,8 +142,6 @@ class BannerLoader : public CCObject {
                 sprite->cancelLoad();  // removes the loading circle
                 continue;
             }
-            // pointer overload so Geode makes its own copy, a std::vector would be
-            // allocated here and freed inside Geode.dll
             sprite->loadFromData(data.data(), data.size(), format);
             m_decoding.push_back(WeakRef(sprite.data()));
         }

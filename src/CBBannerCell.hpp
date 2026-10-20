@@ -25,7 +25,10 @@ struct CBBannerItem {
 
 class CBBannerCell : public cocos2d::CCLayer {
 public:
-    static CBBannerCell* create(const CBBannerItem& banner, float width);
+    // disableCommentPreview: show the plain banner image instead of the comment cell mockup
+    static CBBannerCell* create(const CBBannerItem& banner, float width, bool disableCommentPreview = false);
+    // Comment cell mockup of the banner that fits inside maxSize, tap it to switch compact/non-compact
+    static cocos2d::CCNode* createCommentPreviewButton(std::string const& imageUrl, cocos2d::CCSize const& maxSize);
 
 private:
     void showPurchaseConfirm();

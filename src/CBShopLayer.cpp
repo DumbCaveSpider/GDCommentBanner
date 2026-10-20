@@ -349,7 +349,7 @@ void CBShopLayer::populateList() {
     float listWidth = m_list->getListSize().width;
 
     for (auto const& banner : m_banners) {
-        auto cell = CBBannerCell::create(banner, listWidth);
+        auto cell = CBBannerCell::create(banner, listWidth, true);
         if (cell) {
             m_list->setCellColor(ccColor4B{0, 0, 0, 0});
             m_list->addCell(cell);

@@ -237,7 +237,7 @@ void CBProfileBannerPopup::fetchBanners() {
 
                 banner.equipped = (Mod::get()->getSavedValue<int>("equipped-banner", -1) == banner.id);
 
-                if (auto cell = CBBannerCell::create(banner, 340.f)) {
+                if (auto cell = CBBannerCell::create(banner, 340.f, true)) {
                     retainedSelf->m_list->addCell(cell);
                 }
             }

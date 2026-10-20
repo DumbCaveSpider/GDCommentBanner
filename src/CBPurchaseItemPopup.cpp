@@ -22,7 +22,7 @@ CBPurchaseItemPopup* CBPurchaseItemPopup::create(const CBBannerItem& banner) {
 }
 
 bool CBPurchaseItemPopup::init(const CBBannerItem& banner) {
-    if (!Popup::init(380.f, 190.f, "GJ_square02.png")) {
+    if (!Popup::init(380.f, 220.f, "GJ_square02.png")) {
         return false;
     }
 
@@ -59,7 +59,7 @@ bool CBPurchaseItemPopup::init(const CBBannerItem& banner) {
     }
 
     if (!m_banner.imageUrl.empty()) {
-        auto bannerSprite = comment::createBannerNode(m_banner.imageUrl, {345.f, 35.f});
+        auto bannerSprite = CBBannerCell::createCommentPreviewButton(m_banner.imageUrl, {345.f, 65.f});
         if (bannerSprite) {
             m_mainLayer->addChildAtPosition(bannerSprite, Anchor::Center, {0.f, 15.f}, false);
         }
@@ -67,7 +67,7 @@ bool CBPurchaseItemPopup::init(const CBBannerItem& banner) {
 
     auto descriptionLabel = geode::MDTextArea::create(m_banner.description, {m_mainLayer->getContentSize().width - 40.f, 45.f});
     if (descriptionLabel) {
-        m_mainLayer->addChildAtPosition(descriptionLabel, Anchor::Center, {0.f, -25.f}, false);
+        m_mainLayer->addChildAtPosition(descriptionLabel, Anchor::Center, {0.f, -45.f}, false);
     }
 
     auto cancelButton = geode::Button::createWithNode(

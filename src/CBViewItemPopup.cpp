@@ -21,7 +21,7 @@ CBViewItemPopup* CBViewItemPopup::create(const CBBannerItem& banner) {
 }
 
 bool CBViewItemPopup::init(const CBBannerItem& banner) {
-    if (!Popup::init(380.f, 190.f, "GJ_square01.png")) {
+    if (!Popup::init(380.f, 220.f, "GJ_square01.png")) {
         return false;
     }
 
@@ -97,15 +97,15 @@ bool CBViewItemPopup::init(const CBBannerItem& banner) {
     }
 
     if (!m_banner.imageUrl.empty()) {
-        auto bannerSprite = comment::createBannerNode(m_banner.imageUrl, {345.f, 35.f});
-        if (bannerSprite) {
-            m_mainLayer->addChildAtPosition(bannerSprite, Anchor::Center, {0.f, 15.f}, false);
+        // fits between the username and the description
+        if (auto preview = CBBannerCell::createCommentPreviewButton(m_banner.imageUrl, {345.f, 65.f})) {
+            m_mainLayer->addChildAtPosition(preview, Anchor::Center, {0.f, 15.f}, false);
         }
     }
 
     auto descriptionLabel = geode::MDTextArea::create(m_banner.description, {m_mainLayer->getContentSize().width - 40.f, 45.f});
     if (descriptionLabel) {
-        m_mainLayer->addChildAtPosition(descriptionLabel, Anchor::Center, {0.f, -25.f}, false);
+        m_mainLayer->addChildAtPosition(descriptionLabel, Anchor::Center, {0.f, -45.f}, false);
     }
 
     auto detailNode = CCNode::create();

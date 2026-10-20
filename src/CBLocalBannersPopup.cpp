@@ -94,7 +94,7 @@ void CBLocalBannersPopup::fetchBanners() {
         item.isLocal = true;
         item.owns = true;
 
-        if (auto cell = CBBannerCell::create(item, 340.f)) {
+        if (auto cell = CBBannerCell::create(item, 340.f, true)) {
             if (m_list) {
                 m_list->addCell(cell);
             }

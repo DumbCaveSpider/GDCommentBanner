@@ -5,6 +5,7 @@
 #include "Geode/ui/Layout.hpp"
 #include "ccTypes.h"
 #include "include/CBConstant.hpp"
+#include "include/CBCommentPreview.hpp"
 #include "CBShopLayer.hpp"
 #include <Geode/binding/UploadActionPopup.hpp>
 #include <Geode/ui/Popup.hpp>
@@ -20,7 +21,61 @@ struct EquipRequest {
     int BannerID;
 };
 
-CBBannerCell* CBBannerCell::create(const CBBannerItem& banner, float width) {
+static constexpr auto kPreviewID = "cb-comment-preview";
+static constexpr auto kPreviewCompactKey = "preview-compact";
+static constexpr float kPreviewMaxHeight = 54.f;
+
+// shows the compact or non-compact mockup depending on the saved preference
+static void applyPreviewMode(CCNode* container) {
+    bool compact = Mod::get()->getSavedValue<bool>(kPreviewCompactKey, false);
+    if (auto normalPreview = container->getChildByTag(0)) normalPreview->setVisible(!compact);
+    if (auto compactPreview = container->getChildByTag(1)) compactPreview->setVisible(compact);
+}
+
+static void applyPreviewModeRecursive(CCNode* node) {
+    if (node->getID() == kPreviewID) {
+        applyPreviewMode(node);
+        return;
+    }
+    for (auto child : node->getChildrenExt()) {
+        applyPreviewModeRecursive(child);
+    }
+}
+
+static CCNode* createCellPreview(std::string const& imageUrl, CCSize const& maxSize) {
+    auto container = CCNode::create();
+    container->setID(kPreviewID);
+    container->setAnchorPoint({0.5f, 0.5f});
+
+    CCSize containerSize = CCSizeZero;
+    for (bool compact : {false, true}) {
+        auto preview = comment::createCommentPreview(imageUrl, compact);
+        preview->setScale(std::min(maxSize.width / preview->getContentWidth(), maxSize.height / preview->getContentHeight()));
+        preview->setTag(compact ? 1 : 0);
+        container->addChild(preview);
+        containerSize.width = std::max(containerSize.width, preview->getScaledContentWidth());
+        containerSize.height = std::max(containerSize.height, preview->getScaledContentHeight());
+    }
+    container->setContentSize(containerSize);
+    for (auto child : container->getChildrenExt()) {
+        child->setPosition(containerSize / 2.f);
+    }
+    applyPreviewMode(container);
+    return container;
+}
+
+CCNode* CBBannerCell::createCommentPreviewButton(std::string const& imageUrl, CCSize const& maxSize) {
+    return Button::createWithNode(createCellPreview(imageUrl, maxSize), [](geode::Button* sender) {
+        // switch between compact and non-compact, applied to every visible preview
+        auto compact = Mod::get()->getSavedValue<bool>(kPreviewCompactKey, false);
+        Mod::get()->setSavedValue(kPreviewCompactKey, !compact);
+        if (auto scene = CCDirector::sharedDirector()->getRunningScene()) {
+            applyPreviewModeRecursive(scene);
+        }
+    });
+}
+
+CBBannerCell* CBBannerCell::create(const CBBannerItem& banner, float width, bool disableCommentPreview) {
     static constexpr auto cellHeight = 96.f;
     auto cellBg = new CBBannerCell();
     cellBg->m_banner = banner;
@@ -51,9 +106,14 @@ CBBannerCell* CBBannerCell::create(const CBBannerItem& banner, float width) {
         cellBg->addChild(background);
     }
 
-    auto sprite = comment::createBannerNode(banner.imageUrl, {324.f, 104.f});
-    sprite->setPosition({width / 2.f, cellHeight - 30.f});
-    cellBg->addChild(sprite);
+    if (disableCommentPreview) {
+        auto sprite = comment::createBannerNode(banner.imageUrl, {324.f, 104.f});
+        sprite->setPosition({width / 2.f, cellHeight - 30.f});
+        cellBg->addChild(sprite);
+    } else if (auto previewButton = createCommentPreviewButton(banner.imageUrl, {width - 32.f, kPreviewMaxHeight})) {
+        previewButton->setPosition({width / 2.f, cellHeight - 27.f});
+        cellBg->addChild(previewButton);
+    }
 
     CCLabelBMFont* nameLabel = nullptr;
     if (!banner.name.empty()) {
