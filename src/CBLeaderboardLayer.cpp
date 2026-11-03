@@ -189,7 +189,7 @@ void CBLeaderboardLayer::fetchLeaderboard() {
             if (retainedSelf->m_list) retainedSelf->m_list->clear();
 
             if (json.size() == 0) {
-                auto emptyLabel = CCLabelBMFont::create(getTabInfo(tab).emptyText, "bigFont.fnt");
+                auto emptyLabel = geode::Label::create(getTabInfo(tab).emptyText, "bigFont.fnt");
                 emptyLabel->setScale(0.5f);
                 if (retainedSelf->m_list) {
                     retainedSelf->m_list->addChildAtPosition(emptyLabel, Anchor::Center);
@@ -222,7 +222,7 @@ void CBLeaderboardLayer::fetchLeaderboard() {
                 }
 
                 // Rank
-                auto rankLabel = CCLabelBMFont::create(fmt::format("{}", i + 1).c_str(), "goldFont.fnt");
+                auto rankLabel = geode::Label::create(fmt::format("{}", i + 1).c_str(), "goldFont.fnt");
                 rankLabel->setScale(0.6f);
                 rankLabel->setAnchorPoint({0.f, 0.5f});
                 rankLabel->setPosition({10.f, 20.f});
@@ -274,8 +274,8 @@ void CBLeaderboardLayer::fetchLeaderboard() {
                 menu->setPosition({0, 0});
                 cell->addChild(menu);
 
-                auto usernameLabel = CCLabelBMFont::create(username.c_str(), "bigFont.fnt");
-                usernameLabel->limitLabelWidth(std::max(60.f, 165.f - currentX), 0.6f, 0.1f);
+                auto usernameLabel = geode::Label::create(username.c_str(), "bigFont.fnt");
+                usernameLabel->setLimitLabelWidth(std::max(60.f, 165.f - currentX), 0.6f, 0.1f);
 
                 auto usernameBtn = geode::Button::createWithNode(
                     usernameLabel,
@@ -305,8 +305,8 @@ void CBLeaderboardLayer::fetchLeaderboard() {
                         break;
                 }
 
-                auto earnLabel = CCLabelBMFont::create(mainText.c_str(), "bigFont.fnt");
-                earnLabel->limitLabelWidth(150, 0.5f, 0.1f);
+                auto earnLabel = geode::Label::create(mainText.c_str(), "bigFont.fnt");
+                earnLabel->setLimitLabelWidth(150, 0.5f, 0.1f);
                 earnLabel->setAnchorPoint({1.f, 0.5f});
                 earnLabel->setPosition({showAmethyst ? 320.f : 345.f, 26.f});
                 cell->addChild(earnLabel);
@@ -318,8 +318,8 @@ void CBLeaderboardLayer::fetchLeaderboard() {
                     cell->addChild(amethystIcon);
                 }
 
-                auto salesLabel = CCLabelBMFont::create(subText.c_str(), "bigFont.fnt");
-                salesLabel->limitLabelWidth(150, 0.25f, 0.1f);
+                auto salesLabel = geode::Label::create(subText.c_str(), "bigFont.fnt");
+                salesLabel->setLimitLabelWidth(150, 0.25f, 0.1f);
                 salesLabel->setAnchorPoint({1.f, 0.5f});
                 salesLabel->setPosition({345.f, 10.f});
                 salesLabel->setColor({150, 255, 150});

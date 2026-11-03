@@ -1,6 +1,6 @@
 #include "CBUpdateAmountPopup.hpp"
 #include <Geode/utils/web.hpp>
-#include <argon/argon.hpp>
+#include <dankmeme.argon/argon.hpp>
 #include "Geode/ui/General.hpp"
 #include <Geode/binding/UploadActionPopup.hpp>
 #include "include/CBConstant.hpp"

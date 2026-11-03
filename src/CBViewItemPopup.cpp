@@ -80,10 +80,10 @@ bool CBViewItemPopup::init(const CBBannerItem& banner) {
     priceNode->setContentSize({180.f, 30.f});
     priceNode->setAnchorPoint({0.f, 0.f});
     priceNode->setLayout(RowLayout::create()->setAxisAlignment(AxisAlignment::Start)->setGap(5));
-    auto priceLabel = CCLabelBMFont::create(fmt::format("{}", GameToolbox::pointsToString(m_banner.price)).c_str(), "bigFont.fnt");
+    auto priceLabel = geode::Label::create(fmt::format("{}", GameToolbox::pointsToString(m_banner.price)).c_str(), "bigFont.fnt");
     if (priceLabel) {
         priceLabel->setAnchorPoint({1.f, 0.5f});
-        priceLabel->limitLabelWidth(150.f, 0.45f, 0.2f);
+        priceLabel->setLimitLabelWidth(150.f, 0.45f, 0.2f);
         priceNode->addChild(priceLabel);
 
         if (auto amethystIcon = CCSprite::createWithSpriteFrameName("CB_amethyst_002.png"_spr)) {
@@ -118,22 +118,22 @@ bool CBViewItemPopup::init(const CBBannerItem& banner) {
             ->setAutoScale(false)
             ->setCrossAxisOverflow(false));
     if (m_banner.isLimited) {
-        if (auto amountLabel = CCLabelBMFont::create(fmt::format("Amount Left: {}", m_banner.amount - m_banner.totalBought).c_str(), "goldFont.fnt")) {
+        if (auto amountLabel = geode::Label::create(fmt::format("Amount Left: {}", m_banner.amount - m_banner.totalBought).c_str(), "goldFont.fnt")) {
             amountLabel->setAnchorPoint({1.f, 0.5f});
-            amountLabel->limitLabelWidth(80.f, 0.5f, 0.2f);
+            amountLabel->setLimitLabelWidth(80.f, 0.5f, 0.2f);
             detailNode->addChild(amountLabel);
         }
     }
 
-    if (auto totalBoughtLabel = CCLabelBMFont::create(fmt::format("Bought: {}", m_banner.totalBought).c_str(), "goldFont.fnt")) {
+    if (auto totalBoughtLabel = geode::Label::create(fmt::format("Bought: {}", m_banner.totalBought).c_str(), "goldFont.fnt")) {
         totalBoughtLabel->setAnchorPoint({1.f, 0.5f});
-        totalBoughtLabel->limitLabelWidth(80.f, 0.5f, 0.2f);
+        totalBoughtLabel->setLimitLabelWidth(80.f, 0.5f, 0.2f);
         detailNode->addChild(totalBoughtLabel);
     }
 
-    if (auto equippedLabel = CCLabelBMFont::create(fmt::format("Equipped: {}", m_banner.equippedCount).c_str(), "goldFont.fnt")) {
+    if (auto equippedLabel = geode::Label::create(fmt::format("Equipped: {}", m_banner.equippedCount).c_str(), "goldFont.fnt")) {
         equippedLabel->setAnchorPoint({1.f, 0.5f});
-        equippedLabel->limitLabelWidth(80.f, 0.5f, 0.2f);
+        equippedLabel->setLimitLabelWidth(80.f, 0.5f, 0.2f);
         detailNode->addChild(equippedLabel);
     }
 

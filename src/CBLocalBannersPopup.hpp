@@ -18,5 +18,5 @@ private:
 
     static CBLocalBannersPopup* s_instance;
     cue::ListNode* m_list = nullptr;
-    CCLabelBMFont* m_noBannersLabel = nullptr;
+    geode::Label* m_noBannersLabel = nullptr;
 };

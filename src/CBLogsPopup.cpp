@@ -1,6 +1,6 @@
 #include "CBLogsPopup.hpp"
 #include <Geode/utils/web.hpp>
-#include <argon/argon.hpp>
+#include <dankmeme.argon/argon.hpp>
 #include "Geode/ui/Notification.hpp"
 #include "include/CBConstant.hpp"
 #include <Geode/ui/Scrollbar.hpp>
@@ -96,8 +96,8 @@ void CBLogsPopup::fetchLogs() {
             retainedSelf->m_list->clear();
 
             if (json.size() == 0) {
-                auto emptyLabel = CCLabelBMFont::create("No notifications yet.", "goldFont.fnt");
-                emptyLabel->limitLabelWidth(retainedSelf->m_list->getContentWidth() - 20.f, 0.7f, 0.15f);
+                auto emptyLabel = geode::Label::create("No notifications yet.", "goldFont.fnt");
+                emptyLabel->setLimitLabelWidth(retainedSelf->m_list->getContentWidth() - 20.f, 0.7f, 0.15f);
                 retainedSelf->m_list->addChildAtPosition(emptyLabel, Anchor::Center);
                 return;
             }
@@ -112,7 +112,7 @@ void CBLogsPopup::fetchLogs() {
                 auto cell = CCLayer::create();
                 cell->setContentSize({340.f, 60.f});
 
-                auto actionLabel = CCLabelBMFont::create(actionType.c_str(), "bigFont.fnt");
+                auto actionLabel = geode::Label::create(actionType.c_str(), "bigFont.fnt");
                 actionLabel->setScale(0.40f);
                 actionLabel->setAnchorPoint({0.f, 1.f});
                 actionLabel->setPosition({10.f, 58.f});
@@ -125,7 +125,7 @@ void CBLogsPopup::fetchLogs() {
                 }
                 cell->addChild(actionLabel);
 
-                auto infoLabel = CCLabelBMFont::create(fmt::format("#{} - {}", id, createdAt).c_str(), "chatFont.fnt");
+                auto infoLabel = geode::Label::create(fmt::format("#{} - {}", id, createdAt).c_str(), "chatFont.fnt");
                 infoLabel->setScale(0.4f);
                 infoLabel->setOpacity(200);
                 infoLabel->setColor({0, 0, 0});

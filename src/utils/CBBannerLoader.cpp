@@ -34,7 +34,7 @@ static uint64_t fnv1a(std::string_view str) {
     return hash;
 }
 
-static std::filesystem::path getCachePath(std::string_view url) {
+static asp::fs::Path getCachePath(std::string_view url) {
     return comment::loader::getCacheDir() / fmt::format("{:016x}.img", fnv1a(url));
 }
 
@@ -72,7 +72,7 @@ class BannerLoader : public CCObject {
         CCScheduler::get()->scheduleUpdateForTarget(this, 0, false);
     }
 
-    void startDecode(LazySprite* sprite, std::filesystem::path const& path, LazySprite::Format format) {
+    void startDecode(LazySprite* sprite, asp::fs::Path const& path, LazySprite::Format format) {
         // ignoreCache = true, otherwise every texture stays in CCTextureCache forever
         sprite->loadFromFile(path, format, true);
         m_decoding.push_back(WeakRef(sprite));
@@ -85,8 +85,7 @@ class BannerLoader : public CCObject {
         }
 
         auto cachePath = getCachePath(source);
-        std::error_code ec;
-        if (std::filesystem::exists(cachePath, ec)) {
+        if (cachePath.exists()) {
             startDecode(sprite, cachePath, guessFormat(source));
             return;
         }
@@ -114,9 +113,8 @@ class BannerLoader : public CCObject {
             auto tmpPath = cachePath;
             tmpPath += ".tmp";
             if (auto res = utils::file::writeBinary(tmpPath, data); res) {
-                std::error_code ec;
-                std::filesystem::rename(tmpPath, cachePath, ec);
-                if (ec) log::warn("Failed to save banner cache '{}': {}", url, ec.message());
+                auto renamed = asp::fs::rename(tmpPath, cachePath);
+                if (!renamed) log::warn("Failed to save banner cache '{}': {}", url, renamed.unwrapErr());
             } else {
                 log::warn("Failed to save banner cache '{}': {}", url, res.unwrapErr());
             }
@@ -200,7 +198,7 @@ namespace comment::loader {
         BannerLoader::get()->queue(sprite, std::move(source));
     }
 
-    std::filesystem::path getCacheDir() {
+    asp::fs::Path getCacheDir() {
         static auto dir = [] {
             auto path = Mod::get()->getSaveDir() / "banner_cache";
             (void)utils::file::createDirectoryAll(path);
@@ -210,8 +208,7 @@ namespace comment::loader {
     }
 
     void clearDiskCache() {
-        std::error_code ec;
-        std::filesystem::remove_all(getCacheDir(), ec);
-        std::filesystem::create_directories(getCacheDir(), ec);
+        (void)asp::fs::removeDirAll(getCacheDir(), false);
+        (void)asp::fs::createDirAll(getCacheDir());
     }
 }

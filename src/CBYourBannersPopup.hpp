@@ -19,6 +19,6 @@ private:
 
     cue::ListNode* m_list = nullptr;
     cue::LoadingCircle* m_loadingCircle = nullptr;
-    CCLabelBMFont* m_earnLabel = nullptr;
-    CCLabelBMFont* m_pageLabel = nullptr;
+    geode::Label* m_earnLabel = nullptr;
+    geode::Label* m_pageLabel = nullptr;
 };

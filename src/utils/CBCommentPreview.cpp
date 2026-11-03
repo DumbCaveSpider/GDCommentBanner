@@ -75,8 +75,8 @@ namespace comment {
         mainLayer->addChild(player, 1);
         float iconSpace = 26.f;
 
-        auto name = CCLabelBMFont::create(getPreviewUsername().c_str(), "goldFont.fnt");
-        name->limitLabelWidth(150.f, compact ? 0.5f : 0.7f, 0.f);
+        auto name = geode::Label::create(getPreviewUsername().c_str(), "goldFont.fnt");
+        name->setLimitLabelWidth(150.f, compact ? 0.5f : 0.7f, 0.f);
         name->setAnchorPoint({0.f, 0.5f});
         name->setPosition({iconSpace + 10.f, height - (compact ? 10.f : 18.f)});
         mainLayer->addChild(name);
@@ -90,11 +90,11 @@ namespace comment {
             mainLayer->addChild(background, -1);
         }
 
-        auto text = CCLabelBMFont::create("This is how your banner looks in comments!", "chatFont.fnt");
+        auto text = geode::Label::create("This is how your banner looks in comments!", "chatFont.fnt");
         text->setAnchorPoint({0.f, 0.5f});
         if (compact) {
             text->setPosition({10.f, height * 0.5f - 9.f});
-            text->limitLabelWidth(270.f, 0.7f, 0.f);
+            text->setLimitLabelWidth(270.f, 0.7f, 0.f);
 
             // CBHook adds a plate behind the text in compact mode so it stays readable
             auto textBg = NineSlice::create("square02_small.png");
@@ -106,7 +106,7 @@ namespace comment {
             mainLayer->addChild(textBg, -1);
         } else {
             text->setPosition({10.f, height * 0.5f});
-            text->limitLabelWidth(width - 45.f, 1.f, 0.f);
+            text->setLimitLabelWidth(width - 45.f, 1.f, 0.f);
         }
         mainLayer->addChild(text);
 
@@ -116,7 +116,7 @@ namespace comment {
         float labelGap = compact ? 12.f : 13.f;
         CCPoint likePos{width - (compact ? 32.f : 39.f) - (compact ? 16.f : 20.f), height - (compact ? 14.f : 20.f)};
 
-        auto likeLabel = CCLabelBMFont::create("67", "bigFont.fnt");
+        auto likeLabel = geode::Label::create("67", "bigFont.fnt");
         likeLabel->setPosition(likePos + CCPoint{(compact ? 8.f : 14.f) + labelGap, compact ? 1.f : 0.5f});
         likeLabel->setScale(labelScale);
         mainLayer->addChild(likeLabel);
@@ -126,13 +126,13 @@ namespace comment {
         likeIcon->setPosition(likePos + CCPoint{0.f, 2.f});
         mainLayer->addChild(likeIcon);
 
-        auto dots = CCLabelBMFont::create("...", "bigFont.fnt");
+        auto dots = geode::Label::create("...", "bigFont.fnt");
         dots->setScale(compact ? 0.4f : 0.5f);
         dots->setOpacity(120);
         dots->setPosition({width - (compact ? 10.f : 12.f), height - (compact ? 7.f : 9.f)});
         mainLayer->addChild(dots);
 
-        auto age = CCLabelBMFont::create("1 minute ago", "chatFont.fnt");
+        auto age = geode::Label::create("1 minute ago", "chatFont.fnt");
         age->setAnchorPoint({1.f, 0.5f});
         age->setScale(compact ? 0.4f : 0.55f);
         age->setColor({0, 0, 0});

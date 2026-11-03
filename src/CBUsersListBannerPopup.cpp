@@ -1,6 +1,6 @@
 #include "CBUsersListBannerPopup.hpp"
 #include "CBProfileBannerPopup.hpp"
-#include <argon/argon.hpp>
+#include <dankmeme.argon/argon.hpp>
 #include "include/CBConstant.hpp"
 #include <Geode/ui/Scrollbar.hpp>
 #include <Geode/ui/Button.hpp>
@@ -48,7 +48,7 @@ bool CBUsersListBannerPopup::init(int bannerId, int listType) {
         m_buttonMenu->addChildAtPosition(m_nextBtn, Anchor::Right, {20.f, 0.f});
     }
 
-    m_pageLabel = CCLabelBMFont::create("1 to 100", "goldFont.fnt");
+    m_pageLabel = geode::Label::create("1 to 100", "goldFont.fnt");
     m_pageLabel->setScale(0.5f);
     m_pageLabel->setZOrder(5);
     m_mainLayer->addChildAtPosition(m_pageLabel, Anchor::Bottom, {0.f, 15.f}, false);
@@ -151,8 +151,8 @@ void CBUsersListBannerPopup::fetchUsers() {
             retainedSelf->updatePaginationButtons();
 
             if (usersArr.size() == 0) {
-                auto emptyLabel = CCLabelBMFont::create("No users found", "goldFont.fnt");
-                emptyLabel->limitLabelWidth(retainedSelf->m_list->getContentWidth() - 20.f, 0.7f, 0.15f);
+                auto emptyLabel = geode::Label::create("No users found", "goldFont.fnt");
+                emptyLabel->setLimitLabelWidth(retainedSelf->m_list->getContentWidth() - 20.f, 0.7f, 0.15f);
                 if (retainedSelf->m_list) {
                     retainedSelf->m_list->addChildAtPosition(emptyLabel, Anchor::Center);
                 }
@@ -176,8 +176,8 @@ void CBUsersListBannerPopup::fetchUsers() {
                     }
                 }
 
-                auto usernameLabel = CCLabelBMFont::create(username.c_str(), "bigFont.fnt");
-                usernameLabel->limitLabelWidth(200.f, 0.6f, 0.1f);
+                auto usernameLabel = geode::Label::create(username.c_str(), "bigFont.fnt");
+                usernameLabel->setLimitLabelWidth(200.f, 0.6f, 0.1f);
 
                 auto usernameBtn = geode::Button::createWithNode(
                     usernameLabel,

@@ -1,10 +1,10 @@
 #include "CBManageUserPopup.hpp"
-#include <argon/argon.hpp>
+#include <dankmeme.argon/argon.hpp>
 #include <Geode/binding/UploadActionPopup.hpp>
 #include <Geode/binding/ProfilePage.hpp>
 #include <Geode/ui/BasedButtonSprite.hpp>
 #include <Geode/ui/Button.hpp>
-#include "Geode/cocos/label_nodes/CCLabelBMFont.h"
+#include <Geode/ui/Label.hpp>
 #include "Geode/utils/general.hpp"
 #include "ccTypes.h"
 #include <Geode/ui/Scrollbar.hpp>
@@ -56,8 +56,8 @@ bool CBManageUserPopup::init(matjson::Value const& userData) {
     staffRow->addChild(m_staffToggler);
     controlsMenu->addChild(staffRow);
 
-    auto staffLabel = CCLabelBMFont::create("Is Staff", "bigFont.fnt");
-    staffLabel->limitLabelWidth(150.f, 0.6f, 0.4f);
+    auto staffLabel = geode::Label::create("Is Staff", "bigFont.fnt");
+    staffLabel->setLimitLabelWidth(150.f, 0.6f, 0.4f);
     staffRow->addChild(staffLabel);
 
     staffRow->updateLayout();
@@ -308,7 +308,7 @@ void CBManageUserPopup::fetchUserBanners() {
             retainedSelf->m_bannersList->clear();
 
             if (json.size() == 0) {
-                auto emptyLabel = CCLabelBMFont::create("No banners.", "goldFont.fnt");
+                auto emptyLabel = geode::Label::create("No banners.", "goldFont.fnt");
                 emptyLabel->setScale(0.6f);
                 retainedSelf->m_bannersList->addChildAtPosition(emptyLabel, Anchor::Center);
                 return;

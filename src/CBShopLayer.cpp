@@ -4,7 +4,7 @@
 #include <Geode/binding/UploadActionPopup.hpp>
 #include <Geode/ui/Button.hpp>
 #include "CBShopLayer.hpp"
-#include "Geode/cocos/label_nodes/CCLabelBMFont.h"
+#include <Geode/ui/Label.hpp>
 #include "Geode/ui/TextArea.hpp"
 #include "include/CBLocalBanner.hpp"
 #include "CBBannerCell.hpp"
@@ -19,7 +19,7 @@
 #include "Geode/utils/web.hpp"
 #include "ccTypes.h"
 #include "include/CBConstant.hpp"
-#include <argon/argon.hpp>
+#include <dankmeme.argon/argon.hpp>
 #include <cue/LoadingCircle.hpp>
 #include <cue/ListBorder.hpp>
 #include <cue/ListNode.hpp>
@@ -110,7 +110,7 @@ void CBShopLayer::updateFilterSortLabel() {
     }
 
     m_filterSortLabel->setString(text.c_str());
-    m_filterSortLabel->limitLabelWidth(300.f, 0.6f, 0.2f);
+    m_filterSortLabel->setLimitLabelWidth(300.f, 0.6f, 0.2f);
 }
 
 void CBShopLayer::onEnter() {
@@ -546,15 +546,15 @@ bool CBShopLayer::init() {
     }
 
     // label that shows what filters/sort it is
-    m_filterSortLabel = CCLabelBMFont::create("All Banners", "goldFont.fnt");
+    m_filterSortLabel = geode::Label::create("All Banners", "goldFont.fnt");
     m_filterSortLabel->setScale(0.5f);
-    m_filterSortLabel->setAlignment(CCTextAlignment::kCCTextAlignmentLeft);
+    m_filterSortLabel->setAlignment(geode::Label::Alignment::Left);
     m_filterSortLabel->setVisible(true);
     m_filterSortLabel->setZOrder(5);
     this->addChildAtPosition(m_filterSortLabel, Anchor::Top, {0.f, -15.f}, false);
     this->updateFilterSortLabel();
 
-    m_noBannersLabel = CCLabelBMFont::create("No Banners Found", "goldFont.fnt");
+    m_noBannersLabel = geode::Label::create("No Banners Found", "goldFont.fnt");
     m_noBannersLabel->setScale(0.6f);
     m_noBannersLabel->setVisible(false);
     m_noBannersLabel->setZOrder(5);
@@ -596,7 +596,7 @@ bool CBShopLayer::init() {
         bottomRightMenu->updateLayout();
     }
 
-    if (auto settingsButton = geode::Button::createWithNode(CircleButtonSprite::createWithSpriteFrameName("geode.loader/settings.png", 1.f, CircleBaseColor::DarkPurple , CircleBaseSize::Small), [this](geode::Button* sender) {
+    if (auto settingsButton = geode::Button::createWithNode(CircleButtonSprite::createWithSpriteFrameName("geode.loader/settings.png", 1.f, CircleBaseColor::DarkPurple, CircleBaseSize::Small), [this](geode::Button* sender) {
             openSettingsPopup(getMod());
         })) {
         this->addChildAtPosition(settingsButton, Anchor::BottomLeft, {25.f, 65.f}, false);
@@ -729,7 +729,7 @@ bool CBShopLayer::init() {
     m_localOverlay->setZOrder(10);
     this->addChildAtPosition(m_localOverlay, Anchor::Center, {0.f, -22.f}, false);
 
-    if (auto headerLabel = CCLabelBMFont::create("Local Banner Equipped", "goldFont.fnt")) {
+    if (auto headerLabel = geode::Label::create("Local Banner Equipped", "goldFont.fnt")) {
         headerLabel->setScale(0.7f);
         m_localOverlay->addChildAtPosition(headerLabel, Anchor::Center, {0.f, 25.f}, false);
     }
@@ -756,8 +756,8 @@ bool CBShopLayer::init() {
     nextSprite->setScale(0.8f);
     m_nextButton = CCMenuItemSpriteExtra::create(nextSprite, this, menu_selector(CBShopLayer::onNextPage));
 
-    m_pageLabel = CCLabelBMFont::create("Page 1 of 1 (Total: 0)", "goldFont.fnt");
-    m_pageLabel->limitLabelWidth(100.f, 0.4f, 0.1f);
+    m_pageLabel = geode::Label::create("Page 1 of 1 (Total: 0)", "goldFont.fnt");
+    m_pageLabel->setLimitLabelWidth(100.f, 0.4f, 0.1f);
 
     paginationMenu->addChild(m_prevButton);
     this->addChildAtPosition(m_pageLabel, Anchor::Bottom, {0, 10}, false);
@@ -877,21 +877,21 @@ void CBShopLayer::onFilterClicked(CCObject* sender) {
     m_filterState = (m_filterState + 1) % 5;
 
     EditorBaseColor baseColor = EditorBaseColor::Gray;
-    // if (m_filterState == 1) {
-    //     baseColor = EditorBaseColor::Green;
-    //     Notification::create("Showing Owned Banners", NotificationIcon::Info)->show();
-    // } else if (m_filterState == 2) {
-    //     baseColor = EditorBaseColor::Orange;
-    //     Notification::create("Showing Unowned Banners", NotificationIcon::Info)->show();
-    // } else if (m_filterState == 3) {
-    //     baseColor = EditorBaseColor::Pink;
-    //     Notification::create("Showing Limited Banners", NotificationIcon::Info)->show();
-    // } else if (m_filterState == 4) {
-    //     baseColor = EditorBaseColor::Salmon;
-    //     Notification::create("Showing Featured Banners", NotificationIcon::Info)->show();
-    // } else {
-    //     Notification::create("Showing All Banners", NotificationIcon::Info)->show();
-    // }
+    if (m_filterState == 1) {
+        baseColor = EditorBaseColor::Green;
+        // Notification::create("Showing Owned Banners", NotificationIcon::Info)->show();
+    } else if (m_filterState == 2) {
+        baseColor = EditorBaseColor::Orange;
+        //Notification::create("Showing Unowned Banners", NotificationIcon::Info)->show();
+    } else if (m_filterState == 3) {
+        baseColor = EditorBaseColor::Pink;
+        //Notification::create("Showing Limited Banners", NotificationIcon::Info)->show();
+    } else if (m_filterState == 4) {
+        baseColor = EditorBaseColor::Salmon;
+        //Notification::create("Showing Featured Banners", NotificationIcon::Info)->show();
+    } else {
+        //Notification::create("Showing All Banners", NotificationIcon::Info)->show();
+    }
 
     auto newSpr = EditorButtonSprite::createWithSpriteFrameName("GJ_filterIcon_001.png", 1.0f, baseColor);
     btn->setNormalImage(newSpr);
@@ -941,12 +941,12 @@ void CBShopLayer::onSortClicked(CCObject* sender) {
 }
 
 void CBShopLayer::onSearchClicked(CCObject* sender) {
-    auto popup = SetTextPopup::create(m_searchQuery, "Search by name...", 32, "Search Banner", "Search", true, 60);
+    auto popup = SetTextPopup::create(m_searchQuery, "Search by name...", 32, "Search Banner", "Search", true, 60, false, 0, 0);
     popup->m_delegate = this;
     popup->show();
 }
 
-void CBShopLayer::setTextPopupClosed(SetTextPopup* popup, gd::string text) {
+void CBShopLayer::setTextPopupClosed(SetTextPopup* popup, std::string text) {
     m_searchQuery = text;
 
     if (m_searchButton) {

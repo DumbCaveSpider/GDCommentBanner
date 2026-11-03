@@ -1,7 +1,7 @@
 #include "CBYourBannersPopup.hpp"
 #include "CBUpdateAmountPopup.hpp"
 #include <Geode/utils/web.hpp>
-#include <argon/argon.hpp>
+#include <dankmeme.argon/argon.hpp>
 #include "Geode/ui/Button.hpp"
 #include "include/CBConstant.hpp"
 #include <Geode/ui/Scrollbar.hpp>
@@ -32,8 +32,8 @@ bool CBYourBannersPopup::init() {
         m_mainLayer->addChildAtPosition(scrollbar, Anchor::Center, {340.f / 2 + 5.f, -5.f}, false);
     }
 
-    m_pageLabel = CCLabelBMFont::create("0 to 0 of 0", "goldFont.fnt");
-    m_pageLabel->limitLabelWidth(100.f, 0.4f, 0.1f);
+    m_pageLabel = geode::Label::create("0 to 0 of 0", "goldFont.fnt");
+    m_pageLabel->setLimitLabelWidth(100.f, 0.4f, 0.1f);
     m_mainLayer->addChildAtPosition(m_pageLabel, Anchor::Bottom, {0, 15}, false);
 
     fetchBanners();
@@ -102,8 +102,8 @@ void CBYourBannersPopup::fetchBanners() {
             retainedSelf->m_list->clear();
 
             if (json.size() == 0) {
-                auto emptyLabel = CCLabelBMFont::create("No Banners", "goldFont.fnt");
-                emptyLabel->limitLabelWidth(retainedSelf->m_list->getContentWidth() - 20.f, 0.7f, 0.15f);
+                auto emptyLabel = geode::Label::create("No Banners", "goldFont.fnt");
+                emptyLabel->setLimitLabelWidth(retainedSelf->m_list->getContentWidth() - 20.f, 0.7f, 0.15f);
                 retainedSelf->m_list->addChildAtPosition(emptyLabel, Anchor::Center);
                 if (retainedSelf->m_pageLabel) {
                     retainedSelf->m_pageLabel->setVisible(false);
@@ -162,7 +162,7 @@ void CBYourBannersPopup::fetchBanners() {
                 cell->addChild(sprite);
 
                 // Name
-                auto nameLabel = CCLabelBMFont::create(name.c_str(), "bigFont.fnt");
+                auto nameLabel = geode::Label::create(name.c_str(), "bigFont.fnt");
                 nameLabel->setAnchorPoint({0.f, 0.5f});
                 float nameX = 10.f;
                 if (isFeatured) {
@@ -201,11 +201,11 @@ void CBYourBannersPopup::fetchBanners() {
                         nullptr)));
                 }
                 nameLabel->setPosition({nameX, 15.f});
-                nameLabel->limitLabelWidth(120.f, 0.5f, 0.2f);
+                nameLabel->setLimitLabelWidth(120.f, 0.5f, 0.2f);
                 cell->addChild(nameLabel);
 
                 // Status Label
-                auto statusLabel = CCLabelBMFont::create(status, "goldFont.fnt");
+                auto statusLabel = geode::Label::create(status, "goldFont.fnt");
                 statusLabel->setScale(0.3f);
                 if (isPending) {
                     statusLabel->setColor({255, 200, 50});
@@ -225,7 +225,7 @@ void CBYourBannersPopup::fetchBanners() {
                 }
 
                 // Price
-                if (auto priceLabel = CCLabelBMFont::create(fmt::format("{}", GameToolbox::pointsToString(price)).c_str(), "bigFont.fnt")) {
+                if (auto priceLabel = geode::Label::create(fmt::format("{}", GameToolbox::pointsToString(price)).c_str(), "bigFont.fnt")) {
                     priceLabel->setAnchorPoint({0.f, 0.5f});
                     priceLabel->setScale(0.5f);
                     priceLabel->setPosition({-8.f, 0.f});
@@ -259,14 +259,14 @@ void CBYourBannersPopup::fetchBanners() {
                         ->setCrossAxisOverflow(false));
 
                 if (isLimited) {
-                    if (auto amountLabel = CCLabelBMFont::create(fmt::format("Amount Left: {}", amount - totalBought).c_str(), "goldFont.fnt")) {
-                        amountLabel->limitLabelWidth(150.f, 0.5f, 0.2f);
+                    if (auto amountLabel = geode::Label::create(fmt::format("Amount Left: {}", amount - totalBought).c_str(), "goldFont.fnt")) {
+                        amountLabel->setLimitLabelWidth(150.f, 0.5f, 0.2f);
                         detailNode->addChild(amountLabel);
                     }
                 }
 
-                if (auto totalBoughtLabel = CCLabelBMFont::create(fmt::format("Bought: {}", totalBought).c_str(), "goldFont.fnt")) {
-                    totalBoughtLabel->limitLabelWidth(150.f, 0.5f, 0.2f);
+                if (auto totalBoughtLabel = geode::Label::create(fmt::format("Bought: {}", totalBought).c_str(), "goldFont.fnt")) {
+                    totalBoughtLabel->setLimitLabelWidth(150.f, 0.5f, 0.2f);
                     detailNode->addChild(totalBoughtLabel);
                 }
 
@@ -276,13 +276,13 @@ void CBYourBannersPopup::fetchBanners() {
                     float bannerEarnRate = price * rate;
                     totalEarnRate += bannerEarnRate;
 
-                    if (auto equippedLabel = CCLabelBMFont::create(fmt::format("Total Equipped: {}", equippedCount).c_str(), "goldFont.fnt")) {
-                        equippedLabel->limitLabelWidth(150.f, 0.5f, 0.2f);
+                    if (auto equippedLabel = geode::Label::create(fmt::format("Total Equipped: {}", equippedCount).c_str(), "goldFont.fnt")) {
+                        equippedLabel->setLimitLabelWidth(150.f, 0.5f, 0.2f);
                         detailNode->addChild(equippedLabel);
                     }
 
-                    if (auto earnLabel = CCLabelBMFont::create(fmt::format("Earn: +{:.1f}/mo", bannerEarnRate).c_str(), "goldFont.fnt")) {
-                        earnLabel->limitLabelWidth(150.f, 0.5f, 0.2f);
+                    if (auto earnLabel = geode::Label::create(fmt::format("Earn: +{:.1f}/mo", bannerEarnRate).c_str(), "goldFont.fnt")) {
+                        earnLabel->setLimitLabelWidth(150.f, 0.5f, 0.2f);
                         detailNode->addChild(earnLabel);
                     }
                 }
@@ -339,8 +339,8 @@ void CBYourBannersPopup::fetchBanners() {
                     earnNode->setAnchorPoint({1.f, 0.5f});
                     earnNode->setLayout(RowLayout::create()->setAxisAlignment(AxisAlignment::End)->setGap(5));
 
-                    retainedSelf->m_earnLabel = CCLabelBMFont::create(fmt::format("+{:.1f}/mo", totalEarnRate).c_str(), "bigFont.fnt");
-                    retainedSelf->m_earnLabel->limitLabelWidth(80.f, 0.5f, 0.3f);
+                    retainedSelf->m_earnLabel = geode::Label::create(fmt::format("+{:.1f}/mo", totalEarnRate).c_str(), "bigFont.fnt");
+                    retainedSelf->m_earnLabel->setLimitLabelWidth(80.f, 0.5f, 0.3f);
                     retainedSelf->m_earnLabel->setAnchorPoint({1.f, 0.5f});
                     retainedSelf->m_earnLabel->setPosition({0.f, 0.f});
                     earnNode->addChild(retainedSelf->m_earnLabel);

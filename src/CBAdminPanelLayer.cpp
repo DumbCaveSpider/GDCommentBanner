@@ -1,6 +1,6 @@
 #include "CBAdminPanelLayer.hpp"
 #include <Geode/utils/web.hpp>
-#include <argon/argon.hpp>
+#include <dankmeme.argon/argon.hpp>
 #include "Geode/ui/BasedButtonSprite.hpp"
 #include "Geode/ui/General.hpp"
 #include "Geode/ui/Layout.hpp"
@@ -78,7 +78,7 @@ bool CBAdminPanelLayer::init() {
     m_filterBtn = geode::Button::createWithNode(
         CCSprite::createWithSpriteFrameName("gj_findBtn_001.png"),
         [this](geode::Button*) {
-            auto popup = SetTextPopup::create("", (m_currentTab == Tab::Users) ? "AccountID or Username" : "Banner Name, User, or ID", 32, (m_currentTab == Tab::Users) ? "Search Users" : "Search Banners", "Search", true, 60);
+            auto popup = SetTextPopup::create("", (m_currentTab == Tab::Users) ? "AccountID or Username" : "Banner Name, User, or ID", 32, (m_currentTab == Tab::Users) ? "Search Users" : "Search Banners", "Search", true, 60, false, 0, 0);
             popup->m_delegate = this;
             popup->show();
         });
@@ -88,8 +88,8 @@ bool CBAdminPanelLayer::init() {
 
     m_paginationMenu = CCMenu::create();
     m_paginationMenu->setLayout(RowLayout::create()->setGap(425.f));
-    m_pageLabel = CCLabelBMFont::create("Page 1 of 1 (Total: 0)", "goldFont.fnt");
-    m_pageLabel->limitLabelWidth(120.f, 0.4f, 0.1f);
+    m_pageLabel = geode::Label::create("Page 1 of 1 (Total: 0)", "goldFont.fnt");
+    m_pageLabel->setLimitLabelWidth(120.f, 0.4f, 0.1f);
     m_mainLayer->addChildAtPosition(m_pageLabel, Anchor::Bottom, {0.f, 12.f}, false);
 
     if (auto prevSpr = CCSprite::createWithSpriteFrameName("GJ_arrow_01_001.png")) {
@@ -388,7 +388,7 @@ void CBAdminPanelLayer::updatePagination() {
 
     if (m_pageLabel) {
         m_pageLabel->setString(fmt::format("Page {} of {} (Total: {})", m_page + 1, totalPages, totalItems).c_str());
-        m_pageLabel->limitLabelWidth(120.f, 0.4f, 0.1f);
+        m_pageLabel->setLimitLabelWidth(120.f, 0.4f, 0.1f);
     }
 
     if (m_prevBtn) {
@@ -399,7 +399,7 @@ void CBAdminPanelLayer::updatePagination() {
     }
 }
 
-void CBAdminPanelLayer::setTextPopupClosed(SetTextPopup* popup, gd::string text) {
+void CBAdminPanelLayer::setTextPopupClosed(SetTextPopup* popup, std::string text) {
     if (m_currentTab == Tab::Users) {
         this->fetchUsers(text);
     } else if (m_currentTab == Tab::Banners) {
@@ -435,7 +435,7 @@ void CBAdminPanelLayer::renderPage() {
         else if (m_currentTab == Tab::Users)
             emptyStr = "No users found.";
 
-        auto emptyLabel = CCLabelBMFont::create(emptyStr.c_str(), "goldFont.fnt");
+        auto emptyLabel = geode::Label::create(emptyStr.c_str(), "goldFont.fnt");
         emptyLabel->setScale(0.8f);
         emptyLabel->setID("empty-label");
         m_list->addChildAtPosition(emptyLabel, Anchor::Center);
@@ -491,7 +491,7 @@ void CBAdminPanelLayer::renderPage() {
             cell->addChild(sprite);
 
             // Name
-            auto nameLabel = CCLabelBMFont::create(name.c_str(), "bigFont.fnt");
+            auto nameLabel = geode::Label::create(name.c_str(), "bigFont.fnt");
             nameLabel->setAnchorPoint({0.f, 0.5f});
             float nameX = 10.f;
             if (isFeatured) {
@@ -530,14 +530,14 @@ void CBAdminPanelLayer::renderPage() {
                     nullptr)));
             }
             nameLabel->setPosition({nameX, 20.f});
-            nameLabel->limitLabelWidth(60.f, 0.5f, 0.2f);
+            nameLabel->setLimitLabelWidth(60.f, 0.5f, 0.2f);
             cell->addChild(nameLabel);
 
             float currentX = nameX + (nameLabel->getContentSize().width * nameLabel->getScale()) + 8.f;
 
             // User
             if (!user.empty()) {
-                auto usernameLabel = CCLabelBMFont::create(fmt::format("By {}", user).c_str(), "goldFont.fnt");
+                auto usernameLabel = geode::Label::create(fmt::format("By {}", user).c_str(), "goldFont.fnt");
                 usernameLabel->setScale(0.4f);
 
                 auto userBtn = geode::Button::createWithNode(usernameLabel, [targetAccountId, user](geode::Button*) {
@@ -553,9 +553,9 @@ void CBAdminPanelLayer::renderPage() {
             }
 
             // Price
-            if (auto priceLabel = CCLabelBMFont::create(fmt::format("{}", GameToolbox::pointsToString(price)).c_str(), "bigFont.fnt")) {
+            if (auto priceLabel = geode::Label::create(fmt::format("{}", GameToolbox::pointsToString(price)).c_str(), "bigFont.fnt")) {
                 priceLabel->setAnchorPoint({0.f, 0.5f});
-                priceLabel->limitLabelWidth(100.f, 0.5f, 0.2f);
+                priceLabel->setLimitLabelWidth(100.f, 0.5f, 0.2f);
                 priceLabel->setPosition({0.f, 0.f});
 
                 auto priceNode = CCNode::create();
@@ -578,9 +578,9 @@ void CBAdminPanelLayer::renderPage() {
 
             // Amount
             if (isLimited) {
-                if (auto amountLabel = CCLabelBMFont::create(fmt::format("Amount: {}", amount).c_str(), "goldFont.fnt")) {
+                if (auto amountLabel = geode::Label::create(fmt::format("Amount: {}", amount).c_str(), "goldFont.fnt")) {
                     amountLabel->setAnchorPoint({0.f, 0.5f});
-                    amountLabel->limitLabelWidth(60.f, 0.4f, 0.2f);
+                    amountLabel->setLimitLabelWidth(60.f, 0.4f, 0.2f);
                     amountLabel->setPosition({26.f, 40.f});
                     cell->addChild(amountLabel);
                 }
@@ -666,7 +666,7 @@ void CBAdminPanelLayer::renderPage() {
             bool isStaff = item["is_staff"].asBool().unwrapOr(false);
             int amethyst = item["amethyst"].asInt().unwrapOr(0);
 
-            auto label = CCLabelBMFont::create(fmt::format("{}", user, targetId).c_str(), "goldFont.fnt");
+            auto label = geode::Label::create(fmt::format("{}", user, targetId).c_str(), "goldFont.fnt");
             label->setScale(0.6f);
             float labelWidth = label->getContentSize().width * label->getScale();
 
@@ -684,7 +684,7 @@ void CBAdminPanelLayer::renderPage() {
             float currentX = 10.f + labelWidth + 5.f;
 
             std::string rankStr = isAdmin ? "Admin" : (isStaff ? "Staff" : "User");
-            auto rankLabel = CCLabelBMFont::create(rankStr.c_str(), "chatFont.fnt");
+            auto rankLabel = geode::Label::create(rankStr.c_str(), "chatFont.fnt");
             rankLabel->setScale(0.4f);
             rankLabel->setAnchorPoint({0, 0.5f});
             rankLabel->setPosition({10.f, 12.f});
@@ -705,7 +705,7 @@ void CBAdminPanelLayer::renderPage() {
                 currentX += (amyIcon->getContentSize().width * amyIcon->getScale()) + 2.f;
             }
 
-            auto amyLabel = CCLabelBMFont::create(fmt::format("{}", amethyst).c_str(), "bigFont.fnt");
+            auto amyLabel = geode::Label::create(fmt::format("{}", amethyst).c_str(), "bigFont.fnt");
             amyLabel->setScale(0.4f);
             amyLabel->setAnchorPoint({0, 0.5f});
             amyLabel->setPosition({currentX, 20.f});
@@ -764,7 +764,7 @@ void CBAdminPanelLayer::renderPage() {
             cell->addChild(sprite);
 
             // Name
-            auto nameLabel = CCLabelBMFont::create(name.c_str(), "bigFont.fnt");
+            auto nameLabel = geode::Label::create(name.c_str(), "bigFont.fnt");
             nameLabel->setAnchorPoint({0.f, 0.5f});
             float nameX = 10.f;
             if (isFeatured) {
@@ -803,14 +803,14 @@ void CBAdminPanelLayer::renderPage() {
                     nullptr)));
             }
             nameLabel->setPosition({nameX, 20.f});
-            nameLabel->limitLabelWidth(100.f, 0.5f, 0.2f);
+            nameLabel->setLimitLabelWidth(100.f, 0.5f, 0.2f);
             cell->addChild(nameLabel);
 
             float currentX = nameX + (nameLabel->getContentSize().width * nameLabel->getScale()) + 8.f;
 
             // User
             if (!user.empty()) {
-                auto usernameLabel = CCLabelBMFont::create(fmt::format("By {}", user).c_str(), "goldFont.fnt");
+                auto usernameLabel = geode::Label::create(fmt::format("By {}", user).c_str(), "goldFont.fnt");
                 usernameLabel->setScale(0.4f);
 
                 auto userBtn = geode::Button::createWithNode(usernameLabel, [targetAccountId, user](geode::Button*) {

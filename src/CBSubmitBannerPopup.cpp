@@ -2,7 +2,7 @@
 #include "CBShopLayer.hpp"
 #include <Geode/utils/web.hpp>
 #include <Geode/binding/UploadActionPopup.hpp>
-#include <argon/argon.hpp>
+#include <dankmeme.argon/argon.hpp>
 #include "Geode/ui/General.hpp"
 #include "Geode/utils/general.hpp"
 #include "include/CBConstant.hpp"
@@ -60,8 +60,8 @@ bool CBSubmitBannerPopup::init(bool isLocal) {
 
     m_buttonMenu->addChildAtPosition(topMenu, Anchor::Top, {0.f, -50.f}, {0.5, 0.5});
 
-    m_fileNameLabel = CCLabelBMFont::create("No file selected (1500x150) (Static or Animated)", "chatFont.fnt");
-    m_fileNameLabel->limitLabelWidth(m_mainLayer->getContentWidth() - 20.f, 0.8f, 0.1f);
+    m_fileNameLabel = geode::Label::create("No file selected (1500x150) (Static or Animated)", "chatFont.fnt");
+    m_fileNameLabel->setLimitLabelWidth(m_mainLayer->getContentWidth() - 20.f, 0.8f, 0.1f);
     m_fileNameLabel->setColor({200, 200, 200});
     m_mainLayer->addChildAtPosition(m_fileNameLabel, Anchor::Top, {0.f, -75.f}, false);
 
@@ -103,7 +103,7 @@ bool CBSubmitBannerPopup::init(bool isLocal) {
 
     bool hasCreatedBanner = Mod::get()->getSavedValue<bool>("has_created_banner", false);
 
-    auto costLabel = CCLabelBMFont::create(
+    auto costLabel = geode::Label::create(
         hasCreatedBanner ? "Submission Cost: 15,000 amethysts" : "Submission Cost: Free on first banner",
         "bigFont.fnt");
     costLabel->setScale(0.35f);
@@ -122,8 +122,8 @@ bool CBSubmitBannerPopup::init(bool isLocal) {
 
     m_limitedToggler = CCMenuItemToggler::createWithStandardSprites(
         this, menu_selector(CBSubmitBannerPopup::onToggleLimited), 0.7f);
-    auto limitedLabel = CCLabelBMFont::create("Limited", "bigFont.fnt");
-    limitedLabel->limitLabelWidth(limitedMenu->getContentWidth() - 10.f, 0.4f, 0.2f);
+    auto limitedLabel = geode::Label::create("Limited", "bigFont.fnt");
+    limitedLabel->setLimitLabelWidth(limitedMenu->getContentWidth() - 10.f, 0.4f, 0.2f);
 
     limitedMenu->addChild(m_limitedToggler);
     limitedMenu->addChild(limitedLabel);
@@ -186,21 +186,21 @@ void CBSubmitBannerPopup::onPickFile(CCObject*) {
             if (pathOpt.has_value()) {
                 auto path = pathOpt.value();
 
-                auto extension = path.extension().string();
+                std::string extension(path.extension().value_or(""));
                 std::transform(extension.begin(), extension.end(), extension.begin(), ::tolower);
                 if (retainedSelf->m_isLocal) {
-                    if (extension != ".png" && extension != ".webp" && extension != ".gif") {
+                    if (extension != "png" && extension != "webp" && extension != "gif") {
                         notify("Please select a PNG, GIF or WEBP file");
                         co_return;
                     }
                 } else {
-                    if (extension != ".png" && extension != ".webp" && extension != ".jpg" && extension != ".jpeg" && extension != ".gif") {
+                    if (extension != "png" && extension != "webp" && extension != "jpg" && extension != "jpeg" && extension != "gif") {
                         notify("Please select a PNG, JPEG, GIF or WEBP file");
                         co_return;
                     }
                 }
 
-                if (extension != ".gif") {
+                if (extension != "gif") {
                     CCImage image;
                     if (!image.initWithImageFile(path.string().c_str())) {
                         notify("Unable to decode image locally");
@@ -213,7 +213,7 @@ void CBSubmitBannerPopup::onPickFile(CCObject*) {
                     }
                 }
 
-                geode::Loader::get()->queueInMainThread([retainedSelf, p = path.string(), filename = path.filename().string()]() {
+                geode::Loader::get()->queueInMainThread([retainedSelf, p = path.string(), filename = std::string(path.filename().value_or(""))]() {
                     retainedSelf->m_selectedFilePath = p;
                     if (retainedSelf->m_fileNameLabel) {
                         retainedSelf->m_fileNameLabel->setString(filename.c_str());
@@ -426,6 +426,13 @@ void CBSubmitBannerPopup::onPreview(CCObject*) {
         return comment::createCommentPreview(filePath, compact);
     };
 
+    // bg for the preview mode or something
+    auto previewbg = NineSlice::create("square02_001.png");
+    previewbg->setContentSize(winSize - CCSize{30.f, 20.f});
+    previewbg->setPosition(winSize / 2);
+    previewbg->setOpacity(150);
+    blockLayer->addChild(previewbg, -1);
+
     auto container = CCNode::create();
     container->setContentSize({comment::kCommentCellWidth, 160.f});
     container->setAnchorPoint({0.5f, 0.5f});
@@ -438,14 +445,14 @@ void CBSubmitBannerPopup::onPreview(CCObject*) {
     auto nonCompactPreview = createPreviewNode(m_selectedFilePath, false);
     container->addChild(nonCompactPreview);
 
-    auto nonCompactLabel = CCLabelBMFont::create("Non-Compact Mode", "goldFont.fnt");
+    auto nonCompactLabel = geode::Label::create("Non-Compact Mode", "goldFont.fnt");
     nonCompactLabel->setScale(0.45f);
     container->addChild(nonCompactLabel);
 
     auto compactPreview = createPreviewNode(m_selectedFilePath, true);
     container->addChild(compactPreview);
 
-    auto compactLabel = CCLabelBMFont::create("Compact Mode", "goldFont.fnt");
+    auto compactLabel = geode::Label::create("Compact Mode", "goldFont.fnt");
     compactLabel->setScale(0.45f);
     container->addChild(compactLabel);
 

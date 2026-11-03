@@ -1,6 +1,6 @@
 #pragma once
 #include <Geode/Geode.hpp>
-#include <argon/argon.hpp>
+#include <dankmeme.argon/argon.hpp>
 #include <Geode/ui/LazySprite.hpp>
 #include "CBBannerLoader.hpp"
 

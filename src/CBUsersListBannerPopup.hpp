@@ -19,7 +19,7 @@ private:
     int m_totalItems = 0;
     CCMenuItemSpriteExtra* m_nextBtn = nullptr;
     CCMenuItemSpriteExtra* m_prevBtn = nullptr;
-    cocos2d::CCLabelBMFont* m_pageLabel = nullptr;
+    geode::Label* m_pageLabel = nullptr;
 
     bool init(int bannerId, int listType);
     void updatePaginationButtons();

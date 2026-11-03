@@ -11,7 +11,7 @@
 #include <Geode/ui/Popup.hpp>
 #include <Geode/ui/Button.hpp>
 #include <Geode/utils/web.hpp>
-#include <argon/argon.hpp>
+#include <dankmeme.argon/argon.hpp>
 #include "include/CBLocalBanner.hpp"
 #include "CBLocalBannersPopup.hpp"
 
@@ -115,9 +115,9 @@ CBBannerCell* CBBannerCell::create(const CBBannerItem& banner, float width, bool
         cellBg->addChild(previewButton);
     }
 
-    CCLabelBMFont* nameLabel = nullptr;
+    geode::Label* nameLabel = nullptr;
     if (!banner.name.empty()) {
-        nameLabel = CCLabelBMFont::create(banner.name.c_str(), "bigFont.fnt");
+        nameLabel = geode::Label::create(banner.name.c_str(), "bigFont.fnt");
         if (nameLabel) {
             nameLabel->setAnchorPoint({0.f, 0.5f});
             float nameX = 10.f;
@@ -157,7 +157,7 @@ CBBannerCell* CBBannerCell::create(const CBBannerItem& banner, float width, bool
                     nullptr)));
             }
             nameLabel->setPosition({nameX, 25.f});
-            nameLabel->limitLabelWidth(100.f, 0.5f, 0.2f);
+            nameLabel->setLimitLabelWidth(100.f, 0.5f, 0.2f);
             cellBg->addChild(nameLabel);
         }
     }
@@ -174,7 +174,7 @@ CBBannerCell* CBBannerCell::create(const CBBannerItem& banner, float width, bool
     }
 
     if (!banner.isLocal) {
-        if (auto price = CCLabelBMFont::create(fmt::format("{}", GameToolbox::pointsToString(banner.price)).c_str(), "bigFont.fnt")) {
+        if (auto price = geode::Label::create(fmt::format("{}", GameToolbox::pointsToString(banner.price)).c_str(), "bigFont.fnt")) {
             price->setAnchorPoint({0.f, 0.5f});
             price->setScale(0.5f);
             price->setPosition({0.f, 0.f});

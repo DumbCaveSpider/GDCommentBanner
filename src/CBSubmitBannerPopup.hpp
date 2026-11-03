@@ -22,7 +22,7 @@ private:
     geode::TextInput* m_priceInput = nullptr;
     CCMenuItemToggler* m_limitedToggler = nullptr;
     geode::TextInput* m_amountInput = nullptr;
-    CCLabelBMFont* m_fileNameLabel = nullptr;
+    geode::Label* m_fileNameLabel = nullptr;
     CCMenuItemSpriteExtra* m_previewBtn = nullptr;
 
     std::string m_selectedFilePath;

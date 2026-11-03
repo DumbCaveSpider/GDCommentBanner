@@ -21,7 +21,7 @@ private:
     void fetchUsers(std::string query = "");
     void fetchBanners(std::string query = "");
 
-    void setTextPopupClosed(SetTextPopup* popup, gd::string text) override;
+    void setTextPopupClosed(SetTextPopup* popup, std::string text) override;
 
     void onTabPending(CCObject*);
     void onTabUsers(CCObject*);
@@ -47,7 +47,7 @@ private:
     matjson::Value m_currentData;
     std::string m_authToken;
     int m_page = 0;
-    CCLabelBMFont* m_pageLabel = nullptr;
+    geode::Label* m_pageLabel = nullptr;
     CCMenuItemSpriteExtra* m_nextBtn = nullptr;
     CCMenuItemSpriteExtra* m_prevBtn = nullptr;
     CCMenu* m_paginationMenu = nullptr;

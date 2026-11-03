@@ -1,6 +1,6 @@
 #include "CBProfileBannerPopup.hpp"
 #include "CBBannerCell.hpp"
-#include <argon/argon.hpp>
+#include <dankmeme.argon/argon.hpp>
 #include "include/CBConstant.hpp"
 #include <Geode/ui/Scrollbar.hpp>
 #include <Geode/ui/Button.hpp>
@@ -69,8 +69,8 @@ bool CBProfileBannerPopup::init(int targetAccountId, const std::string& targetUs
     m_nextBtn->setPosition({210.f, 110.f});
     navMenu->addChild(m_nextBtn);
 
-    m_pageLabel = CCLabelBMFont::create("0 to 0 of 0", "goldFont.fnt");
-    m_pageLabel->limitLabelWidth(100.f, 0.4f, 0.1f);
+    m_pageLabel = geode::Label::create("0 to 0 of 0", "goldFont.fnt");
+    m_pageLabel->setLimitLabelWidth(100.f, 0.4f, 0.1f);
     m_mainLayer->addChildAtPosition(m_pageLabel, Anchor::Bottom, {0, 15}, false);
 
     m_mainLayer->addChild(navMenu);
@@ -186,8 +186,8 @@ void CBProfileBannerPopup::fetchBanners() {
             retainedSelf->updatePaginationButtons();
 
             if (bannersArr.size() == 0) {
-                auto emptyLabel = CCLabelBMFont::create("No Banners", "goldFont.fnt");
-                emptyLabel->limitLabelWidth(retainedSelf->m_list->getContentWidth() - 20.f, 0.7f, 0.15f);
+                auto emptyLabel = geode::Label::create("No Banners", "goldFont.fnt");
+                emptyLabel->setLimitLabelWidth(retainedSelf->m_list->getContentWidth() - 20.f, 0.7f, 0.15f);
                 retainedSelf->m_list->addChildAtPosition(emptyLabel, Anchor::Center);
                 return;
             }

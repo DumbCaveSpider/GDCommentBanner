@@ -6,7 +6,7 @@
 #include <Geode/ui/MDTextArea.hpp>
 #include <Geode/binding/UploadActionPopup.hpp>
 #include <Geode/utils/web.hpp>
-#include <argon/argon.hpp>
+#include <dankmeme.argon/argon.hpp>
 #include "include/CBConstant.hpp"
 
 using namespace geode::prelude;
@@ -42,10 +42,10 @@ bool CBPurchaseItemPopup::init(const CBBannerItem& banner) {
     priceNode->setAnchorPoint({0.5f, 0.5f});
     priceNode->setLayout(RowLayout::create()->setAxisAlignment(AxisAlignment::Center)->setGap(5));
 
-    auto priceLabel = CCLabelBMFont::create(fmt::format("{}", GameToolbox::pointsToString(m_banner.price)).c_str(), "bigFont.fnt");
+    auto priceLabel = geode::Label::create(fmt::format("{}", GameToolbox::pointsToString(m_banner.price)).c_str(), "bigFont.fnt");
     if (priceLabel) {
         priceLabel->setAnchorPoint({1.f, 0.5f});
-        priceLabel->limitLabelWidth(150.f, 0.45f, 0.2f);
+        priceLabel->setLimitLabelWidth(150.f, 0.45f, 0.2f);
         priceNode->addChild(priceLabel);
 
         if (auto amethystIcon = CCSprite::createWithSpriteFrameName("CB_amethyst_002.png"_spr)) {

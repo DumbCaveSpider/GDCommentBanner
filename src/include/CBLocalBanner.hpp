@@ -2,7 +2,7 @@
 
 #include <Geode/Geode.hpp>
 #include <matjson.hpp>
-#include <filesystem>
+#include <asp/fs/fs.hpp>
 #include <vector>
 #include <string>
 #include <algorithm>
@@ -36,21 +36,20 @@ namespace comment::local {
         }
     };
 
-    inline std::filesystem::path getLocalBannersDir() {
+    inline asp::fs::Path getLocalBannersDir() {
         auto dir = Mod::get()->getSaveDir() / "local_banners";
-        std::error_code ec;
-        std::filesystem::create_directories(dir, ec);
+        (void)asp::fs::createDirAll(dir);
         return dir;
     }
 
-    inline std::filesystem::path getMetadataPath() {
+    inline asp::fs::Path getMetadataPath() {
         return getLocalBannersDir() / "metadata.json";
     }
 
     inline std::vector<LocalBanner> getLocalBanners() {
         std::vector<LocalBanner> banners;
         auto path = getMetadataPath();
-        if (!std::filesystem::exists(path)) {
+        if (!path.exists()) {
             return banners;
         }
         auto res = file::readString(path);
@@ -90,7 +89,7 @@ namespace comment::local {
         auto saved = Mod::get()->getSavedValue<std::string>("equipped-local-banner", "");
         if (saved.empty()) return "";
         auto path = getLocalBannersDir() / saved;
-        if (std::filesystem::exists(path)) {
+        if (path.exists()) {
             return path.string();
         }
         // If file doesn't exist on disk, unequip
@@ -124,8 +123,7 @@ namespace comment::local {
             }
             if (!it->filename.empty()) {
                 auto path = getLocalBannersDir() / it->filename;
-                std::error_code ec;
-                std::filesystem::remove(path, ec);
+                (void)asp::fs::remove(path);
             }
             banners.erase(it);
             saveLocalBanners(banners);
@@ -135,7 +133,7 @@ namespace comment::local {
     }
 
     inline bool addLocalBanner(const std::string& name, const std::string& sourceImagePath) {
-        if (sourceImagePath.empty() || !std::filesystem::exists(sourceImagePath)) {
+        if (sourceImagePath.empty() || !asp::fs::exists(sourceImagePath)) {
             return false;
         }
         auto dir = getLocalBannersDir();
@@ -159,10 +157,9 @@ namespace comment::local {
         std::string filename = fmt::format("banner_{}.{}", newId, ext);
         auto destPath = dir / filename;
 
-        std::error_code ec;
-        std::filesystem::copy_file(sourceImagePath, destPath, std::filesystem::copy_options::overwrite_existing, ec);
-        if (ec) {
-            log::error("Failed to copy local banner file: {}", ec.message());
+        auto copyRes = asp::fs::copy(sourceImagePath, destPath);
+        if (!copyRes) {
+            log::error("Failed to copy local banner file: {}", copyRes.unwrapErr());
             return false;
         }
 

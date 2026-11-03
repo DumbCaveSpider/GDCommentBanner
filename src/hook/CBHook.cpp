@@ -5,7 +5,7 @@
 #include <Geode/ui/NineSlice.hpp>
 #include <Geode/utils/web.hpp>
 #include <Geode/utils/async.hpp>
-#include <argon/argon.hpp>
+#include <dankmeme.argon/argon.hpp>
 #include <Geode/modify/GJGarageLayer.hpp>
 #include <Geode/modify/CommentCell.hpp>
 #include <Geode/modify/EndLevelLayer.hpp>
@@ -170,7 +170,7 @@ class $modify(CBCommentCell, CommentCell) {
             std::string equippedLocal = Mod::get()->getSavedValue<std::string>("equipped-local-banner", "");
             if (!equippedLocal.empty()) {
                 auto localPath = comment::local::getLocalBannersDir() / equippedLocal;
-                if (std::filesystem::exists(localPath)) {
+                if (localPath.exists()) {
                     setupBannerSprite(this, localPath.string());
                     return;
                 }
@@ -279,8 +279,8 @@ class $modify(CBPlayLayer, PlayLayer) {
         bool m_wasCompletedBefore = false;
     };
 
-    bool init(GJGameLevel* level, bool useReplay, bool dontCreateObjects) {
-        if (!PlayLayer::init(level, useReplay, dontCreateObjects)) return false;
+    bool init(GJGameLevel* level, bool dontCreateObjects) {
+        if (!PlayLayer::init(level, dontCreateObjects)) return false;
 
         m_fields->m_wasCompletedBefore = GameStatsManager::sharedState()->hasCompletedOnlineLevel(level->m_levelID) || GameStatsManager::sharedState()->hasCompletedLevel(level);
         log::debug("completed level for ame? {}", m_fields->m_wasCompletedBefore);
@@ -409,11 +409,11 @@ class $modify(CBEndLevelLayer, EndLevelLayer) {
                     amethystPop->setID("cb-amethyst-reward-sprite");
                     endLayerRef->m_mainLayer->addChild(amethystPop);
 
-                    auto amethystLabel = CCLabelBMFont::create(
+                    auto amethystLabel = geode::Label::create(
                         fmt::format("+{}", amethystReward).c_str(), "bigFont.fnt");
                     amethystLabel->setPosition({-5, amethystPop->getContentSize().height / 2});
                     amethystLabel->setAnchorPoint({1.0f, 0.5f});
-                    amethystLabel->limitLabelWidth(80, 1.f, 0.5f);
+                    amethystLabel->setLimitLabelWidth(80, 1.f, 0.5f);
                     amethystLabel->setID("cb-amethyst-reward-label");
                     amethystLabel->setOpacity(0);
                     amethystPop->addChild(amethystLabel);

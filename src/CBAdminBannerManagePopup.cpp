@@ -1,5 +1,5 @@
 #include "CBAdminBannerManagePopup.hpp"
-#include <argon/argon.hpp>
+#include <dankmeme.argon/argon.hpp>
 #include "Geode/ui/General.hpp"
 #include "include/CBConstant.hpp"
 #include <Geode/binding/UploadActionPopup.hpp>
@@ -78,7 +78,7 @@ bool CBAdminBannerManagePopup::init(matjson::Value const& bannerData) {
     if (isLimited) {
         amountText += fmt::format(" / Left: {}", amount - totalBought);
     }
-    auto amountLabel = CCLabelBMFont::create(amountText.c_str(), "chatFont.fnt");
+    auto amountLabel = geode::Label::create(amountText.c_str(), "chatFont.fnt");
     amountLabel->setPosition({0, startY - gap * 3 - 5.f});
     amountLabel->setColor(ccColor3B{200, 200, 200});
     menu->addChild(amountLabel);
@@ -89,7 +89,7 @@ bool CBAdminBannerManagePopup::init(matjson::Value const& bannerData) {
     m_featuredToggler->setPosition({-45.f, startY - gap * 3 - 35.f});
     menu->addChild(m_featuredToggler);
 
-    auto featuredLabel = CCLabelBMFont::create("Featured", "bigFont.fnt");
+    auto featuredLabel = geode::Label::create("Featured", "bigFont.fnt");
     featuredLabel->setAnchorPoint({0.f, 0.5f});
     featuredLabel->setPosition({-20.f, startY - gap * 3 - 35.f});
     featuredLabel->setScale(0.6f);
