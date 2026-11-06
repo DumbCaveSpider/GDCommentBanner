@@ -58,7 +58,7 @@ private:
     Ref<cue::LoadingCircle> m_loadingCircle = nullptr;
     bool m_isStaff = false;
     bool m_isAdmin = false;
-    // bitmask, bit n for filter n: 1 = Owned, 2 = Unowned, 3 = Limited, 4 = Featured. 0 = All
+    // bitmask, bit n for filter n: 1 = Owned, 2 = Unowned, 3 = Limited, 4 = Featured, 5 = Favorite. 0 = All
     int m_filterState = 0;
     int m_sortState = 0;
     bool m_supporterOnlyFilter = false;  // only show supporter-only banners    // 0 = Recent, 1 = Most Bought, 2 = Most Equipped, 3 = Highest Price, 4 = Lowest Price

@@ -7,6 +7,7 @@
 - Updated Sprites
 - Fixed crashes for low end devices when loading too many banners
 - Fixed the Amethyst Reward Animation overlapping with the existing Current Reward Layer
+- Added Favorite Banners, you can now favorite banners and filter them in the shop
 - Added Disable Animated Background
 - Added Disable Banner Leaderboard
 - Added Top Sales on the Leaderboard

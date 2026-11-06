@@ -8,6 +8,10 @@
 #include "CBProfileBannerPopup.hpp"
 #include "CBUsersListBannerPopup.hpp"
 #include "CBBannerPreview.hpp"
+#include <Geode/utils/web.hpp>
+#include <dankmeme.argon/argon.hpp>
+#include "include/CBConstant.hpp"
+#include "CBShopLayer.hpp"
 
 using namespace geode::prelude;
 
@@ -29,6 +33,7 @@ bool CBViewItemPopup::init(const CBBannerItem& banner) {
     m_banner = banner;
 
     this->setTitle(m_banner.name.c_str(), "bigFont.fnt", 0.7f);
+    m_title->setLimitLabelWidth(160.f, 0.7f);
 
     // tappable icons left of the title, and the title tint
     CBBannerCell::decoratePopupTitle(m_mainLayer, m_title, m_banner);
@@ -79,12 +84,48 @@ bool CBViewItemPopup::init(const CBBannerItem& banner) {
         priceNode->updateLayout();
     }
 
+    // Non-Compact / Comment Overlay toggles, top right (Favorite joins them below)
+    CCMenu* togglesMenu = nullptr;
     if (!m_banner.imageUrl.empty()) {
         // the banner on comment cells, fits between the dates and the description
         if (auto preview = CBBannerPreview::create(m_banner.imageUrl, m_banner.nonCompactImageUrl, {345.f, 65.f})) {
             m_mainLayer->addChildAtPosition(preview, Anchor::Center, {0.f, 15.f}, false);
-            // Non-Compact / Comment Overlay toggles, top right
-            m_mainLayer->addChildAtPosition(preview->createToggles(), Anchor::TopRight, {-8.f, -8.f}, false);
+            togglesMenu = preview->createToggles();
+            m_mainLayer->addChildAtPosition(togglesMenu, Anchor::TopRight, {-8.f, -8.f}, false);
+        }
+    }
+
+    // Favorite toggle, one more row of the preview toggles (local banners can't be favorites)
+    if (!m_banner.isLocal && m_banner.id > 0) {
+        auto favoriteRow = CCMenu::create();
+        favoriteRow->setContentSize({90.f, 18.f});
+        favoriteRow->setLayout(RowLayout::create()->setGap(3.f)->setAutoScale(false)->setAxisAlignment(AxisAlignment::End));
+
+        auto label = Label::create("Favorite", "bigFont.fnt");
+        label->setLimitLabelWidth(65.f, 0.3f, 0.1f);
+        label->setColor({255, 220, 100});
+        favoriteRow->addChild(label);
+
+        auto toggler = Toggler::createWithStandardSprites(0.45f, [this](Toggler* sender, bool toggled) {
+            this->setFavorite(sender, toggled);
+        });
+        toggler->setToggled(m_banner.isFavorite);
+        favoriteRow->addChild(toggler);
+        favoriteRow->updateLayout();
+
+        if (togglesMenu) {
+            // anchored at the top right, so the menu grows downwards
+            togglesMenu->setContentHeight(togglesMenu->getContentHeight() + favoriteRow->getContentHeight());
+            togglesMenu->addChild(favoriteRow);
+            togglesMenu->updateLayout();
+        } else {
+            // no preview (no image): same spot on its own
+            togglesMenu = CCMenu::create();
+            togglesMenu->ignoreAnchorPointForPosition(false);
+            togglesMenu->setAnchorPoint({1.f, 1.f});
+            togglesMenu->setContentSize(favoriteRow->getContentSize());
+            togglesMenu->addChildAtPosition(favoriteRow, Anchor::Center, CCPointZero, false);
+            m_mainLayer->addChildAtPosition(togglesMenu, Anchor::TopRight, {-8.f, -8.f}, false);
         }
     }
 
@@ -154,4 +195,50 @@ bool CBViewItemPopup::init(const CBBannerItem& banner) {
     m_mainLayer->addChildAtPosition(listMenu, Anchor::Bottom, {0.f, 15.f});
 
     return true;
+}
+
+void CBViewItemPopup::setFavorite(Toggler* toggler, bool favorite) {
+    auto accountData = argon::getGameAccountData();
+    if (accountData.accountId <= 0) {
+        toggler->setToggled(!favorite);
+        Notification::create("You need to be logged in to favorite banners.", NotificationIcon::Error)->show();
+        return;
+    }
+
+    Ref<CBViewItemPopup> self = this;
+    Ref<Toggler> toggle = toggler;
+    int bannerId = m_banner.id;
+    arc::spawn([self, toggle, bannerId, favorite, accountData]() -> arc::Future<> {
+        auto revert = [self, toggle, favorite](std::string message) {
+            queueInMainThread([toggle, favorite, message] {
+                toggle->setToggled(!favorite);
+                Notification::create(message, NotificationIcon::Error)->show();
+            });
+        };
+
+        auto authToken = co_await comment::argonToken(accountData);
+        if (authToken.empty()) {
+            revert("Authentication failed.");
+            co_return;
+        }
+
+        auto body = matjson::makeObject({{"accountId", accountData.accountId},
+            {"argonToken", authToken},
+            {"bannerId", bannerId},
+            {"favorite", favorite}});
+        auto response = co_await utils::web::WebRequest().bodyJSON(body).post(fmt::format("{}/favoriteBanner", comment::baseUrl));
+        if (!response.ok()) {
+            revert(comment::getResponseMessage(response, "Failed to update favorites."));
+            co_return;
+        }
+
+        queueInMainThread([self, favorite] {
+            self->m_banner.isFavorite = favorite;
+            //Notification::create(favorite ? "Added to your favorites!" : "Removed from your favorites.", NotificationIcon::Success)->show();
+            if (auto shop = CBShopLayer::getInstance()) {
+                shop->refreshBanners();
+            }
+        });
+        co_return;
+    });
 }

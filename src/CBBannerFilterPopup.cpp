@@ -8,7 +8,7 @@ using namespace geode::prelude;
 
 namespace {
     // filter/sort states, which are sent to /getBanners.
-    constexpr std::array kFilterNames = {"All", "Owned", "Unowned", "Limited", "Featured"};
+    constexpr std::array kFilterNames = {"All", "Owned", "Unowned", "Limited", "Featured", "Favorite"};
     constexpr std::array kSortNames = {"Recent", "Most Bought", "Most Equipped", "Highest Price", "Lowest Price"};
 
     constexpr float kRowWidth = 90.f;
@@ -69,17 +69,18 @@ bool CBBannerFilterPopup::init() {
     auto shop = CBShopLayer::getInstance();
     if (!shop) return false;
 
-    if (!Popup::init(260.f, 240.f)) return false;
+    // tall enough for the filter column (6 filters + Supporter) above the Reset button
+    if (!Popup::init(260.f, 280.f)) return false;
     addSideArt(m_mainLayer, SideArt::All, SideArtStyle::PopupGold, false);
     this->setTitle("Filter Banners");
 
     auto filterHeader = Label::create("Filter", "goldFont.fnt");
     filterHeader->setScale(0.5f);
-    m_mainLayer->addChildAtPosition(filterHeader, Anchor::Center, {-65.f, 75.f}, false);
+    m_mainLayer->addChildAtPosition(filterHeader, Anchor::Center, {-65.f, 95.f}, false);
 
     auto sortHeader = Label::create("Sort", "goldFont.fnt");
     sortHeader->setScale(0.5f);
-    m_mainLayer->addChildAtPosition(sortHeader, Anchor::Center, {65.f, 75.f}, false);
+    m_mainLayer->addChildAtPosition(sortHeader, Anchor::Center, {65.f, 95.f}, false);
 
     // one extra row for Supporter Only
     // several filters can be on at once (bit i = filter i), "All" clears them
@@ -107,7 +108,7 @@ bool CBBannerFilterPopup::init() {
     filterMenu->updateLayout();
     // anchored at the top so the extra row extends downwards, level with the sort menu's top
     filterMenu->setAnchorPoint({0.5f, 1.f});
-    m_mainLayer->addChildAtPosition(filterMenu, Anchor::Center, {-65.f, 60.f}, false);
+    m_mainLayer->addChildAtPosition(filterMenu, Anchor::Center, {-65.f, 80.f}, false);
 
     auto sortMenu = createToggleMenu(kSortNames.size());
     for (int i = 0; i < static_cast<int>(kSortNames.size()); ++i) {
@@ -120,7 +121,7 @@ bool CBBannerFilterPopup::init() {
             }));
     }
     sortMenu->updateLayout();
-    m_mainLayer->addChildAtPosition(sortMenu, Anchor::Center, {65.f, -5.f}, false);
+    m_mainLayer->addChildAtPosition(sortMenu, Anchor::Center, {65.f, 15.f}, false);
 
     auto resetButton = Button::createWithNode(
         ButtonSprite::create("Reset", "goldFont.fnt", "GJ_button_05.png", .7f),

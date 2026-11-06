@@ -79,9 +79,9 @@ void CBShopLayer::updateFilterSortLabel() {
     if (!m_filterSortLabel) return;
 
     // every selected filter, e.g. "Owned Limited"
-    static constexpr char const* kFilterNames[] = {"", "Owned", "Unowned", "Limited", "Featured"};
+    static constexpr char const* kFilterNames[] = {"", "Owned", "Unowned", "Limited", "Featured", "Favorite"};
     std::vector<std::string> filterNames;
-    for (int i = 1; i < 5; ++i) {
+    for (int i = 1; i < 6; ++i) {
         if (m_filterState & (1 << i)) filterNames.emplace_back(kFilterNames[i]);
     }
     std::string filterName = filterNames.empty() ? "All" : fmt::format("{}", fmt::join(filterNames, " "));
@@ -319,6 +319,7 @@ void CBShopLayer::fetchBanners() {
                 banner.createdAt = item["createdAt"].asString().unwrapOr("");
                 banner.editedAt = item["editedAt"].asString().unwrapOr("");
                 banner.approvedAt = item["approvedAt"].asString().unwrapOr("");
+                banner.isFavorite = item["isFavorite"].asBool().unwrapOr(false);
                 banner.nonCompactImageUrl = item["nonCompactImageUrl"].asString().unwrapOr("");
                 if (auto amountRes = item["amount"].asInt(); amountRes.isOk()) {
                     banner.amount = static_cast<int>(amountRes.unwrap());

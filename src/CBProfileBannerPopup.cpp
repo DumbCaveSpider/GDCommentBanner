@@ -259,6 +259,7 @@ void CBProfileBannerPopup::fetchBanners() {
                 banner.createdAt = item["createdAt"].asString().unwrapOr("");
                 banner.editedAt = item["editedAt"].asString().unwrapOr("");
                 banner.approvedAt = item["approvedAt"].asString().unwrapOr("");
+                banner.isFavorite = item["isFavorite"].asBool().unwrapOr(false);
                 if (auto usernameRes = item["username"].asString(); usernameRes.isOk()) {
                     banner.username = usernameRes.unwrap();
                 }

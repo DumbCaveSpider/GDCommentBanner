@@ -81,8 +81,9 @@ static CCNode* createCellPreview(std::string const& imageUrl, CCSize const& maxS
 Button* CBBannerCell::createBannerIcon(CBBannerIcon icon) {
     char const* frame = "GJ_sRecentIcon_001.png";
     char const* title = "Limited";
-    char const* text = "This banner is <cp>Limited</c>: only a set number of copies can be bought. "
-                       "Once it's <cr>sold out</c>, nobody else can buy it.";
+    char const* text =
+        "This banner is <cp>Limited</c>: only a set number of copies can be bought. "
+        "Once it's <cr>sold out</c>, nobody else can buy it.";
     switch (icon) {
         case CBBannerIcon::SupporterOnly:
             frame = "particle_230_001.png";
@@ -95,6 +96,13 @@ Button* CBBannerCell::createBannerIcon(CBBannerIcon icon) {
             text = "This banner was <cy>featured</c> by the <cg>staff team</c> for being high quality.";
             break;
         case CBBannerIcon::Limited:
+            break;
+        case CBBannerIcon::Favorite:
+            frame = "particle_199_001.png";
+            title = "Favorite";
+            text =
+                "This banner is in your <cy>favorites</c>. Use the <cg>Favorite</c> filter in the shop to find it, "
+                "or change it from the banner's <cl>Info</c>.";
             break;
     }
 
@@ -185,6 +193,7 @@ CBBannerItem CBBannerItem::fromJson(matjson::Value const& json) {
     item.equippedCount = static_cast<int>(json["equippedCount"].asInt().unwrapOr(0));
     item.creatorIsSupporter = json["creatorIsSupporter"].asBool().unwrapOr(false);
     item.isResubmission = json["isResubmission"].asBool().unwrapOr(false);
+    item.isFavorite = json["isFavorite"].asBool().unwrapOr(false);
     item.createdAt = json["createdAt"].asString().unwrapOr("");
     item.editedAt = json["editedAt"].asString().unwrapOr("");
     item.approvedAt = json["approvedAt"].asString().unwrapOr("");
@@ -262,6 +271,7 @@ CBBannerCell* CBBannerCell::create(const CBBannerItem& banner, float width, CBBa
             if (banner.isSupporterOnly) addIcon(CBBannerIcon::SupporterOnly);
             if (banner.isFeatured) addIcon(CBBannerIcon::Featured);
             if (banner.isLimited) addIcon(CBBannerIcon::Limited);
+            if (banner.isFavorite) addIcon(CBBannerIcon::Favorite);
 
             if (banner.isSupporterOnly) {
                 nameLabel->runAction(CCRepeatForever::create(CCSequence::create(
@@ -466,7 +476,6 @@ void CBBannerCell::addShopButtons() {
             this->addChildAtPosition(infoBtn, Anchor::BottomRight, {-50.f, 35.f}, false);
         }
     }
-
 }
 
 CCMenu* CBBannerCell::createAdminMenu() {
@@ -498,21 +507,17 @@ void CBBannerCell::addPendingButtons() {
     // plain pointer: the panel owns this cell, a Ref here would keep the panel alive forever
     auto adminPanel = m_options.adminPanel;
 
-    addAdminButton(menu, Button::createWithNode(
-        CircleButtonSprite::createWithSpriteFrameName("GJ_completesIcon_001.png", 0.8f, CircleBaseColor::Green, CircleBaseSize::Small),
-        [id, adminPanel](Button*) {
-            if (auto popup = CBPendingBannerReasonPopup::create(id, false, adminPanel)) {
-                popup->show();
-            }
-        }));
+    addAdminButton(menu, Button::createWithNode(CircleButtonSprite::createWithSpriteFrameName("GJ_completesIcon_001.png", 0.8f, CircleBaseColor::Green, CircleBaseSize::Small), [id, adminPanel](Button*) {
+        if (auto popup = CBPendingBannerReasonPopup::create(id, false, adminPanel)) {
+            popup->show();
+        }
+    }));
 
-    addAdminButton(menu, Button::createWithNode(
-        CircleButtonSprite::createWithSpriteFrameName("GJ_deleteIcon_001.png", 0.8f, CircleBaseColor::Red, CircleBaseSize::Small),
-        [id, adminPanel](Button*) {
-            if (auto popup = CBPendingBannerReasonPopup::create(id, true, adminPanel)) {
-                popup->show();
-            }
-        }));
+    addAdminButton(menu, Button::createWithNode(CircleButtonSprite::createWithSpriteFrameName("GJ_deleteIcon_001.png", 0.8f, CircleBaseColor::Red, CircleBaseSize::Small), [id, adminPanel](Button*) {
+        if (auto popup = CBPendingBannerReasonPopup::create(id, true, adminPanel)) {
+            popup->show();
+        }
+    }));
 
     // preview on a comment cell (both images when it has a non-compact one)
     auto imageUrl = m_banner.imageUrl;
@@ -539,10 +544,7 @@ void CBBannerCell::addAdminButtons() {
     }
 
     // feature toggle: an empty star unfeatures, a full star features
-    addAdminButton(menu, Button::createWithNode(
-        CircleButtonSprite::createWithSpriteFrameName(
-            m_banner.isFeatured ? "GJ_noStarsIcon_001.png" : "GJ_starsIcon_001.png", 1.0f, CircleBaseColor::Green, CircleBaseSize::Small),
-        [this](Button* sender) { this->toggleFeatured(sender); }));
+    addAdminButton(menu, Button::createWithNode(CircleButtonSprite::createWithSpriteFrameName(m_banner.isFeatured ? "GJ_noStarsIcon_001.png" : "GJ_starsIcon_001.png", 1.0f, CircleBaseColor::Green, CircleBaseSize::Small), [this](Button* sender) { this->toggleFeatured(sender); }));
 
     auto adminData = m_options.adminData;
     addAdminButton(menu, Button::createWithSpriteFrameName("sideBtn_options_001.png", [adminData](Button*) {

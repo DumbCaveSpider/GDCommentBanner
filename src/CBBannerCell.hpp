@@ -28,6 +28,7 @@ struct CBBannerItem {
     bool isLocal = false;
     bool creatorIsSupporter = false;  // pending banners: the submitter is a supporter
     bool isResubmission = false;      // approved banner whose new image is waiting for review
+    bool isFavorite = false;          // the viewer marked it as a favorite (shop lists only)
     // "YYYY-MM-DD hh:mm:ss", empty when unknown (banners from before these were tracked)
     std::string createdAt;
     std::string editedAt;
@@ -42,6 +43,7 @@ enum class CBBannerIcon {
     SupporterOnly,
     Featured,
     Limited,
+    Favorite,  // in the viewer's favorites
 };
 
 enum class CBBannerCellType {

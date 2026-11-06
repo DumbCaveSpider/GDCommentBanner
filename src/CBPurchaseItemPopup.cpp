@@ -34,7 +34,7 @@ bool CBPurchaseItemPopup::init(const CBBannerItem& banner) {
     }
 
     this->setTitle(m_banner.name.c_str(), "bigFont.fnt", 0.7f);
-    // tappable icons left of the title, and the title tint
+    m_title->setLimitLabelWidth(160.f, 0.7f);
     CBBannerCell::decoratePopupTitle(m_mainLayer, m_title, m_banner);
 
     if (m_closeBtn) m_closeBtn->removeFromParent();
