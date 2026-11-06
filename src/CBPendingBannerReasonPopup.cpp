@@ -31,7 +31,7 @@ bool CBPendingBannerReasonPopup::init(int bannerId, bool isReject, CBAdminPanelL
     m_mainLayer->addChildAtPosition(m_reasonInput, Anchor::Center, {0.f, 0.f});
 
     auto btnSpr = ButtonSprite::create(isReject ? "Reject" : "Approve", "goldFont.fnt", isReject ? "GJ_button_06.png" : "GJ_button_01.png", 0.8f);
-    auto submitBtn = CCMenuItemSpriteExtra::create(btnSpr, this, menu_selector(CBPendingBannerReasonPopup::onConfirm));
+    auto submitBtn = Button::createWithNode(btnSpr, [this](Button* sender) { this->onConfirm(sender); });
 
     m_buttonMenu->addChildAtPosition(submitBtn, Anchor::Bottom, {0.f, 25.f}, false);
 

@@ -63,26 +63,17 @@ bool CBSubmitBannerPopup::init(bool isLocal, bool isEdit, CBEditBannerData const
     m_canUploadNonCompact = !m_isLocal && comment::isUserSupporter();
 
     // Pick File Button(s)
-    auto pickFileBtn = CCMenuItemSpriteExtra::create(
-        ButtonSprite::create(m_canUploadNonCompact ? "Submit Compact" : "Select Image", "goldFont.fnt", "GJ_button_04.png", .8f),
-        this,
-        menu_selector(CBSubmitBannerPopup::onPickFile));
+    auto pickFileBtn = Button::createWithNode(ButtonSprite::create(m_canUploadNonCompact ? "Submit Compact" : "Select Image", "goldFont.fnt", "GJ_button_04.png", .8f), [this](Button* sender) { this->onPickFile(sender); });
     pickFileBtn->setTag(0);
 
-    CCMenuItemSpriteExtra* pickNonCompactBtn = nullptr;
+    Button* pickNonCompactBtn = nullptr;
     if (m_canUploadNonCompact) {
-        pickNonCompactBtn = CCMenuItemSpriteExtra::create(
-            ButtonSprite::create("Submit Non-Compact", "goldFont.fnt", "GJ_button_04.png", .8f),
-            this,
-            menu_selector(CBSubmitBannerPopup::onPickFile));
+        pickNonCompactBtn = Button::createWithNode(ButtonSprite::create("Submit Non-Compact", "goldFont.fnt", "GJ_button_04.png", .8f), [this](Button* sender) { this->onPickFile(sender); });
         pickNonCompactBtn->setTag(1);
     }
 
     // Preview, top right corner of the popup (shown once there's an image to preview)
-    m_previewBtn = CCMenuItemSpriteExtra::create(
-        CCSprite::createWithSpriteFrameName("dtrackBtn_search_001.png"),
-        this,
-        menu_selector(CBSubmitBannerPopup::onPreview));
+    m_previewBtn = Button::createWithSpriteFrameName("dtrackBtn_search_001.png", [this](Button* sender) { this->onPreview(sender); });
     m_previewBtn->setVisible(false);
     m_buttonMenu->addChildAtPosition(m_previewBtn, Anchor::TopRight, {-25.f, -25.f});
 
@@ -166,7 +157,7 @@ bool CBSubmitBannerPopup::init(bool isLocal, bool isEdit, CBEditBannerData const
             ->setCrossAxisLineAlignment(AxisAlignment::Start));
 
     // each row is its own menu so the toggler still receives touches
-    auto createToggleRow = [](CCMenuItemToggler* toggler, char const* text, ccColor3B color) {
+    auto createToggleRow = [](Toggler* toggler, char const* text, ccColor3B color) {
         auto row = CCMenu::create();
         row->setAnchorPoint({0.f, 0.5f});
         row->setContentSize({100.f, 30.f});
@@ -184,12 +175,11 @@ bool CBSubmitBannerPopup::init(bool isLocal, bool isEdit, CBEditBannerData const
 
     // Supporter Only, above Limited (supporters only)
     if (comment::isUserSupporter() && !m_isLocal) {
-        m_supporterOnlyToggler = CCMenuItemToggler::createWithStandardSprites(this, nullptr, 0.7f);
+        m_supporterOnlyToggler = Toggler::createWithStandardSprites(0.7f);
         togglesMenu->addChild(createToggleRow(m_supporterOnlyToggler, "Supporter", {255, 150, 255}));
     }
 
-    m_limitedToggler = CCMenuItemToggler::createWithStandardSprites(
-        this, menu_selector(CBSubmitBannerPopup::onToggleLimited), 0.7f);
+    m_limitedToggler = Toggler::createWithStandardSprites(0.7f, [this](Toggler* sender, bool) { this->onToggleLimited(sender); });
     togglesMenu->addChild(createToggleRow(m_limitedToggler, "Limited", {255, 255, 255}));
 
     togglesMenu->updateLayout();
@@ -211,7 +201,7 @@ bool CBSubmitBannerPopup::init(bool isLocal, bool isEdit, CBEditBannerData const
         m_priceInput->removeFromParent();
         m_priceInput = nullptr;
 
-        m_limitedToggler->toggle(m_editData.isLimited);
+        m_limitedToggler->setToggled(m_editData.isLimited);
         m_amountInput->setVisible(m_editData.isLimited);
         if (m_editData.isLimited) {
             m_amountInput->setString(numToString(m_editData.amount));
@@ -219,7 +209,7 @@ bool CBSubmitBannerPopup::init(bool isLocal, bool isEdit, CBEditBannerData const
         row1->updateLayout();
 
         if (m_supporterOnlyToggler) {
-            m_supporterOnlyToggler->toggle(m_editData.isSupporterOnly);
+            m_supporterOnlyToggler->setToggled(m_editData.isSupporterOnly);
         }
 
         // the current images can be previewed before picking new ones
@@ -227,17 +217,15 @@ bool CBSubmitBannerPopup::init(bool isLocal, bool isEdit, CBEditBannerData const
     }
 
     // Submit Button
-    auto submitBtn = CCMenuItemSpriteExtra::create(
-        ButtonSprite::create(m_isEdit ? "Update" : "Submit", "goldFont.fnt", "GJ_button_01.png", .8f),
-        this,
-        menu_selector(CBSubmitBannerPopup::onSubmit));
+    auto submitBtn = Button::createWithNode(ButtonSprite::create(m_isEdit ? "Update" : "Submit", "goldFont.fnt", "GJ_button_01.png", .8f), [this](Button* sender) { this->onSubmit(sender); });
     m_buttonMenu->addChildAtPosition(submitBtn, Anchor::Bottom, {0.f, 25.f}, false);
 
     return true;
 }
 
 void CBSubmitBannerPopup::onToggleLimited(CCObject* sender) {
-    bool toggled = !static_cast<CCMenuItemToggler*>(sender)->isToggled();
+    // called after the toggle, so this is already the new state
+    bool toggled = static_cast<Toggler*>(sender)->isToggled();
     if (m_amountInput) {
         m_amountInput->setVisible(toggled);
         if (auto parent = m_amountInput->getParent()) {
@@ -652,10 +640,7 @@ void CBSubmitBannerPopup::onPreview(CCObject*) {
     auto menu = CCMenu::create();
     menu->setZOrder(1);
 
-    auto closeBtn = CCMenuItemSpriteExtra::create(
-        CCSprite::createWithSpriteFrameName("GJ_arrow_01_001.png"),
-        this,
-        menu_selector(CBSubmitBannerPopup::onClosePreview));
+    auto closeBtn = Button::createWithSpriteFrameName("GJ_arrow_01_001.png", [this](Button* sender) { this->onClosePreview(sender); });
     closeBtn->setUserObject(blockLayer);
     menu->addChildAtPosition(closeBtn, Anchor::TopLeft, {25.f, -25.f});
     blockLayer->addChild(menu);

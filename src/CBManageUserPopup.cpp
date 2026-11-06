@@ -44,9 +44,8 @@ bool CBManageUserPopup::init(matjson::Value const& userData) {
     auto staffRow = CCMenu::create();
     staffRow->setLayout(RowLayout::create()->setGap(10.f)->setAutoScale(false));
 
-    m_staffToggler = CCMenuItemToggler::createWithStandardSprites(
-        this, menu_selector(CBManageUserPopup::onToggleStaff), 1.f);
-    m_staffToggler->toggle(m_isStaff);
+    m_staffToggler = Toggler::createWithStandardSprites(1.f, [this](Toggler* sender, bool) { this->onToggleStaff(sender); });
+    m_staffToggler->setToggled(m_isStaff);
 
     bool isAdmin = Mod::get()->getSavedValue<bool>("is_admin", false);
     if (!isAdmin) {
@@ -161,7 +160,7 @@ void CBManageUserPopup::onUpdateAmethyst(CCObject*) {
 }
 
 void CBManageUserPopup::onToggleStaff(CCObject* sender) {
-    auto toggler = static_cast<CCMenuItemToggler*>(sender);
+    Ref<Toggler> toggler = static_cast<Toggler*>(sender);
 
     auto accountData = argon::getGameAccountData();
     auto adminId = accountData.accountId;
@@ -178,7 +177,7 @@ void CBManageUserPopup::onToggleStaff(CCObject* sender) {
                     popup->showFailMessage("Authentication failed.");
                 }
                 if (toggler) {
-                    toggler->toggle(!toggler->isToggled());  // revert
+                    toggler->toggle();  // revert, without firing the callback
                 }
             });
             co_return;
@@ -205,7 +204,7 @@ void CBManageUserPopup::onToggleStaff(CCObject* sender) {
             if (ok) {
                 if (retainedSelf) retainedSelf->m_isStaff = !retainedSelf->m_isStaff;
             } else {
-                if (toggler) toggler->toggle(!toggler->isToggled());  // revert
+                if (toggler) toggler->toggle();  // revert, without firing the callback
             }
         });
         co_return;
@@ -392,9 +391,7 @@ void CBManageUserPopup::createBannerCell(matjson::Value const& banner) {
     savePriceBtn->setPosition({235.f, 20.f});
     bannerMenu->addChild(savePriceBtn);
 
-    auto deleteBtn = Button::createWithNode(
-        CCSprite::createWithSpriteFrameName("GJ_resetBtn_001.png"),
-        [this, bannerId](Button*) {
+    auto deleteBtn = Button::createWithSpriteFrameName("GJ_resetBtn_001.png", [this, bannerId](Button*) {
             createQuickPopup("Delete Banner", "Are you sure you want to <cr>delete this banner</c>?", "Cancel", "Delete", [this, bannerId](FLAlertLayer*, bool btn2) {
                 if (btn2) {
                     this->deleteBanner(bannerId);

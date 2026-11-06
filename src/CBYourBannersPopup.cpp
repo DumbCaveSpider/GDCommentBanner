@@ -41,7 +41,7 @@ bool CBYourBannersPopup::init() {
     }
 
     // explains how banners earn amethysts each month
-    if (auto infoBtn = Button::createWithNode(CCSprite::createWithSpriteFrameName("GJ_infoIcon_001.png"), [](Button*) {
+    if (auto infoBtn = Button::createWithSpriteFrameName("GJ_infoIcon_001.png", [](Button*) {
             FLAlertLayer::create(
                 nullptr,
                 "Earning Rate",

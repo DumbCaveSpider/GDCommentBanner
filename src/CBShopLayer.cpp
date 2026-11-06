@@ -559,7 +559,10 @@ bool CBShopLayer::init() {
         this->addChild(m_background);
     }
 
-    //addBackButton(this, BackButtonStyle::Pink);
+    // temp fix when geode::addBackButton is broken
+    auto backBtn = Button::createWithSpriteFrameName("GJ_arrow_03_001.png", [this](Button*) { this->keyBackClicked(); });
+    backBtn->setZOrder(CCScene::get()->getHighestChildZ() + 1);
+    this->addChildAtPosition(backBtn, Anchor::TopLeft, {25.f, -25.f}, false);
     addSideArt(this, SideArt::Bottom);
     addSideArt(this, SideArt::TopLeft);
 
@@ -685,10 +688,7 @@ bool CBShopLayer::init() {
     filterMenu->setAnchorPoint({0.5f, 1.f});
     filterMenu->setLayout(ColumnLayout::create()->setAxisAlignment(AxisAlignment::End)->setAutoGrowAxis(0.f));
 
-    if (auto filterButton = CCMenuItemSpriteExtra::create(
-            EditorButtonSprite::createWithSpriteFrameName("GJ_filterIcon_001.png", 1.0f, EditorBaseColor::Gray),
-            this,
-            menu_selector(CBShopLayer::onFilterClicked))) {
+    if (auto filterButton = Button::createWithNode(EditorButtonSprite::createWithSpriteFrameName("GJ_filterIcon_001.png", 1.0f, EditorBaseColor::Gray), [this](Button* sender) { this->onFilterClicked(sender); })) {
         m_filterButton = filterButton;
         filterMenu->addChild(filterButton);
     }
@@ -696,10 +696,7 @@ bool CBShopLayer::init() {
     filterMenu->updateLayout();
     this->addChildAtPosition(filterMenu, Anchor::TopLeft, {25.f, -45.f}, false);
 
-    if (auto searchButton = CCMenuItemSpriteExtra::create(
-            EditorButtonSprite::createWithSpriteFrameName("edit_findBtn_001.png", 1.0f, EditorBaseColor::Gray),
-            this,
-            menu_selector(CBShopLayer::onSearchClicked))) {
+    if (auto searchButton = Button::createWithNode(EditorButtonSprite::createWithSpriteFrameName("edit_findBtn_001.png", 1.0f, EditorBaseColor::Gray), [this](Button* sender) { this->onSearchClicked(sender); })) {
         m_searchButton = searchButton;
 
         filterMenu->addChild(searchButton);
@@ -779,14 +776,12 @@ bool CBShopLayer::init() {
     auto paginationMenu = CCMenu::create();
     paginationMenu->setID("pagination-menu");
 
-    auto prevSprite = CCSprite::createWithSpriteFrameName("GJ_arrow_01_001.png");
-    prevSprite->setScale(0.8f);
-    m_prevButton = CCMenuItemSpriteExtra::create(prevSprite, this, menu_selector(CBShopLayer::onPrevPage));
+    m_prevButton = Button::createWithSpriteFrameName("GJ_arrow_01_001.png", [this](Button* sender) { this->onPrevPage(sender); });
+    m_prevButton->setScale(0.8f);
 
-    auto nextSprite = CCSprite::createWithSpriteFrameName("GJ_arrow_01_001.png");
-    nextSprite->setFlipX(true);
-    nextSprite->setScale(0.8f);
-    m_nextButton = CCMenuItemSpriteExtra::create(nextSprite, this, menu_selector(CBShopLayer::onNextPage));
+    m_nextButton = Button::createWithSpriteFrameName("GJ_arrow_01_001.png", [this](Button* sender) { this->onNextPage(sender); });
+    static_cast<CCSprite*>(m_nextButton->getDisplayNode())->setFlipX(true);
+    m_nextButton->setScale(0.8f);
 
     m_pageLabel = Label::create("Page 1 of 1 (Total: 0)", "goldFont.fnt");
     m_pageLabel->setLimitLabelWidth(100.f, 0.4f, 0.1f);
@@ -947,7 +942,7 @@ void CBShopLayer::onFilterSortChanged() {
     if (m_filterButton) {
         bool isDefault = m_filterState == 0 && m_sortState == 0 && !m_supporterOnlyFilter;
         auto newSpr = EditorButtonSprite::createWithSpriteFrameName("GJ_filterIcon_001.png", 1.0f, isDefault ? EditorBaseColor::Gray : EditorBaseColor::Cyan);
-        m_filterButton->setNormalImage(newSpr);
+        m_filterButton->setDisplayNode(newSpr);
     }
 
     this->updateFilterSortLabel();
@@ -968,7 +963,7 @@ void CBShopLayer::setTextPopupClosed(SetTextPopup* popup, std::string text) {
     if (m_searchButton) {
         EditorBaseColor baseColor = m_searchQuery.empty() ? EditorBaseColor::Gray : EditorBaseColor::Cyan;
         auto newSpr = EditorButtonSprite::createWithSpriteFrameName("edit_findBtn_001.png", 1.0f, baseColor);
-        m_searchButton->setNormalImage(newSpr);
+        m_searchButton->setDisplayNode(newSpr);
     }
 
     this->updateFilterSortLabel();

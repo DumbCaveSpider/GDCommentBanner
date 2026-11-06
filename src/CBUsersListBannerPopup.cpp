@@ -37,14 +37,14 @@ bool CBUsersListBannerPopup::init(int bannerId, int listType) {
     scrollbar->setPosition({m_size.width / 2.f + 356.f / 2.f + 10.f, m_size.height / 2.f - 5.f});
     m_mainLayer->addChild(scrollbar);
 
-    if (auto prevSpr = CCSprite::createWithSpriteFrameName("GJ_arrow_01_001.png")) {
-        m_prevBtn = CCMenuItemSpriteExtra::create(prevSpr, this, menu_selector(CBUsersListBannerPopup::onPrevPage));
+    {
+        m_prevBtn = Button::createWithSpriteFrameName("GJ_arrow_01_001.png", [this](Button* sender) { this->onPrevPage(sender); });
         m_buttonMenu->addChildAtPosition(m_prevBtn, Anchor::Left, {-20.f, 0.f});
     }
 
-    if (auto nextSpr = CCSprite::createWithSpriteFrameName("GJ_arrow_01_001.png")) {
-        nextSpr->setFlipX(true);
-        m_nextBtn = CCMenuItemSpriteExtra::create(nextSpr, this, menu_selector(CBUsersListBannerPopup::onNextPage));
+    {
+        m_nextBtn = Button::createWithSpriteFrameName("GJ_arrow_01_001.png", [this](Button* sender) { this->onNextPage(sender); });
+        static_cast<CCSprite*>(m_nextBtn->getDisplayNode())->setFlipX(true);
         m_buttonMenu->addChildAtPosition(m_nextBtn, Anchor::Right, {20.f, 0.f});
     }
 

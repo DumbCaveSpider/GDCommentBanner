@@ -150,11 +150,9 @@ bool CBGiftAmethyst::init(int targetAccountId) {
     m_statusLabel->setLimitLabelWidth(m_mainLayer->getContentSize().width - 30.f, 0.7f, 0.1f);
     m_mainLayer->addChildAtPosition(m_statusLabel, Anchor::Bottom, {0.f, 55.f}, false);
 
-    m_giftBtn = CCMenuItemSpriteExtra::create(
-        ButtonSprite::create("Gift", "goldFont.fnt", "GJ_button_01.png", .8f),
-        this,
-        menu_selector(CBGiftAmethyst::onGift));
+    m_giftBtn = Button::createWithNode(ButtonSprite::create("Gift", "goldFont.fnt", "GJ_button_01.png", .8f), [this](Button* sender) { this->onGift(sender); });
     m_giftBtn->setEnabled(false);
+    m_giftBtn->setCascadeOpacityEnabled(true);  // so the dimmed look reaches the sprite
     m_giftBtn->setOpacity(150);
     m_buttonMenu->addChildAtPosition(m_giftBtn, Anchor::Bottom, {0.f, 25.f});
 

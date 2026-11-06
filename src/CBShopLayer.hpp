@@ -1,5 +1,7 @@
 #pragma once
 #include <Geode/Geode.hpp>
+#include <Geode/ui/Button.hpp>
+#include <Geode/ui/Toggler.hpp>
 #include <cue/LoadingCircle.hpp>
 #include <cue/ListNode.hpp>
 #include <cue/RepeatingBackground.hpp>
@@ -64,10 +66,10 @@ private:
     int m_totalItems = 0;
     int m_fetchId = 0;  // bumped on every fetchBanners, older responses are ignored
     std::string m_searchQuery = "";
-    Ref<CCMenuItemSpriteExtra> m_filterButton = nullptr;
-    Ref<CCMenuItemSpriteExtra> m_searchButton = nullptr;
-    Ref<CCMenuItemSpriteExtra> m_prevButton = nullptr;
-    Ref<CCMenuItemSpriteExtra> m_nextButton = nullptr;
+    Ref<Button> m_filterButton = nullptr;
+    Ref<Button> m_searchButton = nullptr;
+    Ref<Button> m_prevButton = nullptr;
+    Ref<Button> m_nextButton = nullptr;
     Ref<Label> m_pageLabel = nullptr;
     Ref<Label> m_noBannersLabel = nullptr;
     Ref<Label> m_filterSortLabel = nullptr;

@@ -31,10 +31,10 @@ bool CBSupporterPopup::init() {
     tabMenu->setLayout(RowLayout::create()->setGap(8.f));
 
     m_emailTabSprite = ButtonSprite::create("Email", 90, true, "goldFont.fnt", "GJ_button_01.png", 0.f, .7f);
-    tabMenu->addChild(CCMenuItemSpriteExtra::create(m_emailTabSprite, this, menu_selector(CBSupporterPopup::onSelectEmail)));
+    tabMenu->addChild(Button::createWithNode(m_emailTabSprite, [this](Button* sender) { this->onSelectEmail(sender); }));
 
     m_discordTabSprite = ButtonSprite::create("Discord", 90, true, "goldFont.fnt", "GJ_button_04.png", 0.f, .7f);
-    tabMenu->addChild(CCMenuItemSpriteExtra::create(m_discordTabSprite, this, menu_selector(CBSupporterPopup::onSelectDiscord)));
+    tabMenu->addChild(Button::createWithNode(m_discordTabSprite, [this](Button* sender) { this->onSelectDiscord(sender); }));
 
     tabMenu->updateLayout();
     m_buttonMenu->addChildAtPosition(tabMenu, Anchor::Center, {0.f, 25.f}, {0.5f, 0.5f});
@@ -53,10 +53,7 @@ bool CBSupporterPopup::init() {
     bottomMenu->setContentSize({280.f, 40.f});
     bottomMenu->setLayout(RowLayout::create()->setGap(10.f));
 
-    auto submitBtn = CCMenuItemSpriteExtra::create(
-        ButtonSprite::create("Submit", "goldFont.fnt", "GJ_button_01.png", .8f),
-        this,
-        menu_selector(CBSupporterPopup::onSubmit));
+    auto submitBtn = Button::createWithNode(ButtonSprite::create("Submit", "goldFont.fnt", "GJ_button_01.png", .8f), [this](Button* sender) { this->onSubmit(sender); });
     bottomMenu->addChild(submitBtn);
 
     auto supporterBtn = Button::createWithNode(

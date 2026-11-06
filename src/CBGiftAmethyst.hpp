@@ -1,5 +1,7 @@
 #pragma once
 #include <Geode/Geode.hpp>
+#include <Geode/ui/Button.hpp>
+#include <Geode/ui/Toggler.hpp>
 #include <Geode/ui/Popup.hpp>
 #include <Geode/ui/TextInput.hpp>
 #include <cue/LoadingCircle.hpp>
@@ -44,6 +46,6 @@ private:
     Column m_targetColumn;
     Label* m_statusLabel = nullptr;
     TextInput* m_amountInput = nullptr;
-    CCMenuItemSpriteExtra* m_giftBtn = nullptr;
+    Button* m_giftBtn = nullptr;
     cue::LoadingCircle* m_loadingCircle = nullptr;
 };

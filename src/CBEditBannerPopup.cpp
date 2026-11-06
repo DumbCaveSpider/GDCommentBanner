@@ -76,24 +76,15 @@ bool CBEditBannerPopup::init(CBEditBannerData data, std::function<void()> onSucc
     btnMenu->setLayout(RowLayout::create()->setGap(10.f));
 
     if (comment::isUserSupporter()) {
-        auto changeImageBtn = CCMenuItemSpriteExtra::create(
-            ButtonSprite::create("Change Image", "goldFont.fnt", "GJ_button_04.png", .8f),
-            this,
-            menu_selector(CBEditBannerPopup::onChangeImage));
+        auto changeImageBtn = Button::createWithNode(ButtonSprite::create("Change Image", "goldFont.fnt", "GJ_button_04.png", .8f), [this](Button* sender) { this->onChangeImage(sender); });
         btnMenu->addChild(changeImageBtn);
     }
 
-    auto saveBtn = CCMenuItemSpriteExtra::create(
-        ButtonSprite::create("Save", "goldFont.fnt", "GJ_button_01.png", .8f),
-        this,
-        menu_selector(CBEditBannerPopup::onSave));
+    auto saveBtn = Button::createWithNode(ButtonSprite::create("Save", "goldFont.fnt", "GJ_button_01.png", .8f), [this](Button* sender) { this->onSave(sender); });
     btnMenu->addChild(saveBtn);
 
     if (comment::isUserSupporter()) {
-        auto deleteBtn = CCMenuItemSpriteExtra::create(
-            ButtonSprite::create("Delete", "goldFont.fnt", "GJ_button_06.png", .8f),
-            this,
-            menu_selector(CBEditBannerPopup::onDelete));
+        auto deleteBtn = Button::createWithNode(ButtonSprite::create("Delete", "goldFont.fnt", "GJ_button_06.png", .8f), [this](Button* sender) { this->onDelete(sender); });
         btnMenu->addChild(deleteBtn);
     }
     btnMenu->updateLayout();

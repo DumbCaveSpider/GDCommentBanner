@@ -63,7 +63,10 @@ bool CBLeaderboardLayer::init() {
         this->addChild(m_background);
     }
 
-    //addBackButton(this, BackButtonStyle::Pink);
+    // temp fix when geode::addBackButton is broken
+    auto backBtn = Button::createWithSpriteFrameName("GJ_arrow_03_001.png", [this](Button*) { this->keyBackClicked(); });
+    backBtn->setZOrder(CCScene::get()->getHighestChildZ() + 1);
+    this->addChildAtPosition(backBtn, Anchor::TopLeft, {25.f, -25.f}, false);
     addSideArt(this, SideArt::All);
 
     m_list = cue::ListNode::create({356.f, 220}, cue::Brown, cue::ListBorderStyle::SlimLevels);

@@ -1,6 +1,8 @@
 #pragma once
 
 #include <Geode/Geode.hpp>
+#include <Geode/ui/Button.hpp>
+#include <Geode/ui/Toggler.hpp>
 #include <Geode/ui/Popup.hpp>
 #include <Geode/utils/web.hpp>
 #include <Geode/ui/TextInput.hpp>
@@ -19,7 +21,7 @@ protected:
 
     TextInput* m_amethystInput;
     TextInput* m_banHoursInput;
-    CCMenuItemToggler* m_staffToggler;
+    Toggler* m_staffToggler;
 
     cue::ListNode* m_bannersList;
     cue::LoadingCircle* m_loadingCircle;

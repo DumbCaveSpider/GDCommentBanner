@@ -89,17 +89,11 @@ bool CBAdminBannerManagePopup::init(matjson::Value const& bannerData) {
     m_mainLayer->addChild(btnMenu);
 
     // Save Button
-    auto saveBtn = CCMenuItemSpriteExtra::create(
-        ButtonSprite::create("Save", "goldFont.fnt", "GJ_button_01.png"),
-        this,
-        menu_selector(CBAdminBannerManagePopup::onSave));
+    auto saveBtn = Button::createWithNode(ButtonSprite::create("Save", "goldFont.fnt", "GJ_button_01.png"), [this](Button* sender) { this->onSave(sender); });
     btnMenu->addChild(saveBtn);
 
     // Delete Button
-    auto deleteBtn = CCMenuItemSpriteExtra::create(
-        ButtonSprite::create("Delete", "goldFont.fnt", "GJ_button_06.png"),
-        this,
-        menu_selector(CBAdminBannerManagePopup::onDelete));
+    auto deleteBtn = Button::createWithNode(ButtonSprite::create("Delete", "goldFont.fnt", "GJ_button_06.png"), [this](Button* sender) { this->onDelete(sender); });
     btnMenu->addChild(deleteBtn);
 
     btnMenu->updateLayout();

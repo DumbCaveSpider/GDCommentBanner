@@ -77,9 +77,7 @@ bool CBAdminPanelLayer::init() {
     tabMenu->updateLayout();
 
     auto filterMenu = CCMenu::create();
-    m_filterBtn = Button::createWithNode(
-        CCSprite::createWithSpriteFrameName("gj_findBtn_001.png"),
-        [this](Button*) {
+    m_filterBtn = Button::createWithSpriteFrameName("gj_findBtn_001.png", [this](Button*) {
             auto popup = SetTextPopup::create("", (m_currentTab == Tab::Users) ? "AccountID or Username" : "Banner Name, User, or ID", 32, (m_currentTab == Tab::Users) ? "Search Users" : "Search Banners", "Search", true, 60, false, 0, 0);
             popup->m_delegate = this;
             popup->show();
@@ -94,15 +92,15 @@ bool CBAdminPanelLayer::init() {
     m_pageLabel->setLimitLabelWidth(120.f, 0.4f, 0.1f);
     m_mainLayer->addChildAtPosition(m_pageLabel, Anchor::Bottom, {0.f, 12.f}, false);
 
-    if (auto prevSpr = CCSprite::createWithSpriteFrameName("GJ_arrow_01_001.png")) {
-        m_prevBtn = CCMenuItemSpriteExtra::create(prevSpr, this, menu_selector(CBAdminPanelLayer::onPrevPage));
+    {
+        m_prevBtn = Button::createWithSpriteFrameName("GJ_arrow_01_001.png", [this](Button* sender) { this->onPrevPage(sender); });
         m_prevBtn->setPosition({-70.f, 0.f});
         m_paginationMenu->addChild(m_prevBtn);
     }
 
-    if (auto nextSpr = CCSprite::createWithSpriteFrameName("GJ_arrow_01_001.png")) {
-        nextSpr->setFlipX(true);
-        m_nextBtn = CCMenuItemSpriteExtra::create(nextSpr, this, menu_selector(CBAdminPanelLayer::onNextPage));
+    {
+        m_nextBtn = Button::createWithSpriteFrameName("GJ_arrow_01_001.png", [this](Button* sender) { this->onNextPage(sender); });
+        static_cast<CCSprite*>(m_nextBtn->getDisplayNode())->setFlipX(true);
         m_nextBtn->setPosition({70.f, 0.f});
         m_paginationMenu->addChild(m_nextBtn);
     }

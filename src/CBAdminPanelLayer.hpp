@@ -1,5 +1,7 @@
 #pragma once
 #include <Geode/Geode.hpp>
+#include <Geode/ui/Button.hpp>
+#include <Geode/ui/Toggler.hpp>
 #include <Geode/ui/Popup.hpp>
 #include <cue/ListNode.hpp>
 #include <cue/LoadingCircle.hpp>
@@ -30,8 +32,8 @@ private:
     cue::ListNode* m_list = nullptr;
     cue::LoadingCircle* m_loadingCircle = nullptr;
 
-    CCMenuItemToggler* m_tabPending = nullptr;
-    CCMenuItemToggler* m_tabUsers = nullptr;
+    Toggler* m_tabPending = nullptr;
+    Toggler* m_tabUsers = nullptr;
     Button* m_filterBtn = nullptr;
 
     enum class Tab { Pending,
@@ -48,7 +50,7 @@ private:
     std::string m_authToken;
     int m_page = 0;
     Label* m_pageLabel = nullptr;
-    CCMenuItemSpriteExtra* m_nextBtn = nullptr;
-    CCMenuItemSpriteExtra* m_prevBtn = nullptr;
+    Button* m_nextBtn = nullptr;
+    Button* m_prevBtn = nullptr;
     CCMenu* m_paginationMenu = nullptr;
 };

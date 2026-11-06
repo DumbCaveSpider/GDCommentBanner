@@ -70,19 +70,12 @@ bool CBProfileBannerPopup::init(int targetAccountId, const std::string& targetUs
     auto navMenu = CCMenu::create();
     navMenu->setPosition({m_mainLayer->getContentSize().width / 2, 20.f});
 
-    m_prevBtn = CCMenuItemSpriteExtra::create(
-        CCSprite::createWithSpriteFrameName("GJ_arrow_01_001.png"),
-        this,
-        menu_selector(CBProfileBannerPopup::onPrevPage));
+    m_prevBtn = Button::createWithSpriteFrameName("GJ_arrow_01_001.png", [this](Button* sender) { this->onPrevPage(sender); });
     m_prevBtn->setPosition({-210.f, 110.f});
     navMenu->addChild(m_prevBtn);
 
-    auto nextSpr = CCSprite::createWithSpriteFrameName("GJ_arrow_01_001.png");
-    nextSpr->setFlipX(true);
-    m_nextBtn = CCMenuItemSpriteExtra::create(
-        nextSpr,
-        this,
-        menu_selector(CBProfileBannerPopup::onNextPage));
+    m_nextBtn = Button::createWithSpriteFrameName("GJ_arrow_01_001.png", [this](Button* sender) { this->onNextPage(sender); });
+    static_cast<CCSprite*>(m_nextBtn->getDisplayNode())->setFlipX(true);
     m_nextBtn->setPosition({210.f, 110.f});
     navMenu->addChild(m_nextBtn);
 

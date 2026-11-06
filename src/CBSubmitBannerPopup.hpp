@@ -1,5 +1,7 @@
 #pragma once
 #include <Geode/Geode.hpp>
+#include <Geode/ui/Button.hpp>
+#include <Geode/ui/Toggler.hpp>
 #include <Geode/ui/Popup.hpp>
 #include <Geode/ui/TextInput.hpp>
 #include "CBEditBannerPopup.hpp"
@@ -30,11 +32,11 @@ private:
     TextInput* m_nameInput = nullptr;
     TextInput* m_descInput = nullptr;
     TextInput* m_priceInput = nullptr;  // null in edit mode
-    CCMenuItemToggler* m_limitedToggler = nullptr;
-    CCMenuItemToggler* m_supporterOnlyToggler = nullptr;  // null for non-supporters
+    Toggler* m_limitedToggler = nullptr;
+    Toggler* m_supporterOnlyToggler = nullptr;  // null for non-supporters
     TextInput* m_amountInput = nullptr;
     Label* m_fileNameLabel = nullptr;
-    CCMenuItemSpriteExtra* m_previewBtn = nullptr;
+    Button* m_previewBtn = nullptr;
 
     std::string m_selectedFilePath;            // compact image (1500x150)
     std::string m_selectedNonCompactPath;      // optional non-compact image (1500x350), supporters only
