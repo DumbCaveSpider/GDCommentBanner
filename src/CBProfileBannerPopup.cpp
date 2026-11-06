@@ -27,7 +27,7 @@ bool CBProfileBannerPopup::init(int targetAccountId, const std::string& targetUs
     std::string titleStr = targetUsername.empty() ? "User Banners" : fmt::format("{}'s Banners", targetUsername);
     this->setTitle(titleStr, "goldFont.fnt");
 
-    auto profileBtn = geode::Button::createWithSpriteFrameName("GJ_profileButton_001.png", [this](geode::Button* sender) {
+    auto profileBtn = Button::createWithSpriteFrameName("GJ_profileButton_001.png", [this](Button* sender) {
         ProfilePage::create(m_targetAccountId, false)->show();
     });
     profileBtn->setScale(0.7f);
@@ -69,7 +69,7 @@ bool CBProfileBannerPopup::init(int targetAccountId, const std::string& targetUs
     m_nextBtn->setPosition({210.f, 110.f});
     navMenu->addChild(m_nextBtn);
 
-    m_pageLabel = geode::Label::create("0 to 0 of 0", "goldFont.fnt");
+    m_pageLabel = Label::create("0 to 0 of 0", "goldFont.fnt");
     m_pageLabel->setLimitLabelWidth(100.f, 0.4f, 0.1f);
     m_mainLayer->addChildAtPosition(m_pageLabel, Anchor::Bottom, {0, 15}, false);
 
@@ -126,7 +126,7 @@ void CBProfileBannerPopup::fetchBanners() {
     arc::spawn([retainedSelf, accountId, accountData]() -> arc::Future<> {
         auto authResult = co_await comment::argonToken(accountData);
 
-        auto req = geode::utils::web::WebRequest();
+        auto req = utils::web::WebRequest();
         auto body = matjson::makeObject({
             {"targetAccountId", retainedSelf->m_targetAccountId},
             {"page", retainedSelf->m_currentPage},
@@ -142,7 +142,7 @@ void CBProfileBannerPopup::fetchBanners() {
 
         auto response = co_await req.bodyJSON(body).post(fmt::format("{}/getBanners", comment::baseUrl));
         if (!response.ok()) {
-            geode::queueInMainThread([retainedSelf] {
+            queueInMainThread([retainedSelf] {
                 retainedSelf->m_loadingCircle->fadeOut();
                 Notification::create("Failed to fetch banners.", NotificationIcon::Error)->show();
             });
@@ -151,7 +151,7 @@ void CBProfileBannerPopup::fetchBanners() {
 
         auto jsonRes = response.json();
         if (jsonRes.isErr()) {
-            geode::queueInMainThread([retainedSelf] {
+            queueInMainThread([retainedSelf] {
                 retainedSelf->m_loadingCircle->fadeOut();
                 Notification::create("Invalid JSON from server.", NotificationIcon::Error)->show();
             });
@@ -160,7 +160,7 @@ void CBProfileBannerPopup::fetchBanners() {
 
         auto json = jsonRes.unwrap();
         if (!json.isObject()) {
-            geode::queueInMainThread([retainedSelf] {
+            queueInMainThread([retainedSelf] {
                 retainedSelf->m_loadingCircle->fadeOut();
             });
             co_return;
@@ -173,20 +173,20 @@ void CBProfileBannerPopup::fetchBanners() {
 
         auto bannersArr = json["banners"];
         if (!bannersArr.isArray()) {
-            geode::queueInMainThread([retainedSelf] {
+            queueInMainThread([retainedSelf] {
                 retainedSelf->m_loadingCircle->fadeOut();
             });
             co_return;
         }
 
-        geode::queueInMainThread([retainedSelf, bannersArr = std::move(bannersArr), totalItems] {
+        queueInMainThread([retainedSelf, bannersArr = std::move(bannersArr), totalItems] {
             retainedSelf->m_loadingCircle->fadeOut();
             retainedSelf->m_list->clear();
             retainedSelf->m_totalItems = totalItems;
             retainedSelf->updatePaginationButtons();
 
             if (bannersArr.size() == 0) {
-                auto emptyLabel = geode::Label::create("No Banners", "goldFont.fnt");
+                auto emptyLabel = Label::create("No Banners", "goldFont.fnt");
                 emptyLabel->setLimitLabelWidth(retainedSelf->m_list->getContentWidth() - 20.f, 0.7f, 0.15f);
                 retainedSelf->m_list->addChildAtPosition(emptyLabel, Anchor::Center);
                 return;
@@ -198,6 +198,8 @@ void CBProfileBannerPopup::fetchBanners() {
                 if (auto urlRes = item["imageUrl"].asString(); urlRes.isOk()) {
                     banner.imageUrl = urlRes.unwrap();
                 }
+                banner.nonCompactImageUrl = item["nonCompactImageUrl"].asString().unwrapOr("");
+                banner.isSupporterOnly = item["isSupporterOnly"].asBool().unwrapOr(false);
                 if (auto usernameRes = item["username"].asString(); usernameRes.isOk()) {
                     banner.username = usernameRes.unwrap();
                 }

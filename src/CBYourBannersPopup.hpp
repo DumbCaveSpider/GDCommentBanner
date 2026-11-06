@@ -6,7 +6,7 @@
 
 using namespace geode::prelude;
 
-class CBYourBannersPopup : public geode::Popup {
+class CBYourBannersPopup : public Popup {
 public:
     static CBYourBannersPopup* create();
 
@@ -19,6 +19,5 @@ private:
 
     cue::ListNode* m_list = nullptr;
     cue::LoadingCircle* m_loadingCircle = nullptr;
-    geode::Label* m_earnLabel = nullptr;
-    geode::Label* m_pageLabel = nullptr;
+    Label* m_pageLabel = nullptr;
 };

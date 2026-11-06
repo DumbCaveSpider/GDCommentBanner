@@ -5,17 +5,36 @@
 
 using namespace geode::prelude;
 
-class CBUpdateAmountPopup : public geode::Popup {
-protected:
-    int m_bannerId;
-    int m_currentAmount;
-    int m_totalBought;
-    std::function<void()> m_onSuccess;
-    geode::TextInput* m_amountInput;
+struct CBEditBannerData {
+    int id = 0;
+    std::string name;
+    std::string description;
+    int price = 0;
+    bool isLimited = false;
+    int amount = 0;
+    int totalBought = 0;
+    bool isSupporterOnly = false;
+    std::string imageUrl;
+    std::string nonCompactImageUrl;
+};
 
-    bool init(int bannerId, int currentAmount, int totalBought, std::function<void()> onSuccess);
-    void onUpdate(CCObject*);
+class CBEditBannerPopup : public Popup {
+protected:
+    CBEditBannerData m_data;
+    std::function<void()> m_onSuccess;
+
+    TextInput* m_nameInput = nullptr;
+    TextInput* m_descInput = nullptr;
+    TextInput* m_priceInput = nullptr;
+    TextInput* m_amountInput = nullptr;
+
+    bool init(CBEditBannerData data, std::function<void()> onSuccess);
+    void onSave(CCObject*);
+    void onChangeImage(CCObject*);
+    void onDelete(CCObject*);
+    void deleteBanner();
+    void submitEdit(std::string name, std::string desc, int price, int amount);
 
 public:
-    static CBUpdateAmountPopup* create(int bannerId, int currentAmount, int totalBought, std::function<void()> onSuccess);
+    static CBEditBannerPopup* create(CBEditBannerData data, std::function<void()> onSuccess);
 };

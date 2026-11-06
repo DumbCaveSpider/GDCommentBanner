@@ -1,5 +1,6 @@
 
 #include "CBLeaderboardLayer.hpp"
+#include "CBUserCell.hpp"
 #include <fmt/format.h>
 #include "CBProfileBannerPopup.hpp"
 #include "include/CBConstant.hpp"
@@ -58,7 +59,7 @@ bool CBLeaderboardLayer::init() {
         this->addChild(m_background);
     }
 
-    addBackButton(this, BackButtonStyle::Pink);
+    //addBackButton(this, BackButtonStyle::Pink);
     addSideArt(this, SideArt::All);
 
     m_list = cue::ListNode::create({356.f, 220}, {0, 0, 0, 0}, cue::ListBorderStyle::SlimLevels);
@@ -76,7 +77,7 @@ bool CBLeaderboardLayer::init() {
 
     createTabs();
 
-    if (auto infoButton = geode::Button::createWithNode(CircleButtonSprite::createWithSpriteFrameName("CB_info.png"_spr, 1.f, CircleBaseColor::DarkPurple, CircleBaseSize::Small), [this](geode::Button* sender) {
+    if (auto infoButton = Button::createWithNode(CircleButtonSprite::createWithSpriteFrameName("CB_info.png"_spr, 1.f, CircleBaseColor::DarkPurple, CircleBaseSize::Small), [this](Button* sender) {
             auto const& info = getTabInfo(m_currentTab);
             FLAlertLayer::create(fmt::format("Amethysts {}", info.name).c_str(), info.infoText, "OK")->show();
         })) {
@@ -147,7 +148,7 @@ void CBLeaderboardLayer::fetchLeaderboard() {
     Ref<CBLeaderboardLayer> retainedSelf = this;
     auto tab = m_currentTab;
     arc::spawn([retainedSelf, tab]() -> arc::Future<> {
-        auto req = geode::utils::web::WebRequest();
+        auto req = utils::web::WebRequest();
         auto response = co_await req.get(fmt::format("{}/getLeaderboard?type={}", comment::baseUrl, getTabInfo(tab).type));
 
         // ignore responses for a tab the user already switched away from
@@ -156,7 +157,7 @@ void CBLeaderboardLayer::fetchLeaderboard() {
         };
 
         if (!response.ok()) {
-            geode::queueInMainThread([retainedSelf, isStale] {
+            queueInMainThread([retainedSelf, isStale] {
                 if (isStale()) return;
                 if (retainedSelf->m_loadingCircle) retainedSelf->m_loadingCircle->fadeOut();
                 Notification::create("Failed to fetch leaderboard", NotificationIcon::Error)->show();
@@ -166,7 +167,7 @@ void CBLeaderboardLayer::fetchLeaderboard() {
 
         auto jsonRes = response.json();
         if (jsonRes.isErr()) {
-            geode::queueInMainThread([retainedSelf, isStale] {
+            queueInMainThread([retainedSelf, isStale] {
                 if (isStale()) return;
                 if (retainedSelf->m_loadingCircle) retainedSelf->m_loadingCircle->fadeOut();
                 Notification::create("Invalid JSON response", NotificationIcon::Error)->show();
@@ -176,20 +177,20 @@ void CBLeaderboardLayer::fetchLeaderboard() {
 
         auto json = jsonRes.unwrap();
         if (!json.isArray()) {
-            geode::queueInMainThread([retainedSelf, isStale] {
+            queueInMainThread([retainedSelf, isStale] {
                 if (isStale()) return;
                 if (retainedSelf->m_loadingCircle) retainedSelf->m_loadingCircle->fadeOut();
             });
             co_return;
         }
 
-        geode::queueInMainThread([retainedSelf, isStale, tab, json = std::move(json)] {
+        queueInMainThread([retainedSelf, isStale, tab, json = std::move(json)] {
             if (isStale()) return;
             if (retainedSelf->m_loadingCircle) retainedSelf->m_loadingCircle->fadeOut();
             if (retainedSelf->m_list) retainedSelf->m_list->clear();
 
             if (json.size() == 0) {
-                auto emptyLabel = geode::Label::create(getTabInfo(tab).emptyText, "bigFont.fnt");
+                auto emptyLabel = Label::create(getTabInfo(tab).emptyText, "bigFont.fnt");
                 emptyLabel->setScale(0.5f);
                 if (retainedSelf->m_list) {
                     retainedSelf->m_list->addChildAtPosition(emptyLabel, Anchor::Center);
@@ -197,135 +198,20 @@ void CBLeaderboardLayer::fetchLeaderboard() {
                 return;
             }
 
+            bool showBanner = !Mod::get()->getSettingValue<bool>("disable-banner-leaderboard");
             for (size_t i = 0; i < json.size(); ++i) {
-                auto item = json[i];
-                int accountId = item["accountId"].asInt().unwrapOr(0);
-                std::string username = item["username"].asString().unwrapOr("Unknown");
-                int totalEarned = item["totalEarned"].asInt().unwrapOr(0);
-                int totalSales = item["totalSales"].asInt().unwrapOr(0);
-                std::string equippedBannerUrl = item["equippedBannerUrl"].asString().unwrapOr("");
-                bool isAdmin = item["is_admin"].asBool().unwrapOr(false);
-                bool isStaff = item["is_staff"].asBool().unwrapOr(false);
-                bool isSupporter = item["is_supporter"].asBool().unwrapOr(false);
-
-                auto cell = CCNode::create();
-                cell->setContentSize({356.f, 40.f});
-
-                if (!equippedBannerUrl.empty()) {
-                    if (!Mod::get()->getSettingValue<bool>("disable-banner-leaderboard")) {
-                        auto bannerSprite = comment::createBannerNode(fmt::format("{}{}", comment::baseUrl, equippedBannerUrl), {cell->getContentWidth() + 10, cell->getContentHeight() + 10});
-                        if (bannerSprite) {
-                            bannerSprite->setPosition({cell->getContentWidth() / 2, cell->getContentHeight() / 2});
-                            cell->addChild(bannerSprite, -2);
-                        }
-                    }
+                auto data = CBUserData::fromJson(json[i]);
+                // leaderboard banner urls are relative to the server
+                if (!data.equippedBannerUrl.empty() && data.equippedBannerUrl.starts_with("/")) {
+                    data.equippedBannerUrl = fmt::format("{}{}", comment::baseUrl, data.equippedBannerUrl);
                 }
 
-                // Rank
-                auto rankLabel = geode::Label::create(fmt::format("{}", i + 1).c_str(), "goldFont.fnt");
-                rankLabel->setScale(0.6f);
-                rankLabel->setAnchorPoint({0.f, 0.5f});
-                rankLabel->setPosition({10.f, 20.f});
-                cell->addChild(rankLabel);
-
-                // Badges
-                auto badgesNode = CCNode::create();
-                badgesNode->setPosition({45.f, 20.f});
-                badgesNode->setContentSize({90.f, 25.f});
-                badgesNode->setAnchorPoint({0.f, 0.5f});
-                badgesNode->setLayout(RowLayout::create()->setAxisAlignment(AxisAlignment::Start)->setGap(5)->setAutoScale(false));
-                cell->addChild(badgesNode, 1);
-
-                float badgesWidth = 0.f;
-                if (isAdmin) {
-                    if (auto adminBadge = CCSprite::createWithSpriteFrameName("CB_admin_badge.png"_spr)) {
-                        adminBadge->setScale(0.07f);
-                        adminBadge->setAnchorPoint({0.f, 0.5f});
-                        adminBadge->setPosition({badgesWidth, 0.f});
-                        badgesNode->addChild(adminBadge);
-                        badgesWidth += adminBadge->getScaledContentSize().width + 4.f;
-                    }
-                } else if (isStaff) {
-                    if (auto staffBadge = CCSprite::createWithSpriteFrameName("CB_staff_badge.png"_spr)) {
-                        staffBadge->setScale(0.07f);
-                        staffBadge->setAnchorPoint({0.f, 0.5f});
-                        staffBadge->setPosition({badgesWidth, 0.f});
-                        badgesNode->addChild(staffBadge);
-                        badgesWidth += staffBadge->getScaledContentSize().width + 4.f;
-                    }
-                }
-                // will add later
-                if (isSupporter) {
-                    //if (auto supporterBadge = CCSprite::createWithSpriteFrameName("CB_supporter_badge.png"_spr)) {
-                    //    supporterBadge->setScale(0.65f);
-                    //    supporterBadge->setAnchorPoint({0.f, 0.5f});
-                    //    supporterBadge->setPosition({badgesWidth, 0.f});
-                    //    badgesNode->addChild(supporterBadge);
-                    //    badgesWidth += supporterBadge->getScaledContentSize().width + 4.f;
-                    //}
-                }
-                badgesNode->setContentSize({badgesWidth, 0.f});
-                badgesNode->updateLayout();
-
-                float currentX = 45.f + badgesWidth;
-
-                // Username
-                auto menu = CCMenu::create();
-                menu->setPosition({0, 0});
-                cell->addChild(menu);
-
-                auto usernameLabel = geode::Label::create(username.c_str(), "bigFont.fnt");
-                usernameLabel->setLimitLabelWidth(std::max(60.f, 165.f - currentX), 0.6f, 0.1f);
-
-                auto usernameBtn = geode::Button::createWithNode(
-                    usernameLabel,
-                    [accountId, username](geode::Button* sender) {
-                        if (auto popup = CBProfileBannerPopup::create(accountId, username)) {
-                            popup->show();
-                        }
-                    });
-
-                usernameBtn->setAnchorPoint({0.f, 0.5f});
-                usernameBtn->setPosition({currentX, 20.f});
-                menu->addChild(usernameBtn);
-
-                // Main stat for the current tab, with a secondary stat underneath
-                std::string mainText;
-                std::string subText;
-                bool showAmethyst = true;
-                switch (tab) {
-                    case LeaderboardTab::Earners:
-                        mainText = GameToolbox::pointsToString(totalEarned);
-                        subText = fmt::format("Total Sales: {}", totalSales);
-                        break;
-                    case LeaderboardTab::Sales:
-                        mainText = fmt::format("{} Sales", GameToolbox::pointsToString(totalSales));
-                        subText = fmt::format("Total Earned: {}", GameToolbox::pointsToString(totalEarned));
-                        showAmethyst = false;
-                        break;
-                }
-
-                auto earnLabel = geode::Label::create(mainText.c_str(), "bigFont.fnt");
-                earnLabel->setLimitLabelWidth(150, 0.5f, 0.1f);
-                earnLabel->setAnchorPoint({1.f, 0.5f});
-                earnLabel->setPosition({showAmethyst ? 320.f : 345.f, 26.f});
-                cell->addChild(earnLabel);
-
-                if (showAmethyst) {
-                    auto amethystIcon = CCSprite::createWithSpriteFrameName("CB_amethyst_001.png"_spr);
-                    amethystIcon->setScale(0.6f);
-                    amethystIcon->setPosition({335.f, 26.f});
-                    cell->addChild(amethystIcon);
-                }
-
-                auto salesLabel = geode::Label::create(subText.c_str(), "bigFont.fnt");
-                salesLabel->setLimitLabelWidth(150, 0.25f, 0.1f);
-                salesLabel->setAnchorPoint({1.f, 0.5f});
-                salesLabel->setPosition({345.f, 10.f});
-                salesLabel->setColor({150, 255, 150});
-                cell->addChild(salesLabel);
-
-                if (retainedSelf->m_list) {
+                auto cell = CBUserCell::create(data, 356.f, {
+                    .rank = static_cast<int>(i + 1),
+                    .showBanner = showBanner,
+                    .showSalesCount = tab == LeaderboardTab::Sales,
+                });
+                if (cell && retainedSelf->m_list) {
                     retainedSelf->m_list->addCell(cell);
                 }
             }

@@ -48,7 +48,7 @@ bool CBUsersListBannerPopup::init(int bannerId, int listType) {
         m_buttonMenu->addChildAtPosition(m_nextBtn, Anchor::Right, {20.f, 0.f});
     }
 
-    m_pageLabel = geode::Label::create("1 to 100", "goldFont.fnt");
+    m_pageLabel = Label::create("1 to 100", "goldFont.fnt");
     m_pageLabel->setScale(0.5f);
     m_pageLabel->setZOrder(5);
     m_mainLayer->addChildAtPosition(m_pageLabel, Anchor::Bottom, {0.f, 15.f}, false);
@@ -98,7 +98,7 @@ void CBUsersListBannerPopup::fetchUsers() {
 
     Ref<CBUsersListBannerPopup> retainedSelf = this;
     arc::spawn([retainedSelf]() -> arc::Future<> {
-        auto req = geode::utils::web::WebRequest();
+        auto req = utils::web::WebRequest();
         auto body = matjson::makeObject({{"bannerId", retainedSelf->m_bannerId},
             {"page", retainedSelf->m_currentPage},
             {"limit", retainedSelf->m_itemsPerPage},
@@ -107,7 +107,7 @@ void CBUsersListBannerPopup::fetchUsers() {
         auto response = co_await req.bodyJSON(body).post(fmt::format("{}/getBannerUsers", comment::baseUrl));
 
         if (!response.ok()) {
-            geode::queueInMainThread([retainedSelf] {
+            queueInMainThread([retainedSelf] {
                 if (retainedSelf->m_loadingCircle) retainedSelf->m_loadingCircle->fadeOut();
                 Notification::create("Failed to fetch users.", NotificationIcon::Error)->show();
             });
@@ -116,7 +116,7 @@ void CBUsersListBannerPopup::fetchUsers() {
 
         auto jsonRes = response.json();
         if (jsonRes.isErr()) {
-            geode::queueInMainThread([retainedSelf] {
+            queueInMainThread([retainedSelf] {
                 if (retainedSelf->m_loadingCircle) retainedSelf->m_loadingCircle->fadeOut();
                 Notification::create("Invalid JSON from server.", NotificationIcon::Error)->show();
             });
@@ -125,7 +125,7 @@ void CBUsersListBannerPopup::fetchUsers() {
 
         auto json = jsonRes.unwrap();
         if (!json.isObject()) {
-            geode::queueInMainThread([retainedSelf] {
+            queueInMainThread([retainedSelf] {
                 if (retainedSelf->m_loadingCircle) retainedSelf->m_loadingCircle->fadeOut();
             });
             co_return;
@@ -138,20 +138,20 @@ void CBUsersListBannerPopup::fetchUsers() {
 
         auto usersArr = json["users"];
         if (!usersArr.isArray()) {
-            geode::queueInMainThread([retainedSelf] {
+            queueInMainThread([retainedSelf] {
                 if (retainedSelf->m_loadingCircle) retainedSelf->m_loadingCircle->fadeOut();
             });
             co_return;
         }
 
-        geode::queueInMainThread([retainedSelf, usersArr = std::move(usersArr), totalItems] {
+        queueInMainThread([retainedSelf, usersArr = std::move(usersArr), totalItems] {
             if (retainedSelf->m_loadingCircle) retainedSelf->m_loadingCircle->fadeOut();
             if (retainedSelf->m_list) retainedSelf->m_list->clear();
             retainedSelf->m_totalItems = totalItems;
             retainedSelf->updatePaginationButtons();
 
             if (usersArr.size() == 0) {
-                auto emptyLabel = geode::Label::create("No users found", "goldFont.fnt");
+                auto emptyLabel = Label::create("No users found", "goldFont.fnt");
                 emptyLabel->setLimitLabelWidth(retainedSelf->m_list->getContentWidth() - 20.f, 0.7f, 0.15f);
                 if (retainedSelf->m_list) {
                     retainedSelf->m_list->addChildAtPosition(emptyLabel, Anchor::Center);
@@ -176,12 +176,12 @@ void CBUsersListBannerPopup::fetchUsers() {
                     }
                 }
 
-                auto usernameLabel = geode::Label::create(username.c_str(), "bigFont.fnt");
+                auto usernameLabel = Label::create(username.c_str(), "bigFont.fnt");
                 usernameLabel->setLimitLabelWidth(200.f, 0.6f, 0.1f);
 
-                auto usernameBtn = geode::Button::createWithNode(
+                auto usernameBtn = Button::createWithNode(
                     usernameLabel,
-                    [accountId, username](geode::Button* sender) {
+                    [accountId, username](Button* sender) {
                         if (auto popup = CBProfileBannerPopup::create(accountId, username)) {
                             popup->show();
                         }

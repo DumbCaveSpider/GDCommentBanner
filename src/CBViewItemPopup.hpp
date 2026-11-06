@@ -6,7 +6,7 @@
 
 using namespace geode::prelude;
 
-class CBViewItemPopup : public geode::Popup {
+class CBViewItemPopup : public Popup {
 public:
     static CBViewItemPopup* create(const CBBannerItem& banner);
 

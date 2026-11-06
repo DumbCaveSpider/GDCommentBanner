@@ -17,7 +17,6 @@ public:
     void refreshBanners();
     void populateList();
     void onFilterClicked(CCObject* sender);
-    void onSortClicked(CCObject* sender);
     void onSearchClicked(CCObject* sender);
     void onNextPage(CCObject* sender);
     void onPrevPage(CCObject* sender);
@@ -25,6 +24,13 @@ public:
     int getEquippedBannerId() const { return m_equippedBannerId; }
     void updateLocalEquippedState();
     void updateFilterSortLabel();
+    int getFilterState() const { return m_filterState; }
+    int getSortState() const { return m_sortState; }
+    void setFilterState(int state);
+    void setSortState(int state);
+    bool getSupporterOnlyFilter() const { return m_supporterOnlyFilter; }
+    void setSupporterOnlyFilter(bool enabled);
+    void resetFilterSort();
 
     void setTextPopupClosed(SetTextPopup* popup, std::string text) override;
 
@@ -37,6 +43,7 @@ private:
     void keyBackClicked() override;
     void fetchBanners();
     void fetchAmethyst();
+    void onFilterSortChanged();
 
     static CBShopLayer* s_instance;
 
@@ -44,23 +51,26 @@ private:
     Ref<CCSprite> m_background;
     Ref<cue::ListNode> m_list = nullptr;
     Ref<CCCounterLabel> m_amethystLabel = nullptr;
+    Ref<Label> m_earningRateLabel = nullptr;  // "+x/mo" under the amethyst counter
     int m_equippedBannerId = -1;
     Ref<cue::LoadingCircle> m_loadingCircle = nullptr;
     bool m_isStaff = false;
     bool m_isAdmin = false;
     int m_filterState = 0;  // 0 = All, 1 = Owned, 2 = Unowned, 3 = Limited, 4 = Featured
-    int m_sortState = 0;    // 0 = Recent, 1 = Most Bought, 2 = Most Equipped, 3 = Highest Price, 4 = Lowest Price
+    int m_sortState = 0;
+    bool m_supporterOnlyFilter = false;  // only show supporter-only banners    // 0 = Recent, 1 = Most Bought, 2 = Most Equipped, 3 = Highest Price, 4 = Lowest Price
     int m_currentPage = 0;
     int m_itemsPerPage = 10;
     int m_totalItems = 0;
     int m_fetchId = 0;  // bumped on every fetchBanners, older responses are ignored
     std::string m_searchQuery = "";
+    Ref<CCMenuItemSpriteExtra> m_filterButton = nullptr;
     Ref<CCMenuItemSpriteExtra> m_searchButton = nullptr;
     Ref<CCMenuItemSpriteExtra> m_prevButton = nullptr;
     Ref<CCMenuItemSpriteExtra> m_nextButton = nullptr;
-    Ref<geode::Label> m_pageLabel = nullptr;
-    Ref<geode::Label> m_noBannersLabel = nullptr;
-    Ref<geode::Label> m_filterSortLabel = nullptr;
+    Ref<Label> m_pageLabel = nullptr;
+    Ref<Label> m_noBannersLabel = nullptr;
+    Ref<Label> m_filterSortLabel = nullptr;
     Ref<CCNode> m_localOverlay = nullptr;
     std::vector<CBBannerItem> m_banners;
 };

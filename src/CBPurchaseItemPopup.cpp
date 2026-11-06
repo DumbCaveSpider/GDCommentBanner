@@ -42,7 +42,7 @@ bool CBPurchaseItemPopup::init(const CBBannerItem& banner) {
     priceNode->setAnchorPoint({0.5f, 0.5f});
     priceNode->setLayout(RowLayout::create()->setAxisAlignment(AxisAlignment::Center)->setGap(5));
 
-    auto priceLabel = geode::Label::create(fmt::format("{}", GameToolbox::pointsToString(m_banner.price)).c_str(), "bigFont.fnt");
+    auto priceLabel = Label::create(fmt::format("{}", GameToolbox::pointsToString(m_banner.price)).c_str(), "bigFont.fnt");
     if (priceLabel) {
         priceLabel->setAnchorPoint({1.f, 0.5f});
         priceLabel->setLimitLabelWidth(150.f, 0.45f, 0.2f);
@@ -59,29 +59,29 @@ bool CBPurchaseItemPopup::init(const CBBannerItem& banner) {
     }
 
     if (!m_banner.imageUrl.empty()) {
-        auto bannerSprite = CBBannerCell::createCommentPreviewButton(m_banner.imageUrl, {345.f, 65.f});
+        auto bannerSprite = CBBannerCell::createCommentPreviewButton(m_banner.imageUrl, {345.f, 65.f}, m_banner.nonCompactImageUrl);
         if (bannerSprite) {
             m_mainLayer->addChildAtPosition(bannerSprite, Anchor::Center, {0.f, 15.f}, false);
         }
     }
 
-    auto descriptionLabel = geode::MDTextArea::create(m_banner.description, {m_mainLayer->getContentSize().width - 40.f, 45.f});
+    auto descriptionLabel = MDTextArea::create(m_banner.description, {m_mainLayer->getContentSize().width - 40.f, 45.f});
     if (descriptionLabel) {
         m_mainLayer->addChildAtPosition(descriptionLabel, Anchor::Center, {0.f, -45.f}, false);
     }
 
-    auto cancelButton = geode::Button::createWithNode(
+    auto cancelButton = Button::createWithNode(
         ButtonSprite::create("Cancel", "goldFont.fnt", "GJ_button_06.png"),
-        [this](geode::Button* sender) {
+        [this](Button* sender) {
             this->onClose(nullptr);
         });
     if (cancelButton) {
         m_mainLayer->addChildAtPosition(cancelButton, Anchor::Bottom, {-50.f, 25.f}, false);
     }
 
-    m_buyButton = geode::Button::createWithNode(
+    m_buyButton = Button::createWithNode(
         ButtonSprite::create("Buy", "goldFont.fnt", "GJ_button_01.png"),
-        [this](geode::Button* sender) {
+        [this](Button* sender) {
             this->buyBanner();
         });
     if (m_buyButton) {
@@ -94,7 +94,7 @@ bool CBPurchaseItemPopup::init(const CBBannerItem& banner) {
 
 void CBPurchaseItemPopup::buyBanner() {
     auto itemPopup = Ref<CBPurchaseItemPopup>(this);
-    geode::queueInMainThread([this, itemPopup]() {
+    queueInMainThread([this, itemPopup]() {
         auto accountData = argon::getGameAccountData();
         auto accountId = accountData.accountId;
         if (accountId <= 0) {
@@ -111,7 +111,7 @@ void CBPurchaseItemPopup::buyBanner() {
         arc::spawn([bannerId, accountId, accountData, popup, itemPopup]() -> arc::Future<> {
             auto authResult = co_await comment::argonToken(accountData);
             if (authResult.empty()) {
-                geode::queueInMainThread([popup] {
+                queueInMainThread([popup] {
                     if (popup && popup->getParent()) {
                         popup->showFailMessage("Authentication failed.");
                     } else {
@@ -122,7 +122,7 @@ void CBPurchaseItemPopup::buyBanner() {
             }
 
             auto authToken = std::move(authResult);
-            auto request = geode::utils::web::WebRequest();
+            auto request = utils::web::WebRequest();
             auto body = matjson::makeObject({
                 {"accountId", accountId},
                 {"argonToken", authToken},
@@ -130,7 +130,7 @@ void CBPurchaseItemPopup::buyBanner() {
             });
             auto response = co_await request.bodyJSON(body).post(fmt::format("{}/buyBanner", comment::baseUrl));
             if (!response.ok()) {
-                geode::queueInMainThread([popup, response] {
+                queueInMainThread([popup, response] {
                     if (popup && popup->getParent()) {
                         popup->showFailMessage(comment::getResponseMessage(response, "Failed to purchase banner."));
                     } else {
@@ -142,7 +142,7 @@ void CBPurchaseItemPopup::buyBanner() {
 
             auto jsonRes = response.json();
             if (jsonRes.isErr()) {
-                geode::queueInMainThread([]() {
+                queueInMainThread([]() {
                     Notification::create("Invalid response from server.", NotificationIcon::Error)->show();
                 });
                 co_return;
@@ -151,7 +151,7 @@ void CBPurchaseItemPopup::buyBanner() {
             auto json = jsonRes.unwrap();
             if (!json["success"].asBool().unwrapOr(false)) {
                 auto message = json["message"].asString().unwrapOr("Purchase failed.");
-                geode::queueInMainThread([popup, message = std::move(message)] {
+                queueInMainThread([popup, message = std::move(message)] {
                     if (popup && popup->getParent()) {
                         popup->showFailMessage(message);
                     } else {
@@ -163,7 +163,7 @@ void CBPurchaseItemPopup::buyBanner() {
 
             int latestAmethyst = -1;
             {
-                auto userRequest = geode::utils::web::WebRequest();
+                auto userRequest = utils::web::WebRequest();
                 auto userBody = matjson::makeObject({
                     {"accountId", accountId},
                     {"argonToken", authToken},
@@ -181,7 +181,7 @@ void CBPurchaseItemPopup::buyBanner() {
                 }
             }
 
-            geode::queueInMainThread([popup, itemPopup, latestAmethyst] {
+            queueInMainThread([popup, itemPopup, latestAmethyst] {
                 if (popup && popup->getParent()) {
                     popup->showSuccessMessage("Banner purchased successfully");
                 }

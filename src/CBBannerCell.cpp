@@ -42,14 +42,14 @@ static void applyPreviewModeRecursive(CCNode* node) {
     }
 }
 
-static CCNode* createCellPreview(std::string const& imageUrl, CCSize const& maxSize) {
+static CCNode* createCellPreview(std::string const& imageUrl, CCSize const& maxSize, std::string const& nonCompactImageUrl) {
     auto container = CCNode::create();
     container->setID(kPreviewID);
     container->setAnchorPoint({0.5f, 0.5f});
 
     CCSize containerSize = CCSizeZero;
     for (bool compact : {false, true}) {
-        auto preview = comment::createCommentPreview(imageUrl, compact);
+        auto preview = comment::createCommentPreview(imageUrl, compact, comment::kCommentCellWidth, nonCompactImageUrl);
         preview->setScale(std::min(maxSize.width / preview->getContentWidth(), maxSize.height / preview->getContentHeight()));
         preview->setTag(compact ? 1 : 0);
         container->addChild(preview);
@@ -64,8 +64,8 @@ static CCNode* createCellPreview(std::string const& imageUrl, CCSize const& maxS
     return container;
 }
 
-CCNode* CBBannerCell::createCommentPreviewButton(std::string const& imageUrl, CCSize const& maxSize) {
-    return Button::createWithNode(createCellPreview(imageUrl, maxSize), [](geode::Button* sender) {
+CCNode* CBBannerCell::createCommentPreviewButton(std::string const& imageUrl, CCSize const& maxSize, std::string const& nonCompactImageUrl) {
+    return Button::createWithNode(createCellPreview(imageUrl, maxSize, nonCompactImageUrl), [](Button* sender) {
         // switch between compact and non-compact, applied to every visible preview
         auto compact = Mod::get()->getSavedValue<bool>(kPreviewCompactKey, false);
         Mod::get()->setSavedValue(kPreviewCompactKey, !compact);
@@ -110,14 +110,14 @@ CBBannerCell* CBBannerCell::create(const CBBannerItem& banner, float width, bool
         auto sprite = comment::createBannerNode(banner.imageUrl, {324.f, 104.f});
         sprite->setPosition({width / 2.f, cellHeight - 30.f});
         cellBg->addChild(sprite);
-    } else if (auto previewButton = createCommentPreviewButton(banner.imageUrl, {width - 32.f, kPreviewMaxHeight})) {
+    } else if (auto previewButton = createCommentPreviewButton(banner.imageUrl, {width - 32.f, kPreviewMaxHeight}, banner.nonCompactImageUrl)) {
         previewButton->setPosition({width / 2.f, cellHeight - 27.f});
         cellBg->addChild(previewButton);
     }
 
-    geode::Label* nameLabel = nullptr;
+    Label* nameLabel = nullptr;
     if (!banner.name.empty()) {
-        nameLabel = geode::Label::create(banner.name.c_str(), "bigFont.fnt");
+        nameLabel = Label::create(banner.name.c_str(), "bigFont.fnt");
         if (nameLabel) {
             nameLabel->setAnchorPoint({0.f, 0.5f});
             float nameX = 10.f;
@@ -163,7 +163,7 @@ CBBannerCell* CBBannerCell::create(const CBBannerItem& banner, float width, bool
     }
 
     if (!banner.isLocal && !banner.username.empty()) {
-        if (auto usernameLabel = Button::createWithLabel(fmt::format("By {}", banner.username).c_str(), "goldFont.fnt", [banner](geode::Button* sender) {
+        if (auto usernameLabel = Button::createWithLabel(fmt::format("By {}", banner.username).c_str(), "goldFont.fnt", [banner](Button* sender) {
                 CBProfileBannerPopup::create(banner.accountId, banner.username)->show();
             })) {
             usernameLabel->setAnchorPoint({0.f, 0.5f});
@@ -174,7 +174,7 @@ CBBannerCell* CBBannerCell::create(const CBBannerItem& banner, float width, bool
     }
 
     if (!banner.isLocal) {
-        if (auto price = geode::Label::create(fmt::format("{}", GameToolbox::pointsToString(banner.price)).c_str(), "bigFont.fnt")) {
+        if (auto price = Label::create(fmt::format("{}", GameToolbox::pointsToString(banner.price)).c_str(), "bigFont.fnt")) {
             price->setAnchorPoint({0.f, 0.5f});
             price->setScale(0.5f);
             price->setPosition({0.f, 0.f});
@@ -201,7 +201,7 @@ CBBannerCell* CBBannerCell::create(const CBBannerItem& banner, float width, bool
     }
 
     if (banner.isLocal) {
-        if (auto equipButton = Button::createWithNode(ButtonSprite::create(banner.equipped ? "Unequip" : "Equip", 100.f, true, "goldFont.fnt", banner.equipped ? "GJ_button_06.png" : "GJ_button_02.png", .0f, 1.f), [banner](geode::Button* sender) {
+        if (auto equipButton = Button::createWithNode(ButtonSprite::create(banner.equipped ? "Unequip" : "Equip", 100.f, true, "goldFont.fnt", banner.equipped ? "GJ_button_06.png" : "GJ_button_02.png", .0f, 1.f), [banner](Button* sender) {
                 if (banner.equipped) {
                     comment::local::unequipLocalBanner();
                 } else {
@@ -222,8 +222,8 @@ CBBannerCell* CBBannerCell::create(const CBBannerItem& banner, float width, bool
             cellBg->addChildAtPosition(equipButton, Anchor::BottomRight, {-50.f, 15.f}, false);
         }
 
-        if (auto deleteButton = Button::createWithNode(ButtonSprite::create("Delete", 100.f, true, "goldFont.fnt", "GJ_button_06.png", .0f, 1.f), [banner](geode::Button* sender) {
-                geode::createQuickPopup("Delete Local Banner", "Are you sure you want to <cr>delete</c> this local banner from your device?", "Cancel", "Delete", [banner](FLAlertLayer*, bool btn2) {
+        if (auto deleteButton = Button::createWithNode(ButtonSprite::create("Delete", 100.f, true, "goldFont.fnt", "GJ_button_06.png", .0f, 1.f), [banner](Button* sender) {
+                createQuickPopup("Delete Local Banner", "Are you sure you want to <cr>delete</c> this local banner from your device?", "Cancel", "Delete", [banner](FLAlertLayer*, bool btn2) {
                     if (!btn2) return;
                     comment::local::deleteLocalBanner(banner.id);
                     if (auto popup = CBLocalBannersPopup::getInstance()) {
@@ -242,7 +242,7 @@ CBBannerCell* CBBannerCell::create(const CBBannerItem& banner, float width, bool
             cellBg->addChildAtPosition(deleteButton, Anchor::BottomRight, {-50.f, 35.f}, false);
         }
     } else {
-        if (auto buyButton = Button::createWithNode(ButtonSprite::create(banner.equipped ? "Unequip" : (banner.owns ? "Equip" : "Buy"), 100.f, true, "goldFont.fnt", banner.equipped ? "GJ_button_06.png" : (banner.owns ? "GJ_button_02.png" : "GJ_button_01.png"), .0f, 1.f), [cellBg, banner](geode::Button* sender) {
+        if (auto buyButton = Button::createWithNode(ButtonSprite::create(banner.equipped ? "Unequip" : (banner.owns ? "Equip" : "Buy"), 100.f, true, "goldFont.fnt", banner.equipped ? "GJ_button_06.png" : (banner.owns ? "GJ_button_02.png" : "GJ_button_01.png"), .0f, 1.f), [cellBg, banner](Button* sender) {
                 if (banner.equipped) {
                     cellBg->unequipBanner();
                     return;
@@ -252,10 +252,19 @@ CBBannerCell* CBBannerCell::create(const CBBannerItem& banner, float width, bool
                     return;
                 }
 
+                if (banner.isSupporterOnly && !comment::isUserSupporter()) {
+                    FLAlertLayer::create(
+                        "Supporter Only",
+                        "You need to be a <cp>Supporter</c> to buy and use this banner.",
+                        "OK")
+                        ->show();
+                    return;
+                }
+
                 auto cost = banner.price;
                 auto current = Mod::get()->getSavedValue<int>("amethyst", 0);
                 if (current < cost) {
-                    geode::createQuickPopup(
+                    createQuickPopup(
                         "Not enough Amethyst",
                         fmt::format("You need <cp>{} Amethyst</c> to <cg>buy this banner</c>.", cost - current),
                         "OK",
@@ -274,7 +283,7 @@ CBBannerCell* CBBannerCell::create(const CBBannerItem& banner, float width, bool
             cellBg->addChildAtPosition(buyButton, Anchor::BottomRight, {-50.f, 15.f}, false);
         }
 
-        if (auto infoBtn = Button::createWithNode(ButtonSprite::create("Info", 100.f, true, "goldFont.fnt", "GJ_button_01.png", .0f, 1.f), [banner](geode::Button* sender) {
+        if (auto infoBtn = Button::createWithNode(ButtonSprite::create("Info", 100.f, true, "goldFont.fnt", "GJ_button_01.png", .0f, 1.f), [banner](Button* sender) {
                 if (auto popup = CBViewItemPopup::create(banner)) {
                     popup->show();
                 }
@@ -289,7 +298,7 @@ CBBannerCell* CBBannerCell::create(const CBBannerItem& banner, float width, bool
 
 void CBBannerCell::showPurchaseConfirm() {
     Ref<CBBannerCell> retainedSelf = this;
-    geode::createQuickPopup(
+    createQuickPopup(
         "Confirm Purchase",
         fmt::format("Buy banner #{} for {} amethyst?", m_banner.id, m_banner.price),
         "Cancel",
@@ -306,7 +315,7 @@ void CBBannerCell::showPurchaseConfirm() {
 
 void CBBannerCell::applyBanner() {
     Ref<CBBannerCell> retainedSelf = this;
-    geode::queueInMainThread([retainedSelf]() {
+    queueInMainThread([retainedSelf]() {
         auto accountData = argon::getGameAccountData();
         auto accountId = accountData.accountId;
         Ref<UploadActionPopup> popup = UploadActionPopup::create(nullptr, "Equipping banner...");
@@ -330,7 +339,7 @@ void CBBannerCell::applyBanner() {
             };
 
             arc::spawn([retainedSelf, reqBody = std::move(reqBody), popup]() -> arc::Future<> {
-                auto request = geode::utils::web::WebRequest();
+                auto request = utils::web::WebRequest();
                 auto body = matjson::makeObject({{"accountId", reqBody.AccountID},
                     {"argonToken", reqBody.ArgonToken},
                     {"bannerId", reqBody.BannerID}});
@@ -338,7 +347,7 @@ void CBBannerCell::applyBanner() {
 
                 if (!response.ok()) {
                     log::warn("equipBanner failed: {}", response.errorMessage());
-                    geode::queueInMainThread([popup, error = response.errorMessage()] {
+                    queueInMainThread([popup, error = response.errorMessage()] {
                         if (popup && popup->getParent()) {
                             popup->showFailMessage(fmt::format("Equip failed: {}", error));
                         }
@@ -346,14 +355,14 @@ void CBBannerCell::applyBanner() {
                     co_return;
                 }
 
-                geode::queueInMainThread([retainedSelf, popup] {
+                queueInMainThread([retainedSelf, popup] {
                     if (popup && popup->getParent()) {
                         popup->showSuccessMessage("Banner equipped successfully");
                     }
                     Mod::get()->setSavedValue("equipped-banner", retainedSelf->m_banner.id);
                     int myAccountId = GJAccountManager::sharedState()->m_accountID;
                     if (myAccountId <= 0) myAccountId = argon::getGameAccountData().accountId;
-                    comment::updateBannerCache(myAccountId, true, retainedSelf->m_banner.imageUrl);
+                    comment::updateBannerCache(myAccountId, true, retainedSelf->m_banner.imageUrl, retainedSelf->m_banner.nonCompactImageUrl);
                     if (auto shop = CBShopLayer::getInstance()) {
                         shop->setEquippedBannerId(retainedSelf->m_banner.id);
                         shop->refreshBanners();
@@ -374,7 +383,7 @@ void CBBannerCell::applyBanner() {
 
 void CBBannerCell::unequipBanner() {
     Ref<CBBannerCell> retainedSelf = this;
-    geode::queueInMainThread([retainedSelf]() {
+    queueInMainThread([retainedSelf]() {
         auto accountData = argon::getGameAccountData();
         auto accountId = accountData.accountId;
         Ref<UploadActionPopup> popup = UploadActionPopup::create(nullptr, "Unequipping banner...");
@@ -391,14 +400,14 @@ void CBBannerCell::unequipBanner() {
 
             auto authToken = std::move(authResult);
 
-            auto request = geode::utils::web::WebRequest();
+            auto request = utils::web::WebRequest();
             auto body = matjson::makeObject({{"accountId", accountId},
                 {"argonToken", authToken}});
             auto response = co_await request.bodyJSON(body).post(fmt::format("{}/unequipBanner", comment::baseUrl));
 
             if (!response.ok()) {
                 log::warn("unequipBanner failed: {}", response.errorMessage());
-                geode::queueInMainThread([popup, error = response.errorMessage()] {
+                queueInMainThread([popup, error = response.errorMessage()] {
                     if (popup && popup->getParent()) {
                         popup->showFailMessage(fmt::format("Unequip failed: {}", error));
                     }
@@ -406,7 +415,7 @@ void CBBannerCell::unequipBanner() {
                 co_return;
             }
 
-            geode::queueInMainThread([popup] {
+            queueInMainThread([popup] {
                 if (popup && popup->getParent()) {
                     popup->showSuccessMessage("Banner unequipped successfully");
                 }
@@ -432,7 +441,7 @@ void CBBannerCell::unequipBanner() {
 
 void CBBannerCell::purchaseBanner() {
     Ref<CBBannerCell> retainedSelf = this;
-    geode::queueInMainThread([retainedSelf]() {
+    queueInMainThread([retainedSelf]() {
         auto accountData = argon::getGameAccountData();
         auto accountId = accountData.accountId;
         Ref<UploadActionPopup> popup = UploadActionPopup::create(nullptr, "Equipping banner...");
@@ -460,7 +469,7 @@ void CBBannerCell::purchaseBanner() {
             };
 
             arc::spawn([retainedSelf, reqBody = std::move(reqBody), current, popup]() -> arc::Future<> {
-                auto request = geode::utils::web::WebRequest();
+                auto request = utils::web::WebRequest();
                 auto body = matjson::makeObject({{"accountId", reqBody.AccountID},
                     {"argonToken", reqBody.ArgonToken},
                     {"bannerId", reqBody.BannerID}});
@@ -468,7 +477,7 @@ void CBBannerCell::purchaseBanner() {
 
                 if (!response.ok()) {
                     log::warn("equipBanner failed: {}", response.errorMessage());
-                    geode::queueInMainThread([popup, error = response.errorMessage()] {
+                    queueInMainThread([popup, error = response.errorMessage()] {
                         if (popup && popup->getParent()) {
                             popup->showFailMessage(fmt::format("Equip failed: {}", error));
                         }
@@ -479,7 +488,7 @@ void CBBannerCell::purchaseBanner() {
                 if (!retainedSelf->m_banner.owns) {
                     Mod::get()->setSavedValue("amethyst", current - retainedSelf->m_banner.price);
                 }
-                geode::queueInMainThread([retainedSelf, popup] {
+                queueInMainThread([retainedSelf, popup] {
                     if (popup && popup->getParent()) {
                         popup->showSuccessMessage("Banner equipped successfully");
                     }

@@ -66,7 +66,7 @@ bool CBViewItemPopup::init(const CBBannerItem& banner) {
     }
 
     if (!m_banner.username.empty()) {
-        if (auto usernameLabel = Button::createWithLabel(fmt::format("By {}", m_banner.username).c_str(), "goldFont.fnt", [this](geode::Button* sender) {
+        if (auto usernameLabel = Button::createWithLabel(fmt::format("By {}", m_banner.username).c_str(), "goldFont.fnt", [this](Button* sender) {
                 CBProfileBannerPopup::create(m_banner.accountId, m_banner.username)->show();
             })) {
             usernameLabel->setAnchorPoint({0.5f, 0.5f});
@@ -80,7 +80,7 @@ bool CBViewItemPopup::init(const CBBannerItem& banner) {
     priceNode->setContentSize({180.f, 30.f});
     priceNode->setAnchorPoint({0.f, 0.f});
     priceNode->setLayout(RowLayout::create()->setAxisAlignment(AxisAlignment::Start)->setGap(5));
-    auto priceLabel = geode::Label::create(fmt::format("{}", GameToolbox::pointsToString(m_banner.price)).c_str(), "bigFont.fnt");
+    auto priceLabel = Label::create(fmt::format("{}", GameToolbox::pointsToString(m_banner.price)).c_str(), "bigFont.fnt");
     if (priceLabel) {
         priceLabel->setAnchorPoint({1.f, 0.5f});
         priceLabel->setLimitLabelWidth(150.f, 0.45f, 0.2f);
@@ -98,12 +98,12 @@ bool CBViewItemPopup::init(const CBBannerItem& banner) {
 
     if (!m_banner.imageUrl.empty()) {
         // fits between the username and the description
-        if (auto preview = CBBannerCell::createCommentPreviewButton(m_banner.imageUrl, {345.f, 65.f})) {
+        if (auto preview = CBBannerCell::createCommentPreviewButton(m_banner.imageUrl, {345.f, 65.f}, m_banner.nonCompactImageUrl)) {
             m_mainLayer->addChildAtPosition(preview, Anchor::Center, {0.f, 15.f}, false);
         }
     }
 
-    auto descriptionLabel = geode::MDTextArea::create(m_banner.description, {m_mainLayer->getContentSize().width - 40.f, 45.f});
+    auto descriptionLabel = MDTextArea::create(m_banner.description, {m_mainLayer->getContentSize().width - 40.f, 45.f});
     if (descriptionLabel) {
         m_mainLayer->addChildAtPosition(descriptionLabel, Anchor::Center, {0.f, -45.f}, false);
     }
@@ -118,20 +118,20 @@ bool CBViewItemPopup::init(const CBBannerItem& banner) {
             ->setAutoScale(false)
             ->setCrossAxisOverflow(false));
     if (m_banner.isLimited) {
-        if (auto amountLabel = geode::Label::create(fmt::format("Amount Left: {}", m_banner.amount - m_banner.totalBought).c_str(), "goldFont.fnt")) {
+        if (auto amountLabel = Label::create(fmt::format("Amount Left: {}", m_banner.amount - m_banner.totalBought).c_str(), "goldFont.fnt")) {
             amountLabel->setAnchorPoint({1.f, 0.5f});
             amountLabel->setLimitLabelWidth(80.f, 0.5f, 0.2f);
             detailNode->addChild(amountLabel);
         }
     }
 
-    if (auto totalBoughtLabel = geode::Label::create(fmt::format("Bought: {}", m_banner.totalBought).c_str(), "goldFont.fnt")) {
+    if (auto totalBoughtLabel = Label::create(fmt::format("Bought: {}", m_banner.totalBought).c_str(), "goldFont.fnt")) {
         totalBoughtLabel->setAnchorPoint({1.f, 0.5f});
         totalBoughtLabel->setLimitLabelWidth(80.f, 0.5f, 0.2f);
         detailNode->addChild(totalBoughtLabel);
     }
 
-    if (auto equippedLabel = geode::Label::create(fmt::format("Equipped: {}", m_banner.equippedCount).c_str(), "goldFont.fnt")) {
+    if (auto equippedLabel = Label::create(fmt::format("Equipped: {}", m_banner.equippedCount).c_str(), "goldFont.fnt")) {
         equippedLabel->setAnchorPoint({1.f, 0.5f});
         equippedLabel->setLimitLabelWidth(80.f, 0.5f, 0.2f);
         detailNode->addChild(equippedLabel);
@@ -147,7 +147,7 @@ bool CBViewItemPopup::init(const CBBannerItem& banner) {
     listMenu->setContentWidth(160.f);
     listMenu->setLayout(RowLayout::create()->setGap(3.f)->setAutoScale(true)->setCrossAxisOverflow(true)->setGrowCrossAxis(false));
 
-    if (auto boughtBtn = geode::Button::createWithNode(ButtonSprite::create("Users Bought", 100.f, true, "goldFont.fnt", "GJ_button_04.png", .0f, 1.f), [this](geode::Button* sender) {
+    if (auto boughtBtn = Button::createWithNode(ButtonSprite::create("Users Bought", 100.f, true, "goldFont.fnt", "GJ_button_04.png", .0f, 1.f), [this](Button* sender) {
             if (auto popup = CBUsersListBannerPopup::create(m_banner.id, 1)) {
                 popup->show();
             }
@@ -156,7 +156,7 @@ bool CBViewItemPopup::init(const CBBannerItem& banner) {
         listMenu->addChild(boughtBtn);
     }
 
-    if (auto equippedBtn = geode::Button::createWithNode(ButtonSprite::create("Users Equipped", 100.f, true, "goldFont.fnt", "GJ_button_04.png", .0f, 1.f), [this](geode::Button* sender) {
+    if (auto equippedBtn = Button::createWithNode(ButtonSprite::create("Users Equipped", 100.f, true, "goldFont.fnt", "GJ_button_04.png", .0f, 1.f), [this](Button* sender) {
             if (auto popup = CBUsersListBannerPopup::create(m_banner.id, 2)) {
                 popup->show();
             }

@@ -9,7 +9,7 @@ using namespace geode::prelude;
 
 #include <Geode/binding/SetTextPopupDelegate.hpp>
 
-class CBAdminPanelLayer : public geode::Popup, public SetTextPopupDelegate {
+class CBAdminPanelLayer : public Popup, public SetTextPopupDelegate {
 public:
     static CBAdminPanelLayer* create();
     void processPendingBanner(int id, bool approve, const std::string& reason);
@@ -32,7 +32,7 @@ private:
 
     CCMenuItemToggler* m_tabPending = nullptr;
     CCMenuItemToggler* m_tabUsers = nullptr;
-    geode::Button* m_filterBtn = nullptr;
+    Button* m_filterBtn = nullptr;
 
     enum class Tab { Pending,
         Users,
@@ -47,7 +47,7 @@ private:
     matjson::Value m_currentData;
     std::string m_authToken;
     int m_page = 0;
-    geode::Label* m_pageLabel = nullptr;
+    Label* m_pageLabel = nullptr;
     CCMenuItemSpriteExtra* m_nextBtn = nullptr;
     CCMenuItemSpriteExtra* m_prevBtn = nullptr;
     CCMenu* m_paginationMenu = nullptr;

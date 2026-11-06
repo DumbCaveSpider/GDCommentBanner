@@ -78,7 +78,7 @@ bool CBAdminBannerManagePopup::init(matjson::Value const& bannerData) {
     if (isLimited) {
         amountText += fmt::format(" / Left: {}", amount - totalBought);
     }
-    auto amountLabel = geode::Label::create(amountText.c_str(), "chatFont.fnt");
+    auto amountLabel = Label::create(amountText.c_str(), "chatFont.fnt");
     amountLabel->setPosition({0, startY - gap * 3 - 5.f});
     amountLabel->setColor(ccColor3B{200, 200, 200});
     menu->addChild(amountLabel);
@@ -89,7 +89,7 @@ bool CBAdminBannerManagePopup::init(matjson::Value const& bannerData) {
     m_featuredToggler->setPosition({-45.f, startY - gap * 3 - 35.f});
     menu->addChild(m_featuredToggler);
 
-    auto featuredLabel = geode::Label::create("Featured", "bigFont.fnt");
+    auto featuredLabel = Label::create("Featured", "bigFont.fnt");
     featuredLabel->setAnchorPoint({0.f, 0.5f});
     featuredLabel->setPosition({-20.f, startY - gap * 3 - 35.f});
     featuredLabel->setScale(0.6f);
@@ -140,7 +140,7 @@ void CBAdminBannerManagePopup::onSave(CCObject*) {
     arc::spawn([retainedSelf, bannerId, accountId, accountData, newName, newDesc, newPrice, hasAmount, newAmount, isFeatured, popup]() -> arc::Future<> {
         auto authResult = co_await comment::argonToken(accountData);
         if (authResult.empty()) {
-            geode::queueInMainThread([popup] {
+            queueInMainThread([popup] {
                 if (popup && popup->getParent()) {
                     popup->showFailMessage("Authentication failed.");
                 }
@@ -149,7 +149,7 @@ void CBAdminBannerManagePopup::onSave(CCObject*) {
         }
         auto authToken = std::move(authResult);
 
-        auto req = geode::utils::web::WebRequest();
+        auto req = utils::web::WebRequest();
         auto body = matjson::makeObject({
             {"accountId", accountId},
             {"argonToken", authToken},
@@ -166,7 +166,7 @@ void CBAdminBannerManagePopup::onSave(CCObject*) {
         auto res = co_await req.bodyJSON(body).post(fmt::format("{}/admin/updateBannerDetails", comment::baseUrl));
         bool ok = res.ok();
 
-        geode::queueInMainThread([retainedSelf, popup, ok] {
+        queueInMainThread([retainedSelf, popup, ok] {
             if (popup && popup->getParent()) {
                 if (ok) {
                     popup->showSuccessMessage("Banner updated!");
@@ -183,7 +183,7 @@ void CBAdminBannerManagePopup::onSave(CCObject*) {
 }
 
 void CBAdminBannerManagePopup::onDelete(CCObject*) {
-    geode::createQuickPopup("Delete Banner", "Are you sure you want to <cr>delete</c> this banner?", "Cancel", "Delete", [this](FLAlertLayer*, bool btn2) {
+    createQuickPopup("Delete Banner", "Are you sure you want to <cr>delete</c> this banner?", "Cancel", "Delete", [this](FLAlertLayer*, bool btn2) {
         if (btn2) {
             int bannerId = m_bannerData["id"].asInt().unwrapOr(0);
             auto accountData = argon::getGameAccountData();
@@ -196,7 +196,7 @@ void CBAdminBannerManagePopup::onDelete(CCObject*) {
             arc::spawn([retainedSelf, bannerId, accountId, accountData, popup]() -> arc::Future<> {
                 auto authResult = co_await comment::argonToken(accountData);
                 if (authResult.empty()) {
-                    geode::queueInMainThread([popup] {
+                    queueInMainThread([popup] {
                         if (popup && popup->getParent()) {
                             popup->showFailMessage("Authentication failed.");
                         }
@@ -205,7 +205,7 @@ void CBAdminBannerManagePopup::onDelete(CCObject*) {
                 }
                 auto authToken = std::move(authResult);
 
-                auto req = geode::utils::web::WebRequest();
+                auto req = utils::web::WebRequest();
                 auto body = matjson::makeObject({
                     {"accountId", accountId},
                     {"argonToken", authToken},
@@ -214,7 +214,7 @@ void CBAdminBannerManagePopup::onDelete(CCObject*) {
                 auto res = co_await req.bodyJSON(body).post(fmt::format("{}/admin/deleteBanner", comment::baseUrl));
                 bool ok = res.ok();
 
-                geode::queueInMainThread([retainedSelf, popup, ok] {
+                queueInMainThread([retainedSelf, popup, ok] {
                     if (popup && popup->getParent()) {
                         if (ok) {
                             popup->showSuccessMessage("Banner deleted!");

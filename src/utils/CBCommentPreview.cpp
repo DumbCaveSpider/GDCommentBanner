@@ -42,7 +42,7 @@ static void addCellLines(CCNode* cell, float width, float height) {
 }
 
 namespace comment {
-    CCNode* createCommentPreview(std::string const& imageUrl, bool compact, float width) {
+    CCNode* createCommentPreview(std::string const& imageUrl, bool compact, float width, std::string const& nonCompactImageUrl) {
         float height = compact ? kCompactCommentCellHeight : kCommentCellHeight;
         CCSize size{width, height};
 
@@ -50,14 +50,16 @@ namespace comment {
         clip->setContentSize(size);
         clip->setAnchorPoint({0.5f, 0.5f});
 
-        // m_backgroundLayer, with the banner under it like setupBannerSprite in CBHook
+        // m_backgroundLayer, with the banner under it like setupCommentSprite in CBHook
         auto bgColor = compact ? ccColor3B{156, 85, 42} : ccColor3B{161, 88, 44};
         auto bgLayer = CCLayerColor::create({bgColor.r, bgColor.g, bgColor.b, 255}, width, height);
         clip->addChild(bgLayer);
 
-        if (!imageUrl.empty()) {
-            auto bannerSize = compact ? size : CCSize{800.f, 800.f};
-            if (auto banner = createBannerNode(imageUrl, bannerSize)) {
+        // same rules as setupCommentSprite in CBHook
+        bool useNonCompact = !compact && !nonCompactImageUrl.empty();
+        if (!imageUrl.empty() || useNonCompact) {
+            auto bannerSize = (compact || useNonCompact) ? size : CCSize{800.f, 800.f};
+            if (auto banner = createBannerNode(useNonCompact ? nonCompactImageUrl : imageUrl, bannerSize)) {
                 banner->setPosition(size / 2.f);
                 bgLayer->setOpacity(100);
                 bgLayer->addChild(banner, -1);
@@ -75,7 +77,7 @@ namespace comment {
         mainLayer->addChild(player, 1);
         float iconSpace = 26.f;
 
-        auto name = geode::Label::create(getPreviewUsername().c_str(), "goldFont.fnt");
+        auto name = Label::create(getPreviewUsername().c_str(), "goldFont.fnt");
         name->setLimitLabelWidth(150.f, compact ? 0.5f : 0.7f, 0.f);
         name->setAnchorPoint({0.f, 0.5f});
         name->setPosition({iconSpace + 10.f, height - (compact ? 10.f : 18.f)});
@@ -90,7 +92,7 @@ namespace comment {
             mainLayer->addChild(background, -1);
         }
 
-        auto text = geode::Label::create("This is how your banner looks in comments!", "chatFont.fnt");
+        auto text = Label::create("This is how your banner looks in comments!", "chatFont.fnt");
         text->setAnchorPoint({0.f, 0.5f});
         if (compact) {
             text->setPosition({10.f, height * 0.5f - 9.f});
@@ -116,7 +118,7 @@ namespace comment {
         float labelGap = compact ? 12.f : 13.f;
         CCPoint likePos{width - (compact ? 32.f : 39.f) - (compact ? 16.f : 20.f), height - (compact ? 14.f : 20.f)};
 
-        auto likeLabel = geode::Label::create("67", "bigFont.fnt");
+        auto likeLabel = Label::create("67", "bigFont.fnt");
         likeLabel->setPosition(likePos + CCPoint{(compact ? 8.f : 14.f) + labelGap, compact ? 1.f : 0.5f});
         likeLabel->setScale(labelScale);
         mainLayer->addChild(likeLabel);
@@ -126,13 +128,13 @@ namespace comment {
         likeIcon->setPosition(likePos + CCPoint{0.f, 2.f});
         mainLayer->addChild(likeIcon);
 
-        auto dots = geode::Label::create("...", "bigFont.fnt");
+        auto dots = Label::create("...", "bigFont.fnt");
         dots->setScale(compact ? 0.4f : 0.5f);
         dots->setOpacity(120);
         dots->setPosition({width - (compact ? 10.f : 12.f), height - (compact ? 7.f : 9.f)});
         mainLayer->addChild(dots);
 
-        auto age = geode::Label::create("1 minute ago", "chatFont.fnt");
+        auto age = Label::create("1 minute ago", "chatFont.fnt");
         age->setAnchorPoint({1.f, 0.5f});
         age->setScale(compact ? 0.4f : 0.55f);
         age->setColor({0, 0, 0});

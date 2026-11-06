@@ -8,13 +8,13 @@
 
 using namespace geode::prelude;
 
-class CBAdminBannerManagePopup : public geode::Popup {
+class CBAdminBannerManagePopup : public Popup {
 protected:
     matjson::Value m_bannerData;
-    geode::TextInput* m_nameInput;
-    geode::TextInput* m_descInput;
-    geode::TextInput* m_priceInput;
-    geode::TextInput* m_amountInput = nullptr;
+    TextInput* m_nameInput;
+    TextInput* m_descInput;
+    TextInput* m_priceInput;
+    TextInput* m_amountInput = nullptr;
     CCMenuItemToggler* m_featuredToggler = nullptr;
 
     bool init(matjson::Value const& bannerData);

@@ -13,9 +13,8 @@
 	"description": "Community-run, Custom banners for comments.",
 	"dependencies": {
 		"geode.node-ids": ">=v1.23.3",
-		"prevter.imageplus": ">=1.0.0",
-		"dasshu.badgified": ">=1.0.0",
-		"dankmeme.argon": ">=2.0.0"
+		"prevter.imageplus": ">=v1.0.0",
+		"dankmeme.argon": ">=v2.0.0-alpha.2"
 	},
 	"resources": {
 		"spritesheets": {

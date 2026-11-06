@@ -14,6 +14,7 @@
 #include "CBYourBannersPopup.hpp"
 #include "CBLocalBannersPopup.hpp"
 #include "CBLeaderboardLayer.hpp"
+#include "CBBannerFilterPopup.hpp"
 #include <Geode/binding/SetTextPopup.hpp>
 #include "Geode/ui/Layout.hpp"
 #include "Geode/utils/web.hpp"
@@ -25,6 +26,7 @@
 #include <cue/ListNode.hpp>
 #include <Geode/ui/Scrollbar.hpp>
 #include <cue/RepeatingBackground.hpp>
+#include "CBSupporterPopup.hpp"
 
 using namespace geode::prelude;
 
@@ -105,6 +107,10 @@ void CBShopLayer::updateFilterSortLabel() {
         text = fmt::format("{} Banners ({})", filterName, sortName);
     }
 
+    if (m_supporterOnlyFilter) {
+        text = "Supporter Only " + text;
+    }
+
     if (!m_searchQuery.empty()) {
         text += fmt::format(" - \"{}\"", m_searchQuery);
     }
@@ -145,7 +151,7 @@ void CBShopLayer::updateAmethystLabel(int amethyst) {
 
 void CBShopLayer::fetchBanners() {
     Ref<CBShopLayer> self = this;
-    geode::queueInMainThread([self]() {
+    queueInMainThread([self]() {
         if (!self || !self->getParent() || s_instance != self.data()) {
             return;
         }
@@ -180,14 +186,15 @@ void CBShopLayer::fetchBanners() {
         int itemsPerPage = self->m_itemsPerPage;
         int filterState = self->m_filterState;
         int sortState = self->m_sortState;
+        bool supporterOnlyFilter = self->m_supporterOnlyFilter;
         std::string searchQuery = self->m_searchQuery;
         int equippedBannerId = self->m_equippedBannerId;
         int fetchId = ++self->m_fetchId;
 
-        arc::spawn([self, fetchId, accountId, accountData, currentPage, itemsPerPage, filterState, sortState, searchQuery, equippedBannerId]() -> arc::Future<> {
+        arc::spawn([self, fetchId, accountId, accountData, currentPage, itemsPerPage, filterState, sortState, supporterOnlyFilter, searchQuery, equippedBannerId]() -> arc::Future<> {
             auto authResult = co_await comment::argonToken(accountData);
             if (authResult.empty()) {
-                geode::queueInMainThread([self, fetchId]() {
+                queueInMainThread([self, fetchId]() {
                     if (!self || self->isStaleFetch(fetchId)) {
                         return;
                     }
@@ -200,19 +207,20 @@ void CBShopLayer::fetchBanners() {
             }
 
             auto authToken = std::move(authResult);
-            auto req = geode::utils::web::WebRequest();
+            auto req = utils::web::WebRequest();
             auto body = matjson::makeObject({{"accountId", accountId},
                 {"argonToken", authToken},
                 {"page", currentPage},
                 {"limit", itemsPerPage},
                 {"filter", filterState},
-                {"sort", sortState}});
+                {"sort", sortState},
+                {"supporterOnly", supporterOnlyFilter}});
             if (!searchQuery.empty()) {
                 body["name"] = searchQuery;
             }
             auto response = co_await req.bodyJSON(body).post(fmt::format("{}/getBanners", comment::baseUrl));
             if (!response.ok()) {
-                geode::queueInMainThread([self, fetchId]() {
+                queueInMainThread([self, fetchId]() {
                     if (!self || self->isStaleFetch(fetchId)) {
                         return;
                     }
@@ -226,7 +234,7 @@ void CBShopLayer::fetchBanners() {
 
             auto jsonRes = response.json();
             if (jsonRes.isErr()) {
-                geode::queueInMainThread([self, fetchId]() {
+                queueInMainThread([self, fetchId]() {
                     if (!self || self->isStaleFetch(fetchId)) {
                         return;
                     }
@@ -240,7 +248,7 @@ void CBShopLayer::fetchBanners() {
 
             auto json = jsonRes.unwrap();
             if (!json.isObject()) {
-                geode::queueInMainThread([self, fetchId]() {
+                queueInMainThread([self, fetchId]() {
                     if (!self || self->isStaleFetch(fetchId)) {
                         return;
                     }
@@ -259,7 +267,7 @@ void CBShopLayer::fetchBanners() {
 
             auto bannersArr = json["banners"];
             if (!bannersArr.isArray()) {
-                geode::queueInMainThread([self, fetchId]() {
+                queueInMainThread([self, fetchId]() {
                     if (!self || self->isStaleFetch(fetchId)) {
                         return;
                     }
@@ -307,6 +315,8 @@ void CBShopLayer::fetchBanners() {
                 if (auto isFeaturedRes = item["isFeatured"].asBool(); isFeaturedRes.isOk()) {
                     banner.isFeatured = isFeaturedRes.unwrap();
                 }
+                banner.isSupporterOnly = item["isSupporterOnly"].asBool().unwrapOr(false);
+                banner.nonCompactImageUrl = item["nonCompactImageUrl"].asString().unwrapOr("");
                 if (auto amountRes = item["amount"].asInt(); amountRes.isOk()) {
                     banner.amount = static_cast<int>(amountRes.unwrap());
                 }
@@ -320,7 +330,7 @@ void CBShopLayer::fetchBanners() {
                 banners.push_back(std::move(banner));
             }
 
-            geode::queueInMainThread([self, fetchId, totalItems, banners = std::move(banners)]() mutable {
+            queueInMainThread([self, fetchId, totalItems, banners = std::move(banners)]() mutable {
                 if (!self || self->isStaleFetch(fetchId)) {
                     return;
                 }
@@ -376,7 +386,7 @@ void CBShopLayer::populateList() {
 
 void CBShopLayer::fetchAmethyst() {
     Ref<CBShopLayer> self = this;
-    geode::queueInMainThread([self]() {
+    queueInMainThread([self]() {
         if (!self || !self->getParent() || s_instance != self.data()) {
             return;
         }
@@ -388,10 +398,18 @@ void CBShopLayer::fetchAmethyst() {
             return;
         }
 
-        arc::spawn([self, accountId, accountData]() -> arc::Future<> {
+        // your cube, so leaderboard/admin cells can draw it (read here, GameManager isn't thread safe)
+        auto gm = GameManager::sharedState();
+        auto icon = matjson::makeObject({{"iconId", gm->getPlayerFrame()},
+            {"color1", gm->getPlayerColor()},
+            {"color2", gm->getPlayerColor2()},
+            {"glowColor", gm->getPlayerGlowColor()},
+            {"hasGlow", gm->getPlayerGlow()}});
+
+        arc::spawn([self, accountId, accountData, icon]() -> arc::Future<> {
             auto authResult = co_await comment::argonToken(accountData);
             if (authResult.empty()) {
-                geode::queueInMainThread([self]() {
+                queueInMainThread([self]() {
                     if (!self || !self->getParent() || s_instance != self.data()) {
                         return;
                     }
@@ -401,11 +419,13 @@ void CBShopLayer::fetchAmethyst() {
             }
 
             auto authToken = std::move(authResult);
-            auto req = geode::utils::web::WebRequest();
-            auto body = matjson::makeObject({{"accountId", accountId}, {"argonToken", authToken}});
+            auto req = utils::web::WebRequest();
+            auto body = icon;
+            body["accountId"] = accountId;
+            body["argonToken"] = authToken;
             auto response = co_await req.bodyJSON(body).post(fmt::format("{}/getUser", comment::baseUrl));
             if (!response.ok()) {
-                geode::queueInMainThread([self]() {
+                queueInMainThread([self]() {
                     if (!self || !self->getParent() || s_instance != self.data()) {
                         return;
                     }
@@ -416,7 +436,7 @@ void CBShopLayer::fetchAmethyst() {
 
             auto jsonRes = response.json();
             if (jsonRes.isErr()) {
-                geode::queueInMainThread([self]() {
+                queueInMainThread([self]() {
                     if (!self || !self->getParent() || s_instance != self.data()) {
                         return;
                     }
@@ -428,7 +448,7 @@ void CBShopLayer::fetchAmethyst() {
             auto json = jsonRes.unwrap();
             auto amethystRes = json["amethyst"].asInt();
             if (amethystRes.isErr()) {
-                geode::queueInMainThread([self]() {
+                queueInMainThread([self]() {
                     if (!self || !self->getParent() || s_instance != self.data()) {
                         return;
                     }
@@ -438,7 +458,7 @@ void CBShopLayer::fetchAmethyst() {
             }
 
             int amethyst = static_cast<int>(amethystRes.unwrap());
-            geode::queueInMainThread([self, amethyst, json = std::move(json)]() {
+            queueInMainThread([self, amethyst, json = std::move(json)]() {
                 if (!self || !self->getParent() || s_instance != self.data()) {
                     return;
                 }
@@ -460,6 +480,7 @@ void CBShopLayer::fetchAmethyst() {
                     self->m_isAdmin = false;
                     Mod::get()->setSavedValue("is_admin", false);
                 }
+                Mod::get()->setSavedValue("is_supporter", json["is_supporter"].asBool().unwrapOr(false));
                 bool oldHasCreated = Mod::get()->getSavedValue<bool>("has_created_banner", false);
                 bool newHasCreated = false;
 
@@ -474,6 +495,12 @@ void CBShopLayer::fetchAmethyst() {
                 Mod::get()->setSavedValue("has_created_banner", newHasCreated);
                 Mod::get()->setSavedValue("amethyst", amethyst);
 
+                int monthlyEarnings = static_cast<int>(json["monthly_earnings"].asInt().unwrapOr(0));
+                Mod::get()->setSavedValue("monthly_earnings", monthlyEarnings);
+                if (self->m_earningRateLabel) {
+                    self->m_earningRateLabel->setString(fmt::format("+{}/mo", GameToolbox::pointsToString(monthlyEarnings)).c_str());
+                }
+
                 if (!self->m_amethystLabel) {
                     return;
                 }
@@ -487,9 +514,9 @@ void CBShopLayer::fetchAmethyst() {
                 if (self->m_isStaff) {
                     if (auto navMenu = self->getChildByID("nav-menu")) {
                         if (!navMenu->getChildByID("admin-button")) {
-                            auto adminBtn = geode::Button::createWithNode(
+                            auto adminBtn = Button::createWithNode(
                                 ButtonSprite::create("Admin", "goldFont.fnt", "GJ_button_03.png", .8f),
-                                [](geode::Button* sender) {
+                                [](Button* sender) {
                                     if (auto popup = CBAdminPanelLayer::create()) {
                                         popup->show();
                                     }
@@ -521,17 +548,18 @@ bool CBShopLayer::init() {
 
     s_instance = this;
 
-    if (!Mod::get()->getSettingValue<bool>("disable-animated-background")) {
+    bool animatedBgDisabled = Mod::get()->getSettingValue<bool>("disable-animated-background");
+    if (!animatedBgDisabled) {
         m_background = cue::RepeatingBackground::create("game_bg_57_001.png", 1.f, cue::RepeatMode::X);
-        m_background->setColor({154, 108, 217});
-        this->addChild(m_background);
     } else {
         m_background = createLayerBG();
+    }
+    if (m_background) {
         m_background->setColor({154, 108, 217});
         this->addChild(m_background);
     }
 
-    addBackButton(this, BackButtonStyle::Pink);
+    //addBackButton(this, BackButtonStyle::Pink);
     addSideArt(this, SideArt::Bottom);
     addSideArt(this, SideArt::TopLeft);
 
@@ -546,15 +574,15 @@ bool CBShopLayer::init() {
     }
 
     // label that shows what filters/sort it is
-    m_filterSortLabel = geode::Label::create("All Banners", "goldFont.fnt");
+    m_filterSortLabel = Label::create("All Banners", "goldFont.fnt");
     m_filterSortLabel->setScale(0.5f);
-    m_filterSortLabel->setAlignment(geode::Label::Alignment::Left);
+    m_filterSortLabel->setAlignment(Label::Alignment::Left);
     m_filterSortLabel->setVisible(true);
     m_filterSortLabel->setZOrder(5);
     this->addChildAtPosition(m_filterSortLabel, Anchor::Top, {0.f, -15.f}, false);
     this->updateFilterSortLabel();
 
-    m_noBannersLabel = geode::Label::create("No Banners Found", "goldFont.fnt");
+    m_noBannersLabel = Label::create("No Banners Found", "goldFont.fnt");
     m_noBannersLabel->setScale(0.6f);
     m_noBannersLabel->setVisible(false);
     m_noBannersLabel->setZOrder(5);
@@ -569,15 +597,15 @@ bool CBShopLayer::init() {
             ->setAutoGrowAxis(0.f));
     this->addChildAtPosition(bottomRightMenu, Anchor::BottomRight, {-30.f, 10.f}, false);
 
-    if (auto refreshButton = geode::Button::createWithNode(CircleButtonSprite::createWithSpriteFrameName("CB_refresh.png"_spr, 1.2f, CircleBaseColor::DarkPurple, CircleBaseSize::Small),
-            [this](geode::Button* sender) {
+    if (auto refreshButton = Button::createWithNode(CircleButtonSprite::createWithSpriteFrameName("CB_refresh.png"_spr, 1.2f, CircleBaseColor::DarkPurple, CircleBaseSize::Small),
+            [this](Button* sender) {
                 this->fetchBanners();
             })) {
         bottomRightMenu->addChild(refreshButton);
         bottomRightMenu->updateLayout();
     }
 
-    if (auto leaderboardButton = geode::Button::createWithNode(CircleButtonSprite::createWithSpriteFrameName("CB_leaderboard.png"_spr, 1.f, CircleBaseColor::DarkPurple, CircleBaseSize::Small), [this](geode::Button* sender) {
+    if (auto leaderboardButton = Button::createWithNode(CircleButtonSprite::createWithSpriteFrameName("CB_leaderboard.png"_spr, 1.f, CircleBaseColor::DarkPurple, CircleBaseSize::Small), [this](Button* sender) {
             auto scene = CCScene::create();
             scene->addChild(CBLeaderboardLayer::create());
             CCDirector::sharedDirector()->pushScene(CCTransitionFade::create(0.5f, scene));
@@ -586,23 +614,33 @@ bool CBShopLayer::init() {
         bottomRightMenu->updateLayout();
     }
 
-    if (auto discordButton = geode::Button::createWithNode(CircleButtonSprite::createWithSpriteFrameName("CB_discord.png"_spr, 1.f, CircleBaseColor::DarkPurple, CircleBaseSize::Small), [this](geode::Button* sender) {
+    if (auto discordButton = Button::createWithNode(CircleButtonSprite::createWithSpriteFrameName("CB_discord.png"_spr, 1.f, CircleBaseColor::DarkPurple, CircleBaseSize::Small), [this](Button* sender) {
             auto communityUrl = getMod()->getMetadata().getLinks().getCommunityURL();
             if (communityUrl.has_value()) {
-                geode::utils::web::openLinkInBrowser(communityUrl.value());
+                utils::web::openLinkInBrowser(communityUrl.value());
             }
         })) {
         bottomRightMenu->addChild(discordButton);
         bottomRightMenu->updateLayout();
     }
 
-    if (auto settingsButton = geode::Button::createWithNode(CircleButtonSprite::createWithSpriteFrameName("geode.loader/settings.png", 1.f, CircleBaseColor::DarkPurple, CircleBaseSize::Small), [this](geode::Button* sender) {
+    if (auto supporterButton = Button::createWithNode(CircleButtonSprite::createWithSpriteFrameName("gj_heartOn_001.png", 1.f, CircleBaseColor::DarkPurple, CircleBaseSize::Small), [](Button* sender) {
+            if (auto popup = CBSupporterPopup::create()) {
+                popup->show();
+            }
+        })) {
+        supporterButton->setID("supporter-button");
+        bottomRightMenu->addChild(supporterButton);
+        bottomRightMenu->updateLayout();
+    }
+
+    if (auto settingsButton = Button::createWithNode(CircleButtonSprite::createWithSpriteFrameName("geode.loader/settings.png", 1.f, CircleBaseColor::DarkPurple, CircleBaseSize::Small), [this](Button* sender) {
             openSettingsPopup(getMod());
         })) {
         this->addChildAtPosition(settingsButton, Anchor::BottomLeft, {25.f, 65.f}, false);
     }
 
-    if (auto infoButton = geode::Button::createWithNode(CircleButtonSprite::createWithSpriteFrameName("CB_info.png"_spr, 1.f, CircleBaseColor::DarkPurple, CircleBaseSize::Small), [this](geode::Button* sender) {
+    if (auto infoButton = Button::createWithNode(CircleButtonSprite::createWithSpriteFrameName("CB_info.png"_spr, 1.f, CircleBaseColor::DarkPurple, CircleBaseSize::Small), [this](Button* sender) {
             MDPopup::create(
                 "About Comment Banners",
                 "<cp>**Comment Banners**</c> is a <cb>community-run</c> banner shop that lets you buy <cg>user-generated</c> banners to apply to your <cc>Comment Cell</c> for everyone to see using this mod.\n\n"
@@ -651,14 +689,8 @@ bool CBShopLayer::init() {
             EditorButtonSprite::createWithSpriteFrameName("GJ_filterIcon_001.png", 1.0f, EditorBaseColor::Gray),
             this,
             menu_selector(CBShopLayer::onFilterClicked))) {
+        m_filterButton = filterButton;
         filterMenu->addChild(filterButton);
-    }
-
-    if (auto sortButton = CCMenuItemSpriteExtra::create(
-            EditorButtonSprite::createWithSpriteFrameName("GJ_sortIcon_001.png", 1.0f, EditorBaseColor::Gray),
-            this,
-            menu_selector(CBShopLayer::onSortClicked))) {
-        filterMenu->addChild(sortButton);
     }
 
     filterMenu->updateLayout();
@@ -680,9 +712,9 @@ bool CBShopLayer::init() {
     navMenu->setContentSize({356, 30});
     navMenu->setLayout(RowLayout::create()->setGap(6.f));
 
-    auto submitBtn = geode::Button::createWithNode(
+    auto submitBtn = Button::createWithNode(
         ButtonSprite::create("Submit", "goldFont.fnt", "GJ_button_01.png", .75f),
-        [](geode::Button* sender) {
+        [](Button* sender) {
             if (auto popup = CBSubmitBannerPopup::create()) {
                 popup->show();
             }
@@ -690,9 +722,9 @@ bool CBShopLayer::init() {
     submitBtn->setID("submit-button");
     navMenu->addChild(submitBtn);
 
-    auto logsBtn = geode::Button::createWithNode(
+    auto logsBtn = Button::createWithNode(
         ButtonSprite::create("Logs", "goldFont.fnt", "GJ_button_01.png", .75f),
-        [](geode::Button* sender) {
+        [](Button* sender) {
             if (auto popup = CBLogsPopup::create()) {
                 popup->show();
             }
@@ -700,9 +732,9 @@ bool CBShopLayer::init() {
     logsBtn->setID("logs-button");
     navMenu->addChild(logsBtn);
 
-    auto yourBannersBtn = geode::Button::createWithNode(
+    auto yourBannersBtn = Button::createWithNode(
         ButtonSprite::create("Your Banners", "goldFont.fnt", "GJ_button_01.png", .75f),
-        [](geode::Button* sender) {
+        [](Button* sender) {
             if (auto popup = CBYourBannersPopup::create()) {
                 popup->show();
             }
@@ -710,9 +742,9 @@ bool CBShopLayer::init() {
     yourBannersBtn->setID("your-banners-button");
     navMenu->addChild(yourBannersBtn);
 
-    auto localBtn = geode::Button::createWithNode(
+    auto localBtn = Button::createWithNode(
         ButtonSprite::create("Local", "goldFont.fnt", "GJ_button_05.png", .75f),
-        [](geode::Button* sender) {
+        [](Button* sender) {
             if (auto popup = CBLocalBannersPopup::create()) {
                 popup->show();
             }
@@ -729,7 +761,7 @@ bool CBShopLayer::init() {
     m_localOverlay->setZOrder(10);
     this->addChildAtPosition(m_localOverlay, Anchor::Center, {0.f, -22.f}, false);
 
-    if (auto headerLabel = geode::Label::create("Local Banner Equipped", "goldFont.fnt")) {
+    if (auto headerLabel = Label::create("Local Banner Equipped", "goldFont.fnt")) {
         headerLabel->setScale(0.7f);
         m_localOverlay->addChildAtPosition(headerLabel, Anchor::Center, {0.f, 25.f}, false);
     }
@@ -756,7 +788,7 @@ bool CBShopLayer::init() {
     nextSprite->setScale(0.8f);
     m_nextButton = CCMenuItemSpriteExtra::create(nextSprite, this, menu_selector(CBShopLayer::onNextPage));
 
-    m_pageLabel = geode::Label::create("Page 1 of 1 (Total: 0)", "goldFont.fnt");
+    m_pageLabel = Label::create("Page 1 of 1 (Total: 0)", "goldFont.fnt");
     m_pageLabel->setLimitLabelWidth(100.f, 0.4f, 0.1f);
 
     paginationMenu->addChild(m_prevButton);
@@ -771,16 +803,16 @@ bool CBShopLayer::init() {
     this->fetchAmethyst();
 
     auto listBg = NineSlice::create("square02_001.png");
-    if (listBg) {
+    if (listBg && m_list) {
         listBg->setPosition(m_list->getPosition());
         listBg->setContentSize(m_list->getContentSize() + CCSize(5.f, 10.f));
         listBg->setOpacity(100);
         this->addChild(listBg);
     }
 
-    // auto authButton = geode::Button::createWithNode(
+    // auto authButton = Button::createWithNode(
     //     CircleButtonSprite::createWithSpriteFrameName("CB_amethyst_001.png"_spr, 1.f, CircleBaseColor::DarkPurple, CircleBaseSize::Small),
-    //     [](geode::Button* button) {
+    //     [](Button* button) {
     //         Ref<UploadActionPopup> popup = UploadActionPopup::create(nullptr, "Checking permissions...");
     //         popup->show();
 
@@ -795,19 +827,19 @@ bool CBShopLayer::init() {
     //         arc::spawn([accountId, accountData, popup]() -> arc::Future<> {
     //             auto authResult = co_await comment::argonToken(accountData);
     //             if (authResult.empty()) {
-    //                 geode::queueInMainThread([popup] {
+    //                 queueInMainThread([popup] {
     //                     popup->showFailMessage("Authentication failed.");
     //                 });
     //                 co_return;
     //             }
 
     //             auto authToken = std::move(authResult);
-    //             auto req = geode::utils::web::WebRequest();
+    //             auto req = utils::web::WebRequest();
     //             auto url = fmt::format("{}/userInfo?accountId={}&argonToken={}", comment::baseUrl, accountId, authToken);
 
     //             auto response = co_await req.get(url);
     //             if (!response.ok()) {
-    //                 geode::queueInMainThread([popup] {
+    //                 queueInMainThread([popup] {
     //                     popup->showFailMessage("Failed to fetch user info.");
     //                 });
     //                 co_return;
@@ -815,7 +847,7 @@ bool CBShopLayer::init() {
 
     //             auto jsonRes = response.json();
     //             if (jsonRes.isErr()) {
-    //                 geode::queueInMainThread([popup] {
+    //                 queueInMainThread([popup] {
     //                     popup->showFailMessage("Invalid response from server.");
     //                 });
     //                 co_return;
@@ -829,7 +861,7 @@ bool CBShopLayer::init() {
     //             if (auto adminRes = json["is_admin"].asBool(); adminRes.isOk()) {
     //                 Mod::get()->setSavedValue("is_admin", adminRes.unwrap());
     //             }
-    //             geode::queueInMainThread([popup, isStaff] {
+    //             queueInMainThread([popup, isStaff] {
     //                 if (isStaff) {
     //                     popup->onClose(nullptr);
     //                     if (auto adminPopup = CBAdminPanelLayer::create()) {
@@ -862,6 +894,14 @@ bool CBShopLayer::init() {
         this->addChildAtPosition(m_amethystLabel, Anchor::TopRight, {-32.f, -16}, {1.f, 0.5f}, false);
     }
 
+    // current monthly earning rate from your banners, filled in by fetchAmethyst
+    m_earningRateLabel = Label::create(
+        fmt::format("+{}/mo", GameToolbox::pointsToString(Mod::get()->getSavedValue<int>("monthly_earnings", 0))).c_str(),
+        "bigFont.fnt");
+    m_earningRateLabel->setScale(0.35f);
+    m_earningRateLabel->setColor({100, 255, 100});
+    this->addChildAtPosition(m_earningRateLabel, Anchor::TopRight, {-8.f, -32.f}, {1.f, 0.5f}, false);
+
     this->setKeypadEnabled(true);
 
     return true;
@@ -872,67 +912,43 @@ void CBShopLayer::keyBackClicked() {
 }
 
 void CBShopLayer::onFilterClicked(CCObject* sender) {
-    auto btn = static_cast<CCMenuItemSpriteExtra*>(sender);
-
-    m_filterState = (m_filterState + 1) % 5;
-
-    EditorBaseColor baseColor = EditorBaseColor::Gray;
-    if (m_filterState == 1) {
-        baseColor = EditorBaseColor::Green;
-        // Notification::create("Showing Owned Banners", NotificationIcon::Info)->show();
-    } else if (m_filterState == 2) {
-        baseColor = EditorBaseColor::Orange;
-        //Notification::create("Showing Unowned Banners", NotificationIcon::Info)->show();
-    } else if (m_filterState == 3) {
-        baseColor = EditorBaseColor::Pink;
-        //Notification::create("Showing Limited Banners", NotificationIcon::Info)->show();
-    } else if (m_filterState == 4) {
-        baseColor = EditorBaseColor::Salmon;
-        //Notification::create("Showing Featured Banners", NotificationIcon::Info)->show();
-    } else {
-        //Notification::create("Showing All Banners", NotificationIcon::Info)->show();
+    if (auto popup = CBBannerFilterPopup::create()) {
+        popup->show();
     }
-
-    auto newSpr = EditorButtonSprite::createWithSpriteFrameName("GJ_filterIcon_001.png", 1.0f, baseColor);
-    btn->setNormalImage(newSpr);
-
-    this->updateFilterSortLabel();
-
-    m_currentPage = 0;
-    this->fetchBanners();
 }
 
-void CBShopLayer::onSortClicked(CCObject* sender) {
-    auto btn = static_cast<CCMenuItemSpriteExtra*>(sender);
+void CBShopLayer::setFilterState(int state) {
+    if (state == m_filterState) return;
+    m_filterState = state;
+    this->onFilterSortChanged();
+}
 
-    m_sortState = (m_sortState + 1) % 5;
+void CBShopLayer::setSortState(int state) {
+    if (state == m_sortState) return;
+    m_sortState = state;
+    this->onFilterSortChanged();
+}
 
-    EditorBaseColor baseColor = EditorBaseColor::Gray;
-    std::string text = "Sorting by Most Recent";
+void CBShopLayer::setSupporterOnlyFilter(bool enabled) {
+    if (enabled == m_supporterOnlyFilter) return;
+    m_supporterOnlyFilter = enabled;
+    this->onFilterSortChanged();
+}
 
-    switch (m_sortState) {
-        case 1:
-            baseColor = EditorBaseColor::Green;
-            text = "Sorting by Most Bought";
-            break;
-        case 2:
-            baseColor = EditorBaseColor::Cyan;
-            text = "Sorting by Most Equipped";
-            break;
-        case 3:
-            baseColor = EditorBaseColor::Orange;
-            text = "Sorting by Highest Price";
-            break;
-        case 4:
-            baseColor = EditorBaseColor::Pink;
-            text = "Sorting by Lowest Price";
-            break;
+void CBShopLayer::resetFilterSort() {
+    if (m_filterState == 0 && m_sortState == 0 && !m_supporterOnlyFilter) return;
+    m_filterState = 0;
+    m_sortState = 0;
+    m_supporterOnlyFilter = false;
+    this->onFilterSortChanged();
+}
+
+void CBShopLayer::onFilterSortChanged() {
+    if (m_filterButton) {
+        bool isDefault = m_filterState == 0 && m_sortState == 0 && !m_supporterOnlyFilter;
+        auto newSpr = EditorButtonSprite::createWithSpriteFrameName("GJ_filterIcon_001.png", 1.0f, isDefault ? EditorBaseColor::Gray : EditorBaseColor::Cyan);
+        m_filterButton->setNormalImage(newSpr);
     }
-
-    //Notification::create(text, NotificationIcon::Info)->show();
-
-    auto newSpr = EditorButtonSprite::createWithSpriteFrameName("GJ_sortIcon_001.png", 1.0f, baseColor);
-    btn->setNormalImage(newSpr);
 
     this->updateFilterSortLabel();
 

@@ -1,4 +1,5 @@
 #include "CBLogsPopup.hpp"
+#include "CBLogsCell.hpp"
 #include <Geode/utils/web.hpp>
 #include <dankmeme.argon/argon.hpp>
 #include "Geode/ui/Notification.hpp"
@@ -21,6 +22,7 @@ bool CBLogsPopup::init() {
     if (!Popup::init(380.f, 280.f)) return false;
 
     this->setTitle("Notifications & Logs");
+    addSideArt(m_mainLayer, SideArt::Top, SideArtStyle::PopupBlue, false);
 
     m_list = cue::ListNode::create({340.f, 220.f}, {0, 0, 0, 0}, cue::ListBorderStyle::Comments);
     if (m_list) {
@@ -54,7 +56,7 @@ void CBLogsPopup::fetchLogs() {
     arc::spawn([retainedSelf, accountId, accountData]() -> arc::Future<> {
         auto authResult = co_await comment::argonToken(accountData);
         if (authResult.empty()) {
-            geode::queueInMainThread([retainedSelf] {
+            queueInMainThread([retainedSelf] {
                 retainedSelf->m_loadingCircle->fadeOut();
                 Notification::create("Authentication failed.", NotificationIcon::Error)->show();
             });
@@ -62,12 +64,12 @@ void CBLogsPopup::fetchLogs() {
         }
 
         auto authToken = std::move(authResult);
-        auto req = geode::utils::web::WebRequest();
+        auto req = utils::web::WebRequest();
         auto url = fmt::format("{}/getUserLogs?accountId={}&argonToken={}", comment::baseUrl, accountId, authToken);
 
         auto response = co_await req.get(url);
         if (!response.ok()) {
-            geode::queueInMainThread([retainedSelf] {
+            queueInMainThread([retainedSelf] {
                 retainedSelf->m_loadingCircle->fadeOut();
                 Notification::create("Failed to fetch logs.", NotificationIcon::Error)->show();
             });
@@ -76,7 +78,7 @@ void CBLogsPopup::fetchLogs() {
 
         auto jsonRes = response.json();
         if (jsonRes.isErr()) {
-            geode::queueInMainThread([retainedSelf] {
+            queueInMainThread([retainedSelf] {
                 retainedSelf->m_loadingCircle->fadeOut();
                 Notification::create("Invalid JSON from server.", NotificationIcon::Error)->show();
             });
@@ -85,65 +87,38 @@ void CBLogsPopup::fetchLogs() {
 
         auto json = jsonRes.unwrap();
         if (!json.isArray()) {
-            geode::queueInMainThread([retainedSelf] {
+            queueInMainThread([retainedSelf] {
                 retainedSelf->m_loadingCircle->fadeOut();
             });
             co_return;
         }
 
-        geode::queueInMainThread([retainedSelf, json = std::move(json)] {
+        queueInMainThread([retainedSelf, json = std::move(json)] {
             retainedSelf->m_loadingCircle->fadeOut();
             retainedSelf->m_list->clear();
 
             if (json.size() == 0) {
-                auto emptyLabel = geode::Label::create("No notifications yet.", "goldFont.fnt");
+                auto emptyLabel = Label::create("No notifications yet.", "goldFont.fnt");
                 emptyLabel->setLimitLabelWidth(retainedSelf->m_list->getContentWidth() - 20.f, 0.7f, 0.15f);
                 retainedSelf->m_list->addChildAtPosition(emptyLabel, Anchor::Center);
                 return;
             }
 
+            retainedSelf->m_list->setCellColor(ccColor4B{0, 0, 0, 0});
+            float cellWidth = retainedSelf->m_list->getContentWidth();
+
             for (size_t i = 0; i < json.size(); ++i) {
                 auto item = json[i];
-                auto message = item["message"].asString().unwrapOr("Unknown message");
-                auto createdAt = item["createdAt"].asString().unwrapOr("");
-                auto actionType = item["actionType"].asString().unwrapOr("");
-                int id = item["id"].asInt().unwrapOr(0);
+                CBLogEntry entry{
+                    .id = static_cast<int>(item["id"].asInt().unwrapOr(0)),
+                    .actionType = item["actionType"].asString().unwrapOr(""),
+                    .message = item["message"].asString().unwrapOr("Unknown message"),
+                    .createdAt = item["createdAt"].asString().unwrapOr(""),
+                };
 
-                auto cell = CCLayer::create();
-                cell->setContentSize({340.f, 60.f});
-
-                auto actionLabel = geode::Label::create(actionType.c_str(), "bigFont.fnt");
-                actionLabel->setScale(0.40f);
-                actionLabel->setAnchorPoint({0.f, 1.f});
-                actionLabel->setPosition({10.f, 58.f});
-                if (actionType == "APPROVED") {
-                    actionLabel->setColor({100, 255, 100});
-                } else if (actionType == "REJECTED") {
-                    actionLabel->setColor({255, 100, 100});
-                } else {
-                    actionLabel->setColor({255, 200, 100});
+                if (auto cell = CBLogsCell::create(entry, cellWidth)) {
+                    retainedSelf->m_list->addCell(cell);
                 }
-                cell->addChild(actionLabel);
-
-                auto infoLabel = geode::Label::create(fmt::format("#{} - {}", id, createdAt).c_str(), "chatFont.fnt");
-                infoLabel->setScale(0.4f);
-                infoLabel->setOpacity(200);
-                infoLabel->setColor({0, 0, 0});
-                infoLabel->setAnchorPoint({1.f, 1.f});
-                infoLabel->setPosition({330.f, 58.f});
-                cell->addChild(infoLabel);
-
-                auto msgLabel = SimpleTextArea::create(message.c_str(), "chatFont.fnt");
-                msgLabel->setWidth(320.f);
-                msgLabel->setMaxLines(4);
-                msgLabel->setScale(0.6f);
-                msgLabel->setAlignment(kCCTextAlignmentLeft);
-                msgLabel->setAnchorPoint({0.f, 1.f});
-                msgLabel->setPosition({10.f, 40.f});
-                cell->addChild(msgLabel);
-
-                retainedSelf->m_list->setCellColor(ccColor4B{0, 0, 0, 0});
-                retainedSelf->m_list->addCell(cell);
             }
             retainedSelf->m_list->updateLayout();
         });

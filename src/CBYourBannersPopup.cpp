@@ -1,5 +1,5 @@
 #include "CBYourBannersPopup.hpp"
-#include "CBUpdateAmountPopup.hpp"
+#include "CBEditBannerPopup.hpp"
 #include <Geode/utils/web.hpp>
 #include <dankmeme.argon/argon.hpp>
 #include "Geode/ui/Button.hpp"
@@ -8,6 +8,14 @@
 #include "CBShopLayer.hpp"
 
 using namespace geode::prelude;
+
+namespace {
+    // must match TriggerMonthlyPayout on the server
+    float earnRateForEquips(int equippedCount) {
+        if (equippedCount <= 0) return 0.f;
+        return std::min(0.30f, 0.05f + (equippedCount / 5) * 0.05f);
+    }
+}
 
 CBYourBannersPopup* CBYourBannersPopup::create() {
     auto ret = new CBYourBannersPopup();
@@ -32,7 +40,26 @@ bool CBYourBannersPopup::init() {
         m_mainLayer->addChildAtPosition(scrollbar, Anchor::Center, {340.f / 2 + 5.f, -5.f}, false);
     }
 
-    m_pageLabel = geode::Label::create("0 to 0 of 0", "goldFont.fnt");
+    // explains how banners earn amethysts each month
+    if (auto infoBtn = Button::createWithNode(CCSprite::createWithSpriteFrameName("GJ_infoIcon_001.png"), [](Button*) {
+            FLAlertLayer::create(
+                nullptr,
+                "Earning Rate",
+                "Every month, each of your <cg>approved</c> banners earns a share of its <cp>price</c> in <cp>amethysts</c>, "
+                "based on how many users have it <cy>equipped</c>:\n\n"
+                "- <cy>1+ equipped</c>: <cg>5%</c> of the price\n"
+                "- <cg>+5%</c> for every <cy>5 equipped</c>\n"
+                "- Up to <cg>30%</c> at <cy>25+ equipped</c>\n\n"
+                "Banners nobody has equipped earn <cr>nothing</c>. Each banner shows its current rate as <cy>Earn</c>.",
+                "OK",
+                nullptr,
+                360.f)
+                ->show();
+        })) {
+        m_mainLayer->addChildAtPosition(infoBtn, Anchor::TopRight, {-20.f, -20.f}, false);
+    }
+
+    m_pageLabel = Label::create("0 to 0 of 0", "goldFont.fnt");
     m_pageLabel->setLimitLabelWidth(100.f, 0.4f, 0.1f);
     m_mainLayer->addChildAtPosition(m_pageLabel, Anchor::Bottom, {0, 15}, false);
 
@@ -60,7 +87,7 @@ void CBYourBannersPopup::fetchBanners() {
     arc::spawn([retainedSelf, accountId, accountData]() -> arc::Future<> {
         auto authResult = co_await comment::argonToken(accountData);
         if (authResult.empty()) {
-            geode::queueInMainThread([retainedSelf] {
+            queueInMainThread([retainedSelf] {
                 retainedSelf->m_loadingCircle->fadeOut();
                 Notification::create("Authentication failed.", NotificationIcon::Error)->show();
             });
@@ -68,12 +95,12 @@ void CBYourBannersPopup::fetchBanners() {
         }
 
         auto authToken = std::move(authResult);
-        auto req = geode::utils::web::WebRequest();
+        auto req = utils::web::WebRequest();
         auto url = fmt::format("{}/getUserBanners?accountId={}&argonToken={}", comment::baseUrl, accountId, authToken);
 
         auto response = co_await req.get(url);
         if (!response.ok()) {
-            geode::queueInMainThread([retainedSelf] {
+            queueInMainThread([retainedSelf] {
                 retainedSelf->m_loadingCircle->fadeOut();
                 Notification::create("Failed to fetch banners.", NotificationIcon::Error)->show();
             });
@@ -82,7 +109,7 @@ void CBYourBannersPopup::fetchBanners() {
 
         auto jsonRes = response.json();
         if (jsonRes.isErr()) {
-            geode::queueInMainThread([retainedSelf] {
+            queueInMainThread([retainedSelf] {
                 retainedSelf->m_loadingCircle->fadeOut();
                 Notification::create("Invalid JSON from server.", NotificationIcon::Error)->show();
             });
@@ -91,18 +118,18 @@ void CBYourBannersPopup::fetchBanners() {
 
         auto json = jsonRes.unwrap();
         if (!json.isArray()) {
-            geode::queueInMainThread([retainedSelf] {
+            queueInMainThread([retainedSelf] {
                 retainedSelf->m_loadingCircle->fadeOut();
             });
             co_return;
         }
 
-        geode::queueInMainThread([retainedSelf, json = std::move(json)] {
+        queueInMainThread([retainedSelf, json = std::move(json)] {
             retainedSelf->m_loadingCircle->fadeOut();
             retainedSelf->m_list->clear();
 
             if (json.size() == 0) {
-                auto emptyLabel = geode::Label::create("No Banners", "goldFont.fnt");
+                auto emptyLabel = Label::create("No Banners", "goldFont.fnt");
                 emptyLabel->setLimitLabelWidth(retainedSelf->m_list->getContentWidth() - 20.f, 0.7f, 0.15f);
                 retainedSelf->m_list->addChildAtPosition(emptyLabel, Anchor::Center);
                 if (retainedSelf->m_pageLabel) {
@@ -116,11 +143,10 @@ void CBYourBannersPopup::fetchBanners() {
                 retainedSelf->m_pageLabel->setString(fmt::format("1 to {} of {}", json.size(), json.size()).c_str());
             }
 
-            float totalEarnRate = 0.f;
-
             for (size_t i = 0; i < json.size(); ++i) {
                 auto item = json[i];
                 auto name = item["name"].asString().unwrapOr("Unknown Banner");
+                auto description = item["description"].asString().unwrapOr("");
                 auto imageUrl = item["imageUrl"].asString().unwrapOr("");
                 int price = item["price"].asInt().unwrapOr(0);
                 bool isPending = item["isPending"].asBool().unwrapOr(false);
@@ -162,7 +188,7 @@ void CBYourBannersPopup::fetchBanners() {
                 cell->addChild(sprite);
 
                 // Name
-                auto nameLabel = geode::Label::create(name.c_str(), "bigFont.fnt");
+                auto nameLabel = Label::create(name.c_str(), "bigFont.fnt");
                 nameLabel->setAnchorPoint({0.f, 0.5f});
                 float nameX = 10.f;
                 if (isFeatured) {
@@ -205,7 +231,7 @@ void CBYourBannersPopup::fetchBanners() {
                 cell->addChild(nameLabel);
 
                 // Status Label
-                auto statusLabel = geode::Label::create(status, "goldFont.fnt");
+                auto statusLabel = Label::create(status, "goldFont.fnt");
                 statusLabel->setScale(0.3f);
                 if (isPending) {
                     statusLabel->setColor({255, 200, 50});
@@ -215,17 +241,17 @@ void CBYourBannersPopup::fetchBanners() {
                 cell->addChildAtPosition(statusLabel, Anchor::Top, {0, -8}, false);
 
                 if (isPending) {
-                    auto refundBtn = geode::Button::createWithNode(ButtonSprite::create("Refund"), [retainedSelf, id](geode::Button* sender) {
+                    auto refundBtn = Button::createWithNode(ButtonSprite::create("Refund"), [retainedSelf, id](Button* sender) {
                         retainedSelf->onRefund(sender);
                     });
                     refundBtn->setTag(id);
-                    refundBtn->setPosition({width - 45.f, 35.f});
+                    refundBtn->setPosition({width - 45.f, 15.f});
                     refundBtn->setScale(0.6f);
                     cell->addChild(refundBtn);
                 }
 
                 // Price
-                if (auto priceLabel = geode::Label::create(fmt::format("{}", GameToolbox::pointsToString(price)).c_str(), "bigFont.fnt")) {
+                if (auto priceLabel = Label::create(fmt::format("{}", GameToolbox::pointsToString(price)).c_str(), "bigFont.fnt")) {
                     priceLabel->setAnchorPoint({0.f, 0.5f});
                     priceLabel->setScale(0.5f);
                     priceLabel->setPosition({-8.f, 0.f});
@@ -259,44 +285,53 @@ void CBYourBannersPopup::fetchBanners() {
                         ->setCrossAxisOverflow(false));
 
                 if (isLimited) {
-                    if (auto amountLabel = geode::Label::create(fmt::format("Amount Left: {}", amount - totalBought).c_str(), "goldFont.fnt")) {
+                    if (auto amountLabel = Label::create(fmt::format("Amount Left: {}", amount - totalBought).c_str(), "goldFont.fnt")) {
                         amountLabel->setLimitLabelWidth(150.f, 0.5f, 0.2f);
                         detailNode->addChild(amountLabel);
                     }
                 }
 
-                if (auto totalBoughtLabel = geode::Label::create(fmt::format("Bought: {}", totalBought).c_str(), "goldFont.fnt")) {
+                if (auto totalBoughtLabel = Label::create(fmt::format("Bought: {}", totalBought).c_str(), "goldFont.fnt")) {
                     totalBoughtLabel->setLimitLabelWidth(150.f, 0.5f, 0.2f);
                     detailNode->addChild(totalBoughtLabel);
                 }
 
                 if (!isPending) {
-                    int rateMultiplier = equippedCount / 5;
-                    float rate = std::min(0.30f, rateMultiplier * 0.05f);
-                    float bannerEarnRate = price * rate;
-                    totalEarnRate += bannerEarnRate;
+                    float bannerEarnRate = price * earnRateForEquips(equippedCount);
 
-                    if (auto equippedLabel = geode::Label::create(fmt::format("Total Equipped: {}", equippedCount).c_str(), "goldFont.fnt")) {
+                    if (auto equippedLabel = Label::create(fmt::format("Total Equipped: {}", equippedCount).c_str(), "goldFont.fnt")) {
                         equippedLabel->setLimitLabelWidth(150.f, 0.5f, 0.2f);
                         detailNode->addChild(equippedLabel);
                     }
 
-                    if (auto earnLabel = geode::Label::create(fmt::format("Earn: +{:.1f}/mo", bannerEarnRate).c_str(), "goldFont.fnt")) {
+                    if (auto earnLabel = Label::create(fmt::format("Earn: +{:.1f}/mo", bannerEarnRate).c_str(), "goldFont.fnt")) {
                         earnLabel->setLimitLabelWidth(150.f, 0.5f, 0.2f);
                         detailNode->addChild(earnLabel);
                     }
                 }
 
-                if (isLimited && !isPending) {
-                    if (auto changeAmountBtn = Button::createWithNode(ButtonSprite::create("Change Amount", 100.f, true, "goldFont.fnt", "GJ_button_01.png", .0f, 1.f), [id, amount, totalBought, retainedSelf](geode::Button* sender) {
-                            CBUpdateAmountPopup::create(id, amount, totalBought, [retainedSelf]() {
+                CBEditBannerData editData{
+                    .id = id,
+                    .name = name,
+                    .description = description,
+                    .price = price,
+                    .isLimited = isLimited,
+                    .amount = amount,
+                    .totalBought = totalBought,
+                    .isSupporterOnly = item["isSupporterOnly"].asBool().unwrapOr(false),
+                    .imageUrl = imageUrl,
+                    .nonCompactImageUrl = item["nonCompactImageUrl"].asString().unwrapOr(""),
+                };
+                if (auto editBtn = Button::createWithNode(ButtonSprite::create("Edit", 100.f, true, "goldFont.fnt", "GJ_button_01.png", .0f, 1.f), [editData, retainedSelf](Button*) {
+                        if (auto popup = CBEditBannerPopup::create(editData, [retainedSelf]() {
                                 retainedSelf->fetchBanners();
-                            })->show();
-                        })) {
-                        changeAmountBtn->setScale(0.6f);
-                        changeAmountBtn->setPosition({width - 45.f, 35.f});
-                        cell->addChild(changeAmountBtn);
-                    }
+                            })) {
+                            popup->show();
+                        }
+                    })) {
+                    editBtn->setScale(0.6f);
+                    editBtn->setPosition({width - 45.f, 35.f});
+                    cell->addChild(editBtn);
                 }
 
                 if (!isPending) {
@@ -305,7 +340,7 @@ void CBYourBannersPopup::fetchBanners() {
                         isEquipped = (shop->getEquippedBannerId() == id);
                     }
 
-                    if (auto equipBtn = Button::createWithNode(ButtonSprite::create(isEquipped ? "Unequip" : "Equip", 100.f, true, "goldFont.fnt", isEquipped ? "GJ_button_06.png" : "GJ_button_02.png", .0f, 1.f), [retainedSelf, isEquipped](geode::Button* sender) {
+                    if (auto equipBtn = Button::createWithNode(ButtonSprite::create(isEquipped ? "Unequip" : "Equip", 100.f, true, "goldFont.fnt", isEquipped ? "GJ_button_06.png" : "GJ_button_02.png", .0f, 1.f), [retainedSelf, isEquipped](Button* sender) {
                             if (isEquipped) {
                                 retainedSelf->onUnequip(sender);
                             } else {
@@ -314,7 +349,7 @@ void CBYourBannersPopup::fetchBanners() {
                         })) {
                         equipBtn->setTag(id);
                         equipBtn->setScale(0.6f);
-                        equipBtn->setPosition({width - 45.f, isLimited ? 15.f : 25.f});
+                        equipBtn->setPosition({width - 45.f, 15.f});
                         cell->addChild(equipBtn);
                     }
                 }
@@ -328,34 +363,6 @@ void CBYourBannersPopup::fetchBanners() {
                 retainedSelf->m_list->addCell(cell);
             }
             retainedSelf->m_list->updateLayout();
-
-            if (totalEarnRate >= 0.f) {
-                if (retainedSelf->m_earnLabel) {
-                    retainedSelf->m_earnLabel->setString(fmt::format("+{:.1f}/mo", totalEarnRate).c_str());
-                } else {
-                    auto earnNode = CCNode::create();
-                    earnNode->setScale(0.5f);
-                    earnNode->setContentSize({150.f, 30.f});
-                    earnNode->setAnchorPoint({1.f, 0.5f});
-                    earnNode->setLayout(RowLayout::create()->setAxisAlignment(AxisAlignment::End)->setGap(5));
-
-                    retainedSelf->m_earnLabel = geode::Label::create(fmt::format("+{:.1f}/mo", totalEarnRate).c_str(), "bigFont.fnt");
-                    retainedSelf->m_earnLabel->setLimitLabelWidth(80.f, 0.5f, 0.3f);
-                    retainedSelf->m_earnLabel->setAnchorPoint({1.f, 0.5f});
-                    retainedSelf->m_earnLabel->setPosition({0.f, 0.f});
-                    earnNode->addChild(retainedSelf->m_earnLabel);
-
-                    if (auto amethystIcon = CCSprite::createWithSpriteFrameName("CB_amethyst_002.png"_spr)) {
-                        amethystIcon->setScale(0.5f);
-                        amethystIcon->setPosition({5.f, 0.f});
-                        amethystIcon->setAnchorPoint({0.f, 0.5f});
-                        earnNode->addChild(amethystIcon);
-                    }
-
-                    retainedSelf->m_mainLayer->addChildAtPosition(earnNode, Anchor::TopRight, {-10.f, -20.f});
-                    earnNode->updateLayout();
-                }
-            }
         });
 
         co_return;
@@ -364,7 +371,7 @@ void CBYourBannersPopup::fetchBanners() {
 
 void CBYourBannersPopup::onRefund(CCObject* sender) {
     int id = sender->getTag();
-    geode::createQuickPopup("Refund Banner", "Are you sure you want to <cr>refund</c> this pending banner?", "Cancel", "Refund", [this, id](FLAlertLayer*, bool btn2) {
+    createQuickPopup("Refund Banner", "Are you sure you want to <cr>refund</c> this pending banner?", "Cancel", "Refund", [this, id](FLAlertLayer*, bool btn2) {
         if (!btn2) return;
 
         auto accountData = argon::getGameAccountData();
@@ -384,7 +391,7 @@ void CBYourBannersPopup::onRefund(CCObject* sender) {
         arc::spawn([retainedSelf, accountId, accountData, id]() -> arc::Future<> {
             auto authResult = co_await comment::argonToken(accountData);
             if (authResult.empty()) {
-                geode::queueInMainThread([retainedSelf] {
+                queueInMainThread([retainedSelf] {
                     retainedSelf->m_loadingCircle->fadeOut();
                     Notification::create("Authentication failed.", NotificationIcon::Error)->show();
                 });
@@ -393,17 +400,17 @@ void CBYourBannersPopup::onRefund(CCObject* sender) {
 
             auto authToken = std::move(authResult);
 
-            geode::utils::web::MultipartForm form;
+            utils::web::MultipartForm form;
             form.param("accountId", numToString(accountId));
             form.param("argonToken", authToken);
             form.param("bannerId", numToString(id));
 
-            auto req = geode::utils::web::WebRequest();
+            auto req = utils::web::WebRequest();
             req.bodyMultipart(std::move(form));
 
             auto response = co_await req.post(fmt::format("{}/refundBanner", comment::baseUrl));
             if (!response.ok()) {
-                geode::queueInMainThread([retainedSelf, response] {
+                queueInMainThread([retainedSelf, response] {
                     retainedSelf->m_loadingCircle->fadeOut();
                     Notification::create(comment::getResponseMessage(response, "Failed to refund banner.").c_str(), NotificationIcon::Error)->show();
                 });
@@ -416,7 +423,7 @@ void CBYourBannersPopup::onRefund(CCObject* sender) {
                 refundedAmount = jsonRes.unwrap()["refunded"].asInt().unwrapOr(0);
             }
 
-            geode::queueInMainThread([retainedSelf, refundedAmount] {
+            queueInMainThread([retainedSelf, refundedAmount] {
                 retainedSelf->m_loadingCircle->fadeOut();
                 Notification::create("Banner refunded!", NotificationIcon::Success)->show();
 
@@ -440,7 +447,7 @@ void CBYourBannersPopup::onRefund(CCObject* sender) {
 void CBYourBannersPopup::onEquip(CCObject* sender) {
     int id = sender->getTag();
     Ref<CBYourBannersPopup> retainedSelf = this;
-    geode::queueInMainThread([retainedSelf, id]() {
+    queueInMainThread([retainedSelf, id]() {
         auto accountData = argon::getGameAccountData();
         auto accountId = accountData.accountId;
         Ref<UploadActionPopup> popup = UploadActionPopup::create(nullptr, "Equipping banner...");
@@ -452,7 +459,7 @@ void CBYourBannersPopup::onEquip(CCObject* sender) {
             auto authResult = co_await comment::argonToken(accountData);
             if (authResult.empty()) {
                 log::warn("argon failed");
-                geode::queueInMainThread([popup] {
+                queueInMainThread([popup] {
                     if (popup && popup->getParent()) {
                         popup->showFailMessage("Authentication failed.");
                     }
@@ -462,7 +469,7 @@ void CBYourBannersPopup::onEquip(CCObject* sender) {
 
             auto authToken = std::move(authResult);
 
-            auto request = geode::utils::web::WebRequest();
+            auto request = utils::web::WebRequest();
             auto body = matjson::makeObject({{"accountId", accountId},
                 {"argonToken", authToken},
                 {"bannerId", id}});
@@ -470,7 +477,7 @@ void CBYourBannersPopup::onEquip(CCObject* sender) {
 
             if (!response.ok()) {
                 log::warn("equipBanner failed: {}", response.errorMessage());
-                geode::queueInMainThread([popup, error = response.errorMessage()] {
+                queueInMainThread([popup, error = response.errorMessage()] {
                     if (popup && popup->getParent()) {
                         popup->showFailMessage(fmt::format("Equip failed: {}", error));
                     }
@@ -478,7 +485,7 @@ void CBYourBannersPopup::onEquip(CCObject* sender) {
                 co_return;
             }
 
-            geode::queueInMainThread([retainedSelf, popup, id] {
+            queueInMainThread([retainedSelf, popup, id] {
                 if (popup && popup->getParent()) {
                     popup->showSuccessMessage("Banner equipped successfully");
                 }
@@ -498,7 +505,7 @@ void CBYourBannersPopup::onEquip(CCObject* sender) {
 void CBYourBannersPopup::onUnequip(CCObject* sender) {
     int id = sender->getTag();
     Ref<CBYourBannersPopup> retainedSelf = this;
-    geode::queueInMainThread([retainedSelf, id]() {
+    queueInMainThread([retainedSelf, id]() {
         auto accountData = argon::getGameAccountData();
         auto accountId = accountData.accountId;
         Ref<UploadActionPopup> popup = UploadActionPopup::create(nullptr, "Unequipping banner...");
@@ -510,7 +517,7 @@ void CBYourBannersPopup::onUnequip(CCObject* sender) {
             auto authResult = co_await comment::argonToken(accountData);
             if (authResult.empty()) {
                 log::warn("argon failed");
-                geode::queueInMainThread([popup] {
+                queueInMainThread([popup] {
                     if (popup && popup->getParent()) {
                         popup->showFailMessage("Authentication failed.");
                     }
@@ -520,14 +527,14 @@ void CBYourBannersPopup::onUnequip(CCObject* sender) {
 
             auto authToken = std::move(authResult);
 
-            auto request = geode::utils::web::WebRequest();
+            auto request = utils::web::WebRequest();
             auto body = matjson::makeObject({{"accountId", accountId},
                 {"argonToken", authToken}});
             auto response = co_await request.bodyJSON(body).post(fmt::format("{}/unequipBanner", comment::baseUrl));
 
             if (!response.ok()) {
                 log::warn("unequipBanner failed: {}", response.errorMessage());
-                geode::queueInMainThread([popup, error = response.errorMessage()] {
+                queueInMainThread([popup, error = response.errorMessage()] {
                     if (popup && popup->getParent()) {
                         popup->showFailMessage(fmt::format("Unequip failed: {}", error));
                     }
@@ -535,7 +542,7 @@ void CBYourBannersPopup::onUnequip(CCObject* sender) {
                 co_return;
             }
 
-            geode::queueInMainThread([retainedSelf, popup] {
+            queueInMainThread([retainedSelf, popup] {
                 if (popup && popup->getParent()) {
                     popup->showSuccessMessage("Banner unequipped successfully");
                 }

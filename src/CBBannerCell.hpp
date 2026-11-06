@@ -17,6 +17,8 @@ struct CBBannerItem {
     bool equipped = false;
     bool isLimited = false;
     bool isFeatured = false;
+    bool isSupporterOnly = false;
+    std::string nonCompactImageUrl;  // optional, shown in non-compact comment cells
     int amount = 0;
     int totalBought = 0;
     int equippedCount = 0;
@@ -28,7 +30,7 @@ public:
     // disableCommentPreview: show the plain banner image instead of the comment cell mockup
     static CBBannerCell* create(const CBBannerItem& banner, float width, bool disableCommentPreview = false);
     // Comment cell mockup of the banner that fits inside maxSize, tap it to switch compact/non-compact
-    static cocos2d::CCNode* createCommentPreviewButton(std::string const& imageUrl, cocos2d::CCSize const& maxSize);
+    static cocos2d::CCNode* createCommentPreviewButton(std::string const& imageUrl, cocos2d::CCSize const& maxSize, std::string const& nonCompactImageUrl = "");
 
 private:
     void showPurchaseConfirm();

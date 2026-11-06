@@ -8,5 +8,6 @@ namespace comment {
     inline constexpr float kCompactCommentCellHeight = 36.f;
     inline constexpr float kCommentCellWidth = 340.f;
 
-    CCNode* createCommentPreview(std::string const& imageUrl, bool compact, float width = kCommentCellWidth);
+    // nonCompactImageUrl (optional) is shown instead of imageUrl in the non-compact preview
+    CCNode* createCommentPreview(std::string const& imageUrl, bool compact, float width = kCommentCellWidth, std::string const& nonCompactImageUrl = "");
 }

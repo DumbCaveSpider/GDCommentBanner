@@ -8,7 +8,9 @@
 #include <cue/LoadingCircle.hpp>
 #include <cue/ListNode.hpp>
 
-class CBProfileBannerPopup : public geode::Popup {
+using namespace geode::prelude;
+
+class CBProfileBannerPopup : public Popup {
 public:
     void fetchBanners();
 private:
@@ -22,7 +24,7 @@ private:
     int m_totalItems = 0;
     CCMenuItemSpriteExtra* m_nextBtn = nullptr;
     CCMenuItemSpriteExtra* m_prevBtn = nullptr;
-    geode::Label* m_pageLabel = nullptr;
+    Label* m_pageLabel = nullptr;
 
     bool init(int targetAccountId, const std::string& targetUsername);
     void updatePaginationButtons();

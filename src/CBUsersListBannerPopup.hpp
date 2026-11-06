@@ -7,7 +7,9 @@
 #include <cue/LoadingCircle.hpp>
 #include <cue/ListNode.hpp>
 
-class CBUsersListBannerPopup : public geode::Popup {
+using namespace geode::prelude;
+
+class CBUsersListBannerPopup : public Popup {
 private:
     int m_bannerId;
     int m_listType;  // 1 for bought, 2 for equipped
@@ -19,7 +21,7 @@ private:
     int m_totalItems = 0;
     CCMenuItemSpriteExtra* m_nextBtn = nullptr;
     CCMenuItemSpriteExtra* m_prevBtn = nullptr;
-    geode::Label* m_pageLabel = nullptr;
+    Label* m_pageLabel = nullptr;
 
     bool init(int bannerId, int listType);
     void updatePaginationButtons();

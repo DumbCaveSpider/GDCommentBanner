@@ -38,7 +38,7 @@ namespace comment {
     }
 
     void invalidateBannerCache(int accountId = 0);
-    void updateBannerCache(int accountId, bool equipped, std::string const& imageUrl = "");
+    void updateBannerCache(int accountId, bool equipped, std::string const& imageUrl = "", std::string const& nonCompactImageUrl = "");
 
     inline std::string getResponseMessage(web::WebResponse const& response,
         std::string const& fallback) {
@@ -47,4 +47,9 @@ namespace comment {
             return message;
         return fallback;
     }
+
+    // cached from /getUser (see CBShopLayer), the server re-checks supporter-only actions
+    inline bool isUserSupporter() {
+        return Mod::get()->getSavedValue<bool>("is_supporter", false);
+    };
 };

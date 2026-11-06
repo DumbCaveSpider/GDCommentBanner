@@ -9,6 +9,7 @@
 #include <Geode/binding/UploadActionPopup.hpp>
 #include <Geode/binding/SetTextPopup.hpp>
 #include "CBManageUserPopup.hpp"
+#include "CBUserCell.hpp"
 #include "CBProfileBannerPopup.hpp"
 #include <Geode/binding/SetTextPopup.hpp>
 #include "CBAdminBannerManagePopup.hpp"
@@ -56,28 +57,28 @@ bool CBAdminPanelLayer::init() {
     tabMenu->setContentSize({380.f, 30.f});
     tabMenu->setLayout(RowLayout::create()->setGap(10.f));
 
-    auto pendingBtn = geode::Button::createWithNode(
+    auto pendingBtn = Button::createWithNode(
         ButtonSprite::create("Pending", "goldFont.fnt", "GJ_button_01.png", .8f),
-        [this](geode::Button* sender) { this->onTabPending(sender); });
+        [this](Button* sender) { this->onTabPending(sender); });
     tabMenu->addChild(pendingBtn);
 
-    auto usersBtn = geode::Button::createWithNode(
+    auto usersBtn = Button::createWithNode(
         ButtonSprite::create("Users", "goldFont.fnt", "GJ_button_01.png", .8f),
-        [this](geode::Button* sender) { this->onTabUsers(sender); });
+        [this](Button* sender) { this->onTabUsers(sender); });
     tabMenu->addChild(usersBtn);
 
-    auto bannersBtn = geode::Button::createWithNode(
+    auto bannersBtn = Button::createWithNode(
         ButtonSprite::create("Banners", "goldFont.fnt", "GJ_button_01.png", .8f),
-        [this](geode::Button* sender) { this->onTabBanners(sender); });
+        [this](Button* sender) { this->onTabBanners(sender); });
     tabMenu->addChild(bannersBtn);
 
     m_mainLayer->addChildAtPosition(tabMenu, Anchor::Top, {0.f, -50.f}, false);
     tabMenu->updateLayout();
 
     auto filterMenu = CCMenu::create();
-    m_filterBtn = geode::Button::createWithNode(
+    m_filterBtn = Button::createWithNode(
         CCSprite::createWithSpriteFrameName("gj_findBtn_001.png"),
-        [this](geode::Button*) {
+        [this](Button*) {
             auto popup = SetTextPopup::create("", (m_currentTab == Tab::Users) ? "AccountID or Username" : "Banner Name, User, or ID", 32, (m_currentTab == Tab::Users) ? "Search Users" : "Search Banners", "Search", true, 60, false, 0, 0);
             popup->m_delegate = this;
             popup->show();
@@ -88,7 +89,7 @@ bool CBAdminPanelLayer::init() {
 
     m_paginationMenu = CCMenu::create();
     m_paginationMenu->setLayout(RowLayout::create()->setGap(425.f));
-    m_pageLabel = geode::Label::create("Page 1 of 1 (Total: 0)", "goldFont.fnt");
+    m_pageLabel = Label::create("Page 1 of 1 (Total: 0)", "goldFont.fnt");
     m_pageLabel->setLimitLabelWidth(120.f, 0.4f, 0.1f);
     m_mainLayer->addChildAtPosition(m_pageLabel, Anchor::Bottom, {0.f, 12.f}, false);
 
@@ -143,14 +144,14 @@ void CBAdminPanelLayer::processPendingBanner(int id, bool approve, const std::st
     Ref<CBAdminPanelLayer> retainedSelf = this;
     std::string authToken = this->m_authToken;
     arc::spawn([retainedSelf, id, accountId, authToken, endpoint, reason, approve, popup]() -> arc::Future<> {
-        auto req = geode::utils::web::WebRequest();
+        auto req = utils::web::WebRequest();
         auto body = matjson::makeObject({{"accountId", accountId},
             {"argonToken", authToken},
             {"id", id},
             {"reason", reason}});
         auto res = co_await req.bodyJSON(body).post(fmt::format("{}{}", comment::baseUrl, endpoint));
         bool ok = res.ok();
-        geode::queueInMainThread([retainedSelf, popup, ok, approve] {
+        queueInMainThread([retainedSelf, popup, ok, approve] {
             if (popup && popup->getParent()) {
                 if (ok) {
                     popup->showSuccessMessage(approve ? "Banner approved!" : "Banner rejected!");
@@ -167,6 +168,8 @@ void CBAdminPanelLayer::processPendingBanner(int id, bool approve, const std::st
 }
 
 void CBAdminPanelLayer::fetchPendingBanners() {
+    // drop the previous tab's cells while the new data loads
+    m_list->clear();
     if (m_loadingCircle) m_loadingCircle->removeFromParent();
     m_loadingCircle = cue::LoadingCircle::create(true);
     m_list->addChildAtPosition(m_loadingCircle, Anchor::Center, CCPointZero, false);
@@ -183,7 +186,7 @@ void CBAdminPanelLayer::fetchPendingBanners() {
     arc::spawn([retainedSelf, accountId, accountData]() -> arc::Future<> {
         auto authResult = co_await comment::argonToken(accountData);
         if (authResult.empty()) {
-            geode::queueInMainThread([retainedSelf] {
+            queueInMainThread([retainedSelf] {
                 retainedSelf->m_loadingCircle->fadeOut();
                 Notification::create("Authentication failed.", NotificationIcon::Error)->show();
             });
@@ -191,12 +194,12 @@ void CBAdminPanelLayer::fetchPendingBanners() {
         }
 
         auto authToken = std::move(authResult);
-        auto req = geode::utils::web::WebRequest();
+        auto req = utils::web::WebRequest();
         auto url = fmt::format("{}/pendingBanners?accountId={}&argonToken={}", comment::baseUrl, accountId, authToken);
 
         auto response = co_await req.get(url);
         if (!response.ok()) {
-            geode::queueInMainThread([retainedSelf] {
+            queueInMainThread([retainedSelf] {
                 retainedSelf->m_loadingCircle->fadeOut();
                 Notification::create("Failed to fetch pending banners.", NotificationIcon::Error)->show();
             });
@@ -205,7 +208,7 @@ void CBAdminPanelLayer::fetchPendingBanners() {
 
         auto jsonRes = response.json();
         if (jsonRes.isErr()) {
-            geode::queueInMainThread([retainedSelf] {
+            queueInMainThread([retainedSelf] {
                 retainedSelf->m_loadingCircle->fadeOut();
             });
             co_return;
@@ -213,13 +216,13 @@ void CBAdminPanelLayer::fetchPendingBanners() {
 
         auto json = jsonRes.unwrap();
         if (!json.isArray()) {
-            geode::queueInMainThread([retainedSelf] {
+            queueInMainThread([retainedSelf] {
                 retainedSelf->m_loadingCircle->fadeOut();
             });
             co_return;
         }
 
-        geode::queueInMainThread([retainedSelf, json = std::move(json), accountId, authToken] {
+        queueInMainThread([retainedSelf, json = std::move(json), accountId, authToken] {
             retainedSelf->m_loadingCircle->fadeOut();
             if (retainedSelf->m_currentTab != Tab::Pending) return;
             retainedSelf->m_currentData = json;
@@ -234,6 +237,8 @@ void CBAdminPanelLayer::fetchPendingBanners() {
 }
 
 void CBAdminPanelLayer::fetchUsers(std::string query) {
+    // drop the previous tab's cells while the new data loads
+    m_list->clear();
     if (m_loadingCircle) m_loadingCircle->removeFromParent();
     m_loadingCircle = cue::LoadingCircle::create(true);
 
@@ -251,7 +256,7 @@ void CBAdminPanelLayer::fetchUsers(std::string query) {
     arc::spawn([retainedSelf, accountId, accountData, query]() -> arc::Future<> {
         auto authResult = co_await comment::argonToken(accountData);
         if (authResult.empty()) {
-            geode::queueInMainThread([retainedSelf] {
+            queueInMainThread([retainedSelf] {
                 retainedSelf->m_loadingCircle->fadeOut();
                 Notification::create("Authentication failed.", NotificationIcon::Error)->show();
             });
@@ -259,7 +264,7 @@ void CBAdminPanelLayer::fetchUsers(std::string query) {
         }
 
         auto authToken = std::move(authResult);
-        auto req = geode::utils::web::WebRequest();
+        auto req = utils::web::WebRequest();
 
         std::string encodedQuery = query;
         size_t pos = 0;
@@ -271,7 +276,7 @@ void CBAdminPanelLayer::fetchUsers(std::string query) {
 
         auto response = co_await req.get(url);
         if (!response.ok()) {
-            geode::queueInMainThread([retainedSelf] {
+            queueInMainThread([retainedSelf] {
                 retainedSelf->m_loadingCircle->fadeOut();
                 Notification::create("Failed to fetch users.", NotificationIcon::Error)->show();
             });
@@ -280,17 +285,17 @@ void CBAdminPanelLayer::fetchUsers(std::string query) {
 
         auto jsonRes = response.json();
         if (jsonRes.isErr()) {
-            geode::queueInMainThread([retainedSelf] { retainedSelf->m_loadingCircle->fadeOut(); });
+            queueInMainThread([retainedSelf] { retainedSelf->m_loadingCircle->fadeOut(); });
             co_return;
         }
 
         auto json = jsonRes.unwrap();
         if (!json.isArray()) {
-            geode::queueInMainThread([retainedSelf] { retainedSelf->m_loadingCircle->fadeOut(); });
+            queueInMainThread([retainedSelf] { retainedSelf->m_loadingCircle->fadeOut(); });
             co_return;
         }
 
-        geode::queueInMainThread([retainedSelf, json = std::move(json), accountId, authToken] {
+        queueInMainThread([retainedSelf, json = std::move(json), accountId, authToken] {
             retainedSelf->m_loadingCircle->fadeOut();
             if (retainedSelf->m_currentTab != Tab::Users) return;
             retainedSelf->m_currentData = json;
@@ -305,6 +310,8 @@ void CBAdminPanelLayer::fetchUsers(std::string query) {
 }
 
 void CBAdminPanelLayer::fetchBanners(std::string query) {
+    // drop the previous tab's cells while the new data loads
+    m_list->clear();
     if (m_loadingCircle) m_loadingCircle->removeFromParent();
     m_loadingCircle = cue::LoadingCircle::create(true);
     m_list->addChildAtPosition(m_loadingCircle, Anchor::Center, CCPointZero, false);
@@ -321,7 +328,7 @@ void CBAdminPanelLayer::fetchBanners(std::string query) {
     arc::spawn([retainedSelf, accountId, accountData, query]() -> arc::Future<> {
         auto authResult = co_await comment::argonToken(accountData);
         if (authResult.empty()) {
-            geode::queueInMainThread([retainedSelf] {
+            queueInMainThread([retainedSelf] {
                 retainedSelf->m_loadingCircle->fadeOut();
                 Notification::create("Authentication failed.", NotificationIcon::Error)->show();
             });
@@ -329,7 +336,7 @@ void CBAdminPanelLayer::fetchBanners(std::string query) {
         }
 
         auto authToken = std::move(authResult);
-        auto req = geode::utils::web::WebRequest();
+        auto req = utils::web::WebRequest();
 
         std::string encodedQuery = query;
         size_t pos = 0;
@@ -341,7 +348,7 @@ void CBAdminPanelLayer::fetchBanners(std::string query) {
 
         auto response = co_await req.get(url);
         if (!response.ok()) {
-            geode::queueInMainThread([retainedSelf] {
+            queueInMainThread([retainedSelf] {
                 retainedSelf->m_loadingCircle->fadeOut();
                 Notification::create("Failed to fetch banners.", NotificationIcon::Error)->show();
             });
@@ -350,7 +357,7 @@ void CBAdminPanelLayer::fetchBanners(std::string query) {
 
         auto jsonRes = response.json();
         if (jsonRes.isErr()) {
-            geode::queueInMainThread([retainedSelf] {
+            queueInMainThread([retainedSelf] {
                 retainedSelf->m_loadingCircle->fadeOut();
             });
             co_return;
@@ -358,13 +365,13 @@ void CBAdminPanelLayer::fetchBanners(std::string query) {
 
         auto json = jsonRes.unwrap();
         if (!json.isArray()) {
-            geode::queueInMainThread([retainedSelf] {
+            queueInMainThread([retainedSelf] {
                 retainedSelf->m_loadingCircle->fadeOut();
             });
             co_return;
         }
 
-        geode::queueInMainThread([retainedSelf, json = std::move(json), accountId, authToken] {
+        queueInMainThread([retainedSelf, json = std::move(json), accountId, authToken] {
             retainedSelf->m_loadingCircle->fadeOut();
             if (retainedSelf->m_currentTab != Tab::Banners) return;
             retainedSelf->m_currentData = json;
@@ -435,7 +442,7 @@ void CBAdminPanelLayer::renderPage() {
         else if (m_currentTab == Tab::Users)
             emptyStr = "No users found.";
 
-        auto emptyLabel = geode::Label::create(emptyStr.c_str(), "goldFont.fnt");
+        auto emptyLabel = Label::create(emptyStr.c_str(), "goldFont.fnt");
         emptyLabel->setScale(0.8f);
         emptyLabel->setID("empty-label");
         m_list->addChildAtPosition(emptyLabel, Anchor::Center);
@@ -491,7 +498,7 @@ void CBAdminPanelLayer::renderPage() {
             cell->addChild(sprite);
 
             // Name
-            auto nameLabel = geode::Label::create(name.c_str(), "bigFont.fnt");
+            auto nameLabel = Label::create(name.c_str(), "bigFont.fnt");
             nameLabel->setAnchorPoint({0.f, 0.5f});
             float nameX = 10.f;
             if (isFeatured) {
@@ -537,10 +544,10 @@ void CBAdminPanelLayer::renderPage() {
 
             // User
             if (!user.empty()) {
-                auto usernameLabel = geode::Label::create(fmt::format("By {}", user).c_str(), "goldFont.fnt");
+                auto usernameLabel = Label::create(fmt::format("By {}", user).c_str(), "goldFont.fnt");
                 usernameLabel->setScale(0.4f);
 
-                auto userBtn = geode::Button::createWithNode(usernameLabel, [targetAccountId, user](geode::Button*) {
+                auto userBtn = Button::createWithNode(usernameLabel, [targetAccountId, user](Button*) {
                     CBProfileBannerPopup::create(targetAccountId, user)->show();
                 });
                 userBtn->setAnchorPoint({0.f, 0.5f});
@@ -553,7 +560,7 @@ void CBAdminPanelLayer::renderPage() {
             }
 
             // Price
-            if (auto priceLabel = geode::Label::create(fmt::format("{}", GameToolbox::pointsToString(price)).c_str(), "bigFont.fnt")) {
+            if (auto priceLabel = Label::create(fmt::format("{}", GameToolbox::pointsToString(price)).c_str(), "bigFont.fnt")) {
                 priceLabel->setAnchorPoint({0.f, 0.5f});
                 priceLabel->setLimitLabelWidth(100.f, 0.5f, 0.2f);
                 priceLabel->setPosition({0.f, 0.f});
@@ -578,7 +585,7 @@ void CBAdminPanelLayer::renderPage() {
 
             // Amount
             if (isLimited) {
-                if (auto amountLabel = geode::Label::create(fmt::format("Amount: {}", amount).c_str(), "goldFont.fnt")) {
+                if (auto amountLabel = Label::create(fmt::format("Amount: {}", amount).c_str(), "goldFont.fnt")) {
                     amountLabel->setAnchorPoint({0.f, 0.5f});
                     amountLabel->setLimitLabelWidth(60.f, 0.4f, 0.2f);
                     amountLabel->setPosition({26.f, 40.f});
@@ -588,7 +595,7 @@ void CBAdminPanelLayer::renderPage() {
 
             // Description
             if (!desc.empty()) {
-                if (auto descBtn = geode::Button::createWithSpriteFrameName("GJ_infoIcon_001.png", [desc](geode::Button*) {
+                if (auto descBtn = Button::createWithSpriteFrameName("GJ_infoIcon_001.png", [desc](Button*) {
                         MDPopup::create("Description", desc, "OK")->show();
                     })) {
                     descBtn->setScale(0.6f);
@@ -608,9 +615,9 @@ void CBAdminPanelLayer::renderPage() {
 
             auto approveSpr = CircleButtonSprite::createWithSpriteFrameName("GJ_completesIcon_001.png", 0.7f, CircleBaseColor::Green, CircleBaseSize::Small);
             approveSpr->setScale(0.8f);
-            auto approveBtn = geode::Button::createWithNode(
+            auto approveBtn = Button::createWithNode(
                 approveSpr,
-                [this, id](geode::Button*) {
+                [this, id](Button*) {
                     if (auto popup = CBPendingBannerReasonPopup::create(id, false, this)) {
                         popup->show();
                     }
@@ -620,9 +627,9 @@ void CBAdminPanelLayer::renderPage() {
 
             auto rejectSpr = CircleButtonSprite::createWithSpriteFrameName("GJ_deleteIcon_001.png", 0.7f, CircleBaseColor::Red, CircleBaseSize::Small);
             rejectSpr->setScale(0.8f);
-            auto rejectBtn = geode::Button::createWithNode(
+            auto rejectBtn = Button::createWithNode(
                 rejectSpr,
-                [this, id](geode::Button*) {
+                [this, id](Button*) {
                     if (auto popup = CBPendingBannerReasonPopup::create(id, true, this)) {
                         popup->show();
                     }
@@ -638,92 +645,20 @@ void CBAdminPanelLayer::renderPage() {
         }
 
     } else if (m_currentTab == Tab::Users) {
+        m_list->setCellColor(ccColor4B{0, 0, 0, 0});
         for (size_t i = start; i < end; ++i) {
             auto item = jsonArray[i];
-            auto cell = CCLayer::create();
-            cell->setContentSize({380.f, 40.f});
-
-            std::string equippedBannerUrl = item["equippedBannerUrl"].asString().unwrapOr("");
-            if (!equippedBannerUrl.empty()) {
-                equippedBannerUrl = fmt::format("{}", equippedBannerUrl);
+            auto cell = CBUserCell::create(CBUserData::fromJson(item), 380.f, {
+                .showRole = true,
+                .onManage = [item]() {
+                    if (auto popup = CBManageUserPopup::create(item)) {
+                        popup->show();
+                    }
+                },
+            });
+            if (cell) {
+                m_list->addCell(cell);
             }
-
-            if (!equippedBannerUrl.empty()) {
-                auto sprite = comment::createBannerNode(equippedBannerUrl, {380.f, 40.f});
-                sprite->setPosition({190.f, 20.f});
-                cell->addChild(sprite, -2);
-
-                auto bg = CCLayerGradient::create({0, 0, 0, 255}, {0, 0, 0, 0}, {1, 0});
-                bg->setContentSize(cell->getContentSize());
-                bg->setAnchorPoint({0, 0});
-                bg->setOpacity(255);
-                cell->addChild(bg, -1);
-            }
-
-            std::string user = item["username"].asString().unwrapOr("Unknown");
-            int targetId = item["accountId"].asInt().unwrapOr(0);
-            bool isAdmin = item["is_admin"].asBool().unwrapOr(false);
-            bool isStaff = item["is_staff"].asBool().unwrapOr(false);
-            int amethyst = item["amethyst"].asInt().unwrapOr(0);
-
-            auto label = geode::Label::create(fmt::format("{}", user, targetId).c_str(), "goldFont.fnt");
-            label->setScale(0.6f);
-            float labelWidth = label->getContentSize().width * label->getScale();
-
-            auto btn = geode::Button::createWithNode(
-                label,
-                [targetId, user](geode::Button*) {
-                    CBProfileBannerPopup::create(targetId, user)->show();
-                });
-            btn->setAnchorPoint({0, 0.5f});
-            btn->setPosition({10.f, 26.f});
-
-            auto menu = CCMenu::create();
-            menu->setPosition({0, 0});
-            menu->addChild(btn);
-            float currentX = 10.f + labelWidth + 5.f;
-
-            std::string rankStr = isAdmin ? "Admin" : (isStaff ? "Staff" : "User");
-            auto rankLabel = geode::Label::create(rankStr.c_str(), "chatFont.fnt");
-            rankLabel->setScale(0.4f);
-            rankLabel->setAnchorPoint({0, 0.5f});
-            rankLabel->setPosition({10.f, 12.f});
-            if (isAdmin) {
-                rankLabel->setColor(ccColor3B{255, 100, 100});
-            } else if (isStaff) {
-                rankLabel->setColor(ccColor3B{100, 255, 100});
-            } else {
-                rankLabel->setColor(ccColor3B{200, 200, 200});
-            }
-            cell->addChild(rankLabel);
-
-            if (auto amyIcon = CCSprite::createWithSpriteFrameName("CB_amethyst_002.png"_spr)) {
-                amyIcon->setScale(0.4f);
-                amyIcon->setAnchorPoint({0, 0.5f});
-                amyIcon->setPosition({currentX, 20.f});
-                cell->addChild(amyIcon);
-                currentX += (amyIcon->getContentSize().width * amyIcon->getScale()) + 2.f;
-            }
-
-            auto amyLabel = geode::Label::create(fmt::format("{}", amethyst).c_str(), "bigFont.fnt");
-            amyLabel->setScale(0.4f);
-            amyLabel->setAnchorPoint({0, 0.5f});
-            amyLabel->setPosition({currentX, 20.f});
-            cell->addChild(amyLabel);
-
-            auto manageBtn = geode::Button::createWithNode(
-                ButtonSprite::create("Manage", "goldFont.fnt", "GJ_button_01.png", 0.5f),
-                [item](geode::Button*) {
-                    CBManageUserPopup::create(item)->show();
-                });
-            manageBtn->setAnchorPoint({1.f, 0.5f});
-            manageBtn->setPosition({370.f, 20.f});
-            menu->addChild(manageBtn);
-
-            cell->addChild(menu);
-
-            m_list->setCellColor(ccColor4B{0, 0, 0, 0});
-            m_list->addCell(cell);
         }
 
     } else if (m_currentTab == Tab::Banners) {
@@ -764,7 +699,7 @@ void CBAdminPanelLayer::renderPage() {
             cell->addChild(sprite);
 
             // Name
-            auto nameLabel = geode::Label::create(name.c_str(), "bigFont.fnt");
+            auto nameLabel = Label::create(name.c_str(), "bigFont.fnt");
             nameLabel->setAnchorPoint({0.f, 0.5f});
             float nameX = 10.f;
             if (isFeatured) {
@@ -810,10 +745,10 @@ void CBAdminPanelLayer::renderPage() {
 
             // User
             if (!user.empty()) {
-                auto usernameLabel = geode::Label::create(fmt::format("By {}", user).c_str(), "goldFont.fnt");
+                auto usernameLabel = Label::create(fmt::format("By {}", user).c_str(), "goldFont.fnt");
                 usernameLabel->setScale(0.4f);
 
-                auto userBtn = geode::Button::createWithNode(usernameLabel, [targetAccountId, user](geode::Button*) {
+                auto userBtn = Button::createWithNode(usernameLabel, [targetAccountId, user](Button*) {
                     CBProfileBannerPopup::create(targetAccountId, user)->show();
                 });
                 userBtn->setAnchorPoint({0.f, 0.5f});
@@ -827,7 +762,7 @@ void CBAdminPanelLayer::renderPage() {
 
             // Description
             if (!desc.empty()) {
-                if (auto descBtn = geode::Button::createWithSpriteFrameName("GJ_infoIcon_001.png", [desc](geode::Button*) {
+                if (auto descBtn = Button::createWithSpriteFrameName("GJ_infoIcon_001.png", [desc](Button*) {
                         MDPopup::create("Description", desc, "OK")->show();
                     })) {
                     descBtn->setScale(0.6f);
@@ -845,9 +780,9 @@ void CBAdminPanelLayer::renderPage() {
                     ->setAxisAlignment(AxisAlignment::Center)
                     ->setGap(5.f));
 
-            auto manageBtn = geode::Button::createWithNode(
+            auto manageBtn = Button::createWithNode(
                 ButtonSprite::create("Manage", "goldFont.fnt", "GJ_button_01.png", 0.5f),
-                [item](geode::Button*) {
+                [item](Button*) {
                     CBAdminBannerManagePopup::create(item)->show();
                 });
             menu->addChild(manageBtn);

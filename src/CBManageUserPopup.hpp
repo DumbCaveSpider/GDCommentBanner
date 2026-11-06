@@ -9,7 +9,7 @@
 #include <cue/ListNode.hpp>
 #include <cue/LoadingCircle.hpp>
 
-class CBManageUserPopup : public geode::Popup {
+class CBManageUserPopup : public Popup {
 protected:
     matjson::Value m_userData;
     int m_targetAccountId;
@@ -17,8 +17,8 @@ protected:
     bool m_isStaff;
     int m_amethyst;
 
-    geode::TextInput* m_amethystInput;
-    geode::TextInput* m_banHoursInput;
+    TextInput* m_amethystInput;
+    TextInput* m_banHoursInput;
     CCMenuItemToggler* m_staffToggler;
 
     cue::ListNode* m_bannersList;

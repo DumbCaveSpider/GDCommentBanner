@@ -1,0 +1,193 @@
+#include "CBUserCell.hpp"
+#include "CBProfileBannerPopup.hpp"
+#include "include/CBConstant.hpp"
+#include <Geode/binding/GameManager.hpp>
+#include <Geode/binding/SimplePlayer.hpp>
+
+namespace {
+    constexpr float kCellHeight = 40.f;
+
+    // a stat with an icon in front, e.g. [amethyst] 12,345
+    CCNode* createStat(char const* frameName, std::string const& text, ccColor3B color) {
+        auto node = CCNode::create();
+        node->setAnchorPoint({0.f, 0.5f});
+        node->setContentSize({0.f, 14.f});
+        node->setLayout(RowLayout::create()->setGap(2.f)->setAutoScale(false)->setAutoGrowAxis(0.f));
+
+        auto icon = CCSprite::createWithSpriteFrameName(frameName);
+        if (icon) {
+            icon->setScale(12.f / std::max(icon->getContentHeight(), 1.f));
+            node->addChild(icon);
+        }
+
+        auto label = Label::create(text.c_str(), "bigFont.fnt");
+        label->setScale(0.3f);
+        label->setColor(color);
+        node->addChild(label);
+
+        node->updateLayout();
+        return node;
+    }
+}
+
+CBUserData CBUserData::fromJson(matjson::Value const& json) {
+    CBUserData data;
+    data.accountId = static_cast<int>(json["accountId"].asInt().unwrapOr(0));
+    data.username = json["username"].asString().unwrapOr("Unknown");
+    data.isAdmin = json["is_admin"].asBool().unwrapOr(false);
+    data.isStaff = json["is_staff"].asBool().unwrapOr(false);
+    data.isSupporter = json["is_supporter"].asBool().unwrapOr(false);
+    data.equippedBannerUrl = json["equippedBannerUrl"].asString().unwrapOr("");
+    data.iconId = static_cast<int>(json["iconId"].asInt().unwrapOr(0));
+    data.color1 = static_cast<int>(json["color1"].asInt().unwrapOr(0));
+    data.color2 = static_cast<int>(json["color2"].asInt().unwrapOr(0));
+    data.glowColor = static_cast<int>(json["glowColor"].asInt().unwrapOr(0));
+    data.hasGlow = json["hasGlow"].asBool().unwrapOr(false);
+    data.amethyst = static_cast<int>(json["amethyst"].asInt().unwrapOr(0));
+    data.monthlyEarnings = static_cast<int>(json["monthlyEarnings"].asInt().unwrapOr(0));
+    data.totalEarned = static_cast<int>(json["totalEarned"].asInt().unwrapOr(0));
+    data.totalSales = static_cast<int>(json["totalSales"].asInt().unwrapOr(0));
+    return data;
+}
+
+CBUserCell* CBUserCell::create(CBUserData const& data, float width, CBUserCellOptions options) {
+    auto ret = new CBUserCell();
+    if (ret && ret->init(data, width, std::move(options))) {
+        ret->autorelease();
+        return ret;
+    }
+    delete ret;
+    return nullptr;
+}
+
+CCNode* CBUserCell::createStatsRow() {
+    auto row = CCNode::create();
+    row->setAnchorPoint({1.f, 0.5f});
+    row->setContentSize({0.f, 14.f});
+    row->setLayout(RowLayout::create()
+            ->setGap(8.f)
+            ->setAutoScale(false)
+            ->setAutoGrowAxis(0.f)
+            ->setAxisAlignment(AxisAlignment::End));
+
+    row->addChild(createStat("CB_amethyst_001.png"_spr, GameToolbox::pointsToString(m_data.amethyst), {255, 255, 255}));
+    row->addChild(createStat("particle_337_001.png", fmt::format("+{}/mo", GameToolbox::pointsToString(m_data.monthlyEarnings)), {100, 255, 100}));
+    row->addChild(createStat("particle_336_001.png",
+        m_options.showSalesCount ? fmt::format("{} Sales", GameToolbox::pointsToString(m_data.totalSales))
+                                 : GameToolbox::pointsToString(m_data.totalEarned),
+        {150, 255, 150}));
+
+    row->updateLayout();
+    return row;
+}
+
+bool CBUserCell::init(CBUserData const& data, float width, CBUserCellOptions options) {
+    if (!CCNode::init()) return false;
+    m_data = data;
+    m_options = std::move(options);
+    this->setContentSize({width, kCellHeight});
+
+    // equipped banner behind the cell, faded to the left so the text stays readable
+    if (m_options.showBanner && !m_data.equippedBannerUrl.empty()) {
+        if (auto banner = comment::createBannerNode(m_data.equippedBannerUrl, {width + 10.f, kCellHeight + 10.f})) {
+            banner->setPosition({width / 2.f, kCellHeight / 2.f});
+            this->addChild(banner, -2);
+        }
+        auto fade = CCLayerGradient::create({0, 0, 0, 200}, {0, 0, 0, 0}, {1, 0});
+        fade->setContentSize({width, kCellHeight});
+        this->addChild(fade, -1);
+    }
+
+    float x = 10.f;
+
+    if (m_options.rank > 0) {
+        auto rankLabel = Label::create(numToString(m_options.rank).c_str(), "goldFont.fnt");
+        rankLabel->setLimitLabelWidth(28.f, 0.6f, 0.2f);
+        rankLabel->setAnchorPoint({0.f, 0.5f});
+        rankLabel->setPosition({x, kCellHeight / 2.f});
+        this->addChild(rankLabel);
+        x += 30.f;
+    }
+
+    // player cube
+    auto gm = GameManager::sharedState();
+    int iconId = m_data.iconId > 0 ? m_data.iconId : 1;
+    auto player = SimplePlayer::create(iconId);
+    player->updatePlayerFrame(iconId, IconType::Cube);
+    if (m_data.iconId > 0) {
+        player->setColor(gm->colorForIdx(m_data.color1));
+        player->setSecondColor(gm->colorForIdx(m_data.color2));
+        if (m_data.hasGlow) {
+            player->setGlowOutline(gm->colorForIdx(m_data.glowColor));
+        } else {
+            player->disableGlowOutline();
+        }
+    }
+    player->updateColors();
+    player->setScale(0.7f);
+    player->setPosition({x + 12.f, kCellHeight / 2.f});
+    this->addChild(player, 1);
+    x += 30.f;
+
+    auto menu = CCMenu::create();
+    menu->setPosition({0.f, 0.f});
+    menu->setContentSize({width, kCellHeight});
+    this->addChild(menu, 2);
+
+    // manage button (admin panel)
+    float rightEdge = width - 10.f;
+    if (m_options.onManage) {
+        auto onManage = m_options.onManage;
+        auto manageBtn = Button::createWithNode(
+            EditorButtonSprite::createWithSpriteFrameName("followBtnOff_001.png", 1.f, EditorBaseColor::Gray),
+            [onManage](Button*) { onManage(); });
+        manageBtn->setScale(0.75f);
+        manageBtn->setPosition({width - 22.f, kCellHeight / 2.f});
+        menu->addChild(manageBtn);
+        rightEdge = width - 42.f;
+    }
+
+    // stats on the right
+    auto stats = this->createStatsRow();
+    stats->setPosition({rightEdge, kCellHeight / 2.f});
+    this->addChild(stats, 1);
+    float statsLeft = rightEdge - stats->getScaledContentWidth() - 8.f;
+
+    // username (opens their profile), with the role or badge next to/under it
+    bool hasRoleLine = m_options.showRole;
+    float nameY = hasRoleLine ? 26.f : kCellHeight / 2.f;
+
+    auto nameLabel = Label::create(m_data.username.c_str(), "goldFont.fnt");
+    nameLabel->setLimitLabelWidth(std::max(40.f, statsLeft - x - 18.f), 0.6f, 0.2f);
+    int accountId = m_data.accountId;
+    std::string username = m_data.username;
+    auto nameBtn = Button::createWithNode(nameLabel, [accountId, username](Button*) {
+        if (auto popup = CBProfileBannerPopup::create(accountId, username)) {
+            popup->show();
+        }
+    });
+    nameBtn->setAnchorPoint({0.f, 0.5f});
+    nameBtn->setPosition({x, nameY});
+    menu->addChild(nameBtn);
+
+    if (m_data.isAdmin || m_data.isStaff) {
+        if (auto badge = CCSprite::createWithSpriteFrameName(m_data.isAdmin ? "CB_admin_badge.png"_spr : "CB_staff_badge.png"_spr)) {
+            badge->setScale(0.07f);
+            badge->setAnchorPoint({0.f, 0.5f});
+            badge->setPosition({x + nameBtn->getScaledContentWidth() + 4.f, nameY});
+            this->addChild(badge, 1);
+        }
+    }
+
+    if (hasRoleLine) {
+        std::string role = m_data.isAdmin ? "Admin" : (m_data.isStaff ? "Staff" : "User");
+        auto roleLabel = Label::create(role.c_str(), "chatFont.fnt");
+        roleLabel->setScale(0.4f);
+        roleLabel->setAnchorPoint({0.f, 0.5f});
+        roleLabel->setPosition({x, 12.f});
+        roleLabel->setColor(m_data.isAdmin ? ccColor3B{255, 100, 100} : (m_data.isStaff ? ccColor3B{100, 255, 100} : ccColor3B{200, 200, 200}));
+        this->addChild(roleLabel, 1);
+    }
+
+    return true;
+}

@@ -56,7 +56,7 @@ bool CBManageUserPopup::init(matjson::Value const& userData) {
     staffRow->addChild(m_staffToggler);
     controlsMenu->addChild(staffRow);
 
-    auto staffLabel = geode::Label::create("Is Staff", "bigFont.fnt");
+    auto staffLabel = Label::create("Is Staff", "bigFont.fnt");
     staffLabel->setLimitLabelWidth(150.f, 0.6f, 0.4f);
     staffRow->addChild(staffLabel);
 
@@ -75,9 +75,9 @@ bool CBManageUserPopup::init(matjson::Value const& userData) {
     m_amethystInput->setString(std::to_string(m_amethyst));
     amyRow->addChild(m_amethystInput);
 
-    auto amyBtn = geode::Button::createWithNode(
+    auto amyBtn = Button::createWithNode(
         ButtonSprite::create("Save", "goldFont.fnt", "GJ_button_01.png", 0.6f),
-        [this](geode::Button* s) { this->onUpdateAmethyst(s); });
+        [this](Button* s) { this->onUpdateAmethyst(s); });
     amyRow->addChild(amyBtn);
     amyRow->updateLayout();
     controlsMenu->addChild(amyRow);
@@ -89,9 +89,9 @@ bool CBManageUserPopup::init(matjson::Value const& userData) {
     m_banHoursInput->setFilter("-0123456789");  // Allow negative? Or 0 to unban.
     banRow->addChild(m_banHoursInput);
 
-    auto banBtn = geode::Button::createWithNode(
+    auto banBtn = Button::createWithNode(
         ButtonSprite::create("Ban", "goldFont.fnt", "GJ_button_06.png", 0.6f),
-        [this](geode::Button* s) { this->onTempBan(s); });
+        [this](Button* s) { this->onTempBan(s); });
     banRow->addChild(banBtn);
     banRow->updateLayout();
     controlsMenu->addChild(banRow);
@@ -128,7 +128,7 @@ void CBManageUserPopup::onUpdateAmethyst(CCObject*) {
     arc::spawn([retainedSelf, adminId, accountData, amy, popup]() -> arc::Future<> {
         auto authResult = co_await comment::argonToken(accountData);
         if (authResult.empty()) {
-            geode::queueInMainThread([popup] {
+            queueInMainThread([popup] {
                 if (popup && popup->getParent()) {
                     popup->showFailMessage("Authentication failed.");
                 }
@@ -136,7 +136,7 @@ void CBManageUserPopup::onUpdateAmethyst(CCObject*) {
             co_return;
         }
 
-        auto req = geode::utils::web::WebRequest();
+        auto req = utils::web::WebRequest();
         auto body = matjson::makeObject({
             {"accountId", adminId},
             {"argonToken", authResult},
@@ -147,7 +147,7 @@ void CBManageUserPopup::onUpdateAmethyst(CCObject*) {
         auto res = co_await req.bodyJSON(body).post(fmt::format("{}/admin/updateUserAmethyst", comment::baseUrl));
         bool ok = res.ok();
 
-        geode::queueInMainThread([popup, ok] {
+        queueInMainThread([popup, ok] {
             if (popup && popup->getParent()) {
                 if (ok) {
                     popup->showSuccessMessage("Amethyst updated!");
@@ -173,7 +173,7 @@ void CBManageUserPopup::onToggleStaff(CCObject* sender) {
     arc::spawn([retainedSelf, adminId, accountData, popup, toggler]() -> arc::Future<> {
         auto authResult = co_await comment::argonToken(accountData);
         if (authResult.empty()) {
-            geode::queueInMainThread([popup, toggler] {
+            queueInMainThread([popup, toggler] {
                 if (popup && popup->getParent()) {
                     popup->showFailMessage("Authentication failed.");
                 }
@@ -184,7 +184,7 @@ void CBManageUserPopup::onToggleStaff(CCObject* sender) {
             co_return;
         }
 
-        auto req = geode::utils::web::WebRequest();
+        auto req = utils::web::WebRequest();
         auto body = matjson::makeObject({
             {"accountId", adminId},
             {"argonToken", authResult},
@@ -194,7 +194,7 @@ void CBManageUserPopup::onToggleStaff(CCObject* sender) {
         auto res = co_await req.bodyJSON(body).post(fmt::format("{}/admin/toggleStaff", comment::baseUrl));
         bool ok = res.ok();
 
-        geode::queueInMainThread([retainedSelf, popup, ok, toggler] {
+        queueInMainThread([retainedSelf, popup, ok, toggler] {
             if (popup && popup->getParent()) {
                 if (ok) {
                     popup->showSuccessMessage("Staff status toggled!");
@@ -229,7 +229,7 @@ void CBManageUserPopup::onTempBan(CCObject*) {
     arc::spawn([retainedSelf, adminId, accountData, hours, popup]() -> arc::Future<> {
         auto authResult = co_await comment::argonToken(accountData);
         if (authResult.empty()) {
-            geode::queueInMainThread([popup] {
+            queueInMainThread([popup] {
                 if (popup && popup->getParent()) {
                     popup->showFailMessage("Authentication failed.");
                 }
@@ -237,7 +237,7 @@ void CBManageUserPopup::onTempBan(CCObject*) {
             co_return;
         }
 
-        auto req = geode::utils::web::WebRequest();
+        auto req = utils::web::WebRequest();
         auto body = matjson::makeObject({
             {"accountId", adminId},
             {"argonToken", authResult},
@@ -248,7 +248,7 @@ void CBManageUserPopup::onTempBan(CCObject*) {
         auto res = co_await req.bodyJSON(body).post(fmt::format("{}/admin/tempBan", comment::baseUrl));
         bool ok = res.ok();
 
-        geode::queueInMainThread([popup, ok] {
+        queueInMainThread([popup, ok] {
             if (popup && popup->getParent()) {
                 if (ok) {
                     popup->showSuccessMessage("User temp banned!");
@@ -274,11 +274,11 @@ void CBManageUserPopup::fetchUserBanners() {
     arc::spawn([retainedSelf, adminId, accountData]() -> arc::Future<> {
         auto authResult = co_await comment::argonToken(accountData);
         if (authResult.empty()) {
-            geode::queueInMainThread([retainedSelf] { retainedSelf->m_loadingCircle->fadeOut(); });
+            queueInMainThread([retainedSelf] { retainedSelf->m_loadingCircle->fadeOut(); });
             co_return;
         }
 
-        auto req = geode::utils::web::WebRequest();
+        auto req = utils::web::WebRequest();
         auto url = fmt::format("{}/admin/userBanners?adminAccountId={}&argonToken={}&accountId={}",
             comment::baseUrl,
             adminId,
@@ -287,28 +287,28 @@ void CBManageUserPopup::fetchUserBanners() {
 
         auto res = co_await req.get(url);
         if (!res.ok()) {
-            geode::queueInMainThread([retainedSelf] { retainedSelf->m_loadingCircle->fadeOut(); });
+            queueInMainThread([retainedSelf] { retainedSelf->m_loadingCircle->fadeOut(); });
             co_return;
         }
 
         auto jsonRes = res.json();
         if (jsonRes.isErr()) {
-            geode::queueInMainThread([retainedSelf] { retainedSelf->m_loadingCircle->fadeOut(); });
+            queueInMainThread([retainedSelf] { retainedSelf->m_loadingCircle->fadeOut(); });
             co_return;
         }
 
         auto json = jsonRes.unwrap();
         if (!json.isArray()) {
-            geode::queueInMainThread([retainedSelf] { retainedSelf->m_loadingCircle->fadeOut(); });
+            queueInMainThread([retainedSelf] { retainedSelf->m_loadingCircle->fadeOut(); });
             co_return;
         }
 
-        geode::queueInMainThread([retainedSelf, json = std::move(json)] {
+        queueInMainThread([retainedSelf, json = std::move(json)] {
             retainedSelf->m_loadingCircle->fadeOut();
             retainedSelf->m_bannersList->clear();
 
             if (json.size() == 0) {
-                auto emptyLabel = geode::Label::create("No banners.", "goldFont.fnt");
+                auto emptyLabel = Label::create("No banners.", "goldFont.fnt");
                 emptyLabel->setScale(0.6f);
                 retainedSelf->m_bannersList->addChildAtPosition(emptyLabel, Anchor::Center);
                 return;
@@ -383,19 +383,19 @@ void CBManageUserPopup::createBannerCell(matjson::Value const& banner) {
 
     auto savePriceSpr = CircleButtonSprite::createWithSpriteFrameName("GJ_completesIcon_001.png", 0.7f, CircleBaseColor::Green, CircleBaseSize::Small);
     savePriceSpr->setScale(0.7f);
-    auto savePriceBtn = geode::Button::createWithNode(
+    auto savePriceBtn = Button::createWithNode(
         savePriceSpr,
-        [this, bannerId, nameInput, descInput, priceInput](geode::Button*) {
+        [this, bannerId, nameInput, descInput, priceInput](Button*) {
             this->updateBannerDetails(bannerId, nameInput->getString(), descInput->getString(), numFromString<int>(priceInput->getString()).unwrapOr(0));
         });
     savePriceBtn->setAnchorPoint({0.5f, 0.5f});
     savePriceBtn->setPosition({235.f, 20.f});
     bannerMenu->addChild(savePriceBtn);
 
-    auto deleteBtn = geode::Button::createWithNode(
+    auto deleteBtn = Button::createWithNode(
         CCSprite::createWithSpriteFrameName("GJ_resetBtn_001.png"),
-        [this, bannerId](geode::Button*) {
-            geode::createQuickPopup("Delete Banner", "Are you sure you want to <cr>delete this banner</c>?", "Cancel", "Delete", [this, bannerId](FLAlertLayer*, bool btn2) {
+        [this, bannerId](Button*) {
+            createQuickPopup("Delete Banner", "Are you sure you want to <cr>delete this banner</c>?", "Cancel", "Delete", [this, bannerId](FLAlertLayer*, bool btn2) {
                 if (btn2) {
                     this->deleteBanner(bannerId);
                 }
@@ -427,7 +427,7 @@ void CBManageUserPopup::deleteBanner(int bannerId) {
     arc::spawn([retainedSelf, bannerId, popup, accountData]() -> arc::Future<> {
         auto authResult = co_await comment::argonToken(accountData);
         if (authResult.empty()) {
-            geode::queueInMainThread([popup] {
+            queueInMainThread([popup] {
                 if (popup && popup->getParent()) {
                     popup->showFailMessage("Authentication failed.");
                 }
@@ -435,7 +435,7 @@ void CBManageUserPopup::deleteBanner(int bannerId) {
             co_return;
         }
 
-        auto req = geode::utils::web::WebRequest();
+        auto req = utils::web::WebRequest();
         auto body = matjson::makeObject({
             {"accountId", accountData.accountId},
             {"argonToken", authResult},
@@ -445,7 +445,7 @@ void CBManageUserPopup::deleteBanner(int bannerId) {
         auto res = co_await req.bodyJSON(body).post(fmt::format("{}/admin/deleteBanner", comment::baseUrl));
         bool ok = res.ok();
 
-        geode::queueInMainThread([retainedSelf, popup, ok] {
+        queueInMainThread([retainedSelf, popup, ok] {
             if (popup && popup->getParent()) {
                 if (ok) {
                     popup->showSuccessMessage("Banner deleted!");
@@ -470,7 +470,7 @@ void CBManageUserPopup::updateBannerDetails(int bannerId, std::string name, std:
     arc::spawn([retainedSelf, bannerId, name, description, price, popup, accountData]() -> arc::Future<> {
         auto authResult = co_await comment::argonToken(accountData);
         if (authResult.empty()) {
-            geode::queueInMainThread([popup] {
+            queueInMainThread([popup] {
                 if (popup && popup->getParent()) {
                     popup->showFailMessage("Authentication failed.");
                 }
@@ -478,7 +478,7 @@ void CBManageUserPopup::updateBannerDetails(int bannerId, std::string name, std:
             co_return;
         }
 
-        auto req = geode::utils::web::WebRequest();
+        auto req = utils::web::WebRequest();
         auto body = matjson::makeObject({
             {"accountId", accountData.accountId},
             {"argonToken", authResult},
@@ -491,7 +491,7 @@ void CBManageUserPopup::updateBannerDetails(int bannerId, std::string name, std:
         auto res = co_await req.bodyJSON(body).post(fmt::format("{}/admin/updateBannerDetails", comment::baseUrl));
         bool ok = res.ok();
 
-        geode::queueInMainThread([retainedSelf, popup, ok] {
+        queueInMainThread([retainedSelf, popup, ok] {
             if (popup && popup->getParent()) {
                 if (ok) {
                     popup->showSuccessMessage("Banner updated!");

@@ -5,6 +5,7 @@
 #include <dankmeme.argon/argon.hpp>
 #include "Geode/ui/General.hpp"
 #include "Geode/utils/general.hpp"
+#include "ccTypes.h"
 #include "include/CBConstant.hpp"
 #include "include/CBCommentPreview.hpp"
 #include "include/CBLocalBanner.hpp"
@@ -12,13 +13,29 @@
 #include <Geode/utils/file.hpp>
 #include <Geode/ui/NineSlice.hpp>
 #include <algorithm>
+#include <filesystem>
 #include <unordered_set>
 
 using namespace geode::prelude;
 
-CBSubmitBannerPopup* CBSubmitBannerPopup::create(bool isLocal) {
+namespace {
+    std::string imageMimeType(std::string const& filePath) {
+        std::string ext = filePath.substr(filePath.find_last_of(".") + 1);
+        std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
+        if (ext == "webp") return "image/webp";
+        if (ext == "jpg" || ext == "jpeg") return "image/jpeg";
+        if (ext == "gif") return "image/gif";
+        return "image/png";
+    }
+}
+
+CBSubmitBannerPopup* CBSubmitBannerPopup::create(
+    bool isLocal,
+    bool isEdit,
+    CBEditBannerData const& editData,
+    std::function<void()> onEditSuccess) {
     auto ret = new CBSubmitBannerPopup();
-    if (ret && ret->init(isLocal)) {
+    if (ret && ret->init(isLocal, isEdit, editData, std::move(onEditSuccess))) {
         ret->autorelease();
         return ret;
     }
@@ -26,52 +43,71 @@ CBSubmitBannerPopup* CBSubmitBannerPopup::create(bool isLocal) {
     return nullptr;
 }
 
-bool CBSubmitBannerPopup::init(bool isLocal) {
-    if (!Popup::init(380.f, 260.f)) return false;
+bool CBSubmitBannerPopup::init(bool isLocal, bool isEdit, CBEditBannerData const& editData, std::function<void()> onEditSuccess) {
+    if (!Popup::init(400.f, 280.f)) return false;
 
     m_isLocal = isLocal;
-    this->setTitle(m_isLocal ? "Add Local Banner" : "Submit Comment Banner");
+    m_isEdit = isEdit && !isLocal;
+    m_editData = editData;
+    m_onEditSuccess = std::move(onEditSuccess);
 
-    if (!m_isLocal) {
-        addSideArt(m_mainLayer, SideArt::Top, SideArtStyle::PopupBlue, false);
-        addSideArt(m_mainLayer, SideArt::BottomRight, SideArtStyle::PopupBlue, false);
+    if (m_isEdit) {
+        this->setTitle("Change Banner Image");
     } else {
-        addSideArt(m_mainLayer, SideArt::All, SideArtStyle::PopupBlue, false);
+        this->setTitle(m_isLocal ? "Add Local Banner" : "Submit Comment Banner");
     }
 
-    // Pick File Button
+    addSideArt(m_mainLayer, SideArt::Top, SideArtStyle::PopupBlue, false);
+
+    // supporters can also upload a separate image for non-compact comment cells
+    m_canUploadNonCompact = !m_isLocal && comment::isUserSupporter();
+
+    // Pick File Button(s)
     auto pickFileBtn = CCMenuItemSpriteExtra::create(
-        ButtonSprite::create("Select Image", "goldFont.fnt", "GJ_button_04.png", .8f),
+        ButtonSprite::create(m_canUploadNonCompact ? "Submit Compact" : "Select Image", "goldFont.fnt", "GJ_button_04.png", .8f),
         this,
         menu_selector(CBSubmitBannerPopup::onPickFile));
+    pickFileBtn->setTag(0);
 
+    CCMenuItemSpriteExtra* pickNonCompactBtn = nullptr;
+    if (m_canUploadNonCompact) {
+        pickNonCompactBtn = CCMenuItemSpriteExtra::create(
+            ButtonSprite::create("Submit Non-Compact", "goldFont.fnt", "GJ_button_04.png", .8f),
+            this,
+            menu_selector(CBSubmitBannerPopup::onPickFile));
+        pickNonCompactBtn->setTag(1);
+    }
+
+    // Preview, top right corner of the popup (shown once there's an image to preview)
     m_previewBtn = CCMenuItemSpriteExtra::create(
-        ButtonSprite::create("Preview", "goldFont.fnt", "GJ_button_04.png", .8f),
+        CCSprite::createWithSpriteFrameName("dtrackBtn_search_001.png"),
         this,
         menu_selector(CBSubmitBannerPopup::onPreview));
     m_previewBtn->setVisible(false);
+    m_buttonMenu->addChildAtPosition(m_previewBtn, Anchor::TopRight, {-25.f, -25.f});
 
     auto topMenu = CCMenu::create();
     topMenu->setContentSize({300.f, 40.f});
     topMenu->setLayout(RowLayout::create()->setGap(5.f));
     topMenu->addChild(pickFileBtn);
-    topMenu->addChild(m_previewBtn);
+    if (pickNonCompactBtn) topMenu->addChild(pickNonCompactBtn);
     topMenu->updateLayout();
 
     m_buttonMenu->addChildAtPosition(topMenu, Anchor::Top, {0.f, -50.f}, {0.5, 0.5});
 
-    m_fileNameLabel = geode::Label::create("No file selected (1500x150) (Static or Animated)", "chatFont.fnt");
-    m_fileNameLabel->setLimitLabelWidth(m_mainLayer->getContentWidth() - 20.f, 0.8f, 0.1f);
-    m_fileNameLabel->setColor({200, 200, 200});
-    m_mainLayer->addChildAtPosition(m_fileNameLabel, Anchor::Top, {0.f, -75.f}, false);
+    m_fileNameLabel = Label::create("", "chatFont.fnt");
+    m_mainLayer->addChildAtPosition(m_fileNameLabel, Anchor::Top, {0.f, -70.f}, false);
+    this->updateFileLabel();
 
     // Name
-    m_nameInput = geode::TextInput::create(300.f, "Banner Name");
+    m_nameInput = TextInput::create(300.f, "Banner Name");
+    m_nameInput->setLabel("Banner Name");
     m_nameInput->setCommonFilter(CommonFilter::Name);
     m_buttonMenu->addChildAtPosition(m_nameInput, Anchor::Center, {0.f, 30.f});
 
     // Description
-    m_descInput = geode::TextInput::create(300.f, "Description");
+    m_descInput = TextInput::create(300.f, "Description");
+    m_descInput->setLabel("Description");
     m_descInput->setCommonFilter(CommonFilter::Any);
     m_buttonMenu->addChildAtPosition(m_descInput, Anchor::Center, {0.f, -10.f});
 
@@ -80,11 +116,13 @@ bool CBSubmitBannerPopup::init(bool isLocal) {
     row1->setContentSize({300.f, 30.f});
     row1->setLayout(RowLayout::create()->setGap(10.f)->setAutoScale(false));
 
-    m_priceInput = geode::TextInput::create(100.f, "Price");
+    m_priceInput = TextInput::create(100.f, "Price");
+    m_priceInput->setLabel("Price");
     m_priceInput->setCommonFilter(CommonFilter::Int);
     row1->addChild(m_priceInput);
 
-    m_amountInput = geode::TextInput::create(100.f, "Amount");
+    m_amountInput = TextInput::create(100.f, "Amount");
+    m_amountInput->setLabel("Amount");
     m_amountInput->setCommonFilter(CommonFilter::Int);
     m_amountInput->setVisible(false);
 
@@ -95,7 +133,7 @@ bool CBSubmitBannerPopup::init(bool isLocal) {
 
     auto costRow = CCMenu::create();
     costRow->setContentSize({300.f, 20.f});
-    costRow->setLayout(RowLayout::create()->setGap(5.f)->setAutoScale(false));
+    costRow->setLayout(RowLayout::create()->setGap(5.f)->setAutoScale(false)->setAxisAlignment(AxisAlignment::End));
 
     auto amethystSpr = CCSprite::createWithSpriteFrameName("CB_amethyst_002.png"_spr);
     amethystSpr->setScale(0.6f);
@@ -103,8 +141,8 @@ bool CBSubmitBannerPopup::init(bool isLocal) {
 
     bool hasCreatedBanner = Mod::get()->getSavedValue<bool>("has_created_banner", false);
 
-    auto costLabel = geode::Label::create(
-        hasCreatedBanner ? "Submission Cost: 15,000 amethysts" : "Submission Cost: Free on first banner",
+    auto costLabel = Label::create(
+        hasCreatedBanner ? "Cost: 15,000" : "Cost: Free",
         "bigFont.fnt");
     costLabel->setScale(0.35f);
     if (!hasCreatedBanner) {
@@ -113,35 +151,84 @@ bool CBSubmitBannerPopup::init(bool isLocal) {
     costRow->addChild(costLabel);
 
     costRow->updateLayout();
-    m_mainLayer->addChildAtPosition(costRow, Anchor::Center, {0.f, -80.f}, {0.5, 0.5});
+    m_mainLayer->addChildAtPosition(costRow, Anchor::BottomRight, {-10.f, 10.f}, {1.0, 0.0});
 
-    auto limitedMenu = CCMenu::create();
-    limitedMenu->setAnchorPoint({0.f, 0.f});
-    limitedMenu->setContentSize({60.f, 40.f});
-    limitedMenu->setLayout(RowLayout::create()->setGap(0.f)->setAutoScale(false));
+    // Supporter Only + Limited toggles, stacked in the bottom left corner
+    auto togglesMenu = CCMenu::create();
+    togglesMenu->setAnchorPoint({0.f, 0.f});
+    togglesMenu->setContentSize({100.f, 0.f});
+    togglesMenu->setLayout(ColumnLayout::create()
+            ->setGap(0.f)
+            ->setAxisReverse(true)  // first row on top
+            ->setAutoScale(false)
+            ->setAutoGrowAxis(0.f)
+            ->setCrossAxisAlignment(AxisAlignment::Start)
+            ->setCrossAxisLineAlignment(AxisAlignment::Start));
+
+    // each row is its own menu so the toggler still receives touches
+    auto createToggleRow = [](CCMenuItemToggler* toggler, char const* text, ccColor3B color) {
+        auto row = CCMenu::create();
+        row->setAnchorPoint({0.f, 0.5f});
+        row->setContentSize({100.f, 30.f});
+        row->setLayout(RowLayout::create()->setGap(0.f)->setAutoScale(false)->setAxisAlignment(AxisAlignment::Start));
+
+        auto label = Label::create(text, "bigFont.fnt");
+        label->setLimitLabelWidth(row->getContentWidth() - 30.f, 0.4f, 0.2f);
+        label->setColor(color);
+
+        row->addChild(toggler);
+        row->addChild(label);
+        row->updateLayout();
+        return row;
+    };
+
+    // Supporter Only, above Limited (supporters only)
+    if (comment::isUserSupporter() && !m_isLocal) {
+        m_supporterOnlyToggler = CCMenuItemToggler::createWithStandardSprites(this, nullptr, 0.7f);
+        togglesMenu->addChild(createToggleRow(m_supporterOnlyToggler, "Supporter", {255, 150, 255}));
+    }
 
     m_limitedToggler = CCMenuItemToggler::createWithStandardSprites(
         this, menu_selector(CBSubmitBannerPopup::onToggleLimited), 0.7f);
-    auto limitedLabel = geode::Label::create("Limited", "bigFont.fnt");
-    limitedLabel->setLimitLabelWidth(limitedMenu->getContentWidth() - 10.f, 0.4f, 0.2f);
+    togglesMenu->addChild(createToggleRow(m_limitedToggler, "Limited", {255, 255, 255}));
 
-    limitedMenu->addChild(m_limitedToggler);
-    limitedMenu->addChild(limitedLabel);
-    limitedMenu->updateLayout();
-
-    m_mainLayer->addChildAtPosition(limitedMenu, Anchor::BottomLeft, {5.f, 10.f});
+    togglesMenu->updateLayout();
+    m_mainLayer->addChildAtPosition(togglesMenu, Anchor::BottomLeft, {5.f, 5.f}, false);
 
     if (m_isLocal) {
         m_descInput->setVisible(false);
         row1->setVisible(false);
         costRow->setVisible(false);
-        limitedMenu->setVisible(false);
+        togglesMenu->setVisible(false);
         m_nameInput->setPositionY(m_nameInput->getPositionY() - 30);
+    }
+
+    if (m_isEdit) {
+        // price and submission cost don't apply when changing the image
+        m_nameInput->setString(m_editData.name);
+        m_descInput->setString(m_editData.description);
+        costRow->setVisible(false);
+        m_priceInput->removeFromParent();
+        m_priceInput = nullptr;
+
+        m_limitedToggler->toggle(m_editData.isLimited);
+        m_amountInput->setVisible(m_editData.isLimited);
+        if (m_editData.isLimited) {
+            m_amountInput->setString(numToString(m_editData.amount));
+        }
+        row1->updateLayout();
+
+        if (m_supporterOnlyToggler) {
+            m_supporterOnlyToggler->toggle(m_editData.isSupporterOnly);
+        }
+
+        // the current images can be previewed before picking new ones
+        m_previewBtn->setVisible(true);
     }
 
     // Submit Button
     auto submitBtn = CCMenuItemSpriteExtra::create(
-        ButtonSprite::create("Submit", "goldFont.fnt", "GJ_button_01.png", .8f),
+        ButtonSprite::create(m_isEdit ? "Update" : "Submit", "goldFont.fnt", "GJ_button_01.png", .8f),
         this,
         menu_selector(CBSubmitBannerPopup::onSubmit));
     m_buttonMenu->addChildAtPosition(submitBtn, Anchor::Bottom, {0.f, 25.f}, false);
@@ -159,25 +246,53 @@ void CBSubmitBannerPopup::onToggleLimited(CCObject* sender) {
     }
 }
 
-void CBSubmitBannerPopup::onPickFile(CCObject*) {
+void CBSubmitBannerPopup::updateFileLabel() {
+    if (!m_fileNameLabel) return;
+
+    auto fileName = [](std::string const& path) {
+        return std::filesystem::path(path).filename().string();
+    };
+
+    std::string text;
+    bool hasAny = !m_selectedFilePath.empty() || !m_selectedNonCompactPath.empty();
+    if (!m_canUploadNonCompact) {
+        text = m_selectedFilePath.empty() ? "No file selected (1500x150) (Static or Animated)" : fileName(m_selectedFilePath);
+    } else {
+        std::string compact = m_selectedFilePath.empty()
+                                  ? (m_isEdit ? "unchanged" : "none (1500x150)")
+                                  : fileName(m_selectedFilePath);
+        std::string nonCompact = m_selectedNonCompactPath.empty()
+                                     ? (m_isEdit ? "unchanged" : "optional (1500x350)")
+                                     : fileName(m_selectedNonCompactPath);
+        text = fmt::format("Compact: {}  |  Non-Compact: {}", compact, nonCompact);
+    }
+
+    m_fileNameLabel->setString(text.c_str());
+    m_fileNameLabel->setLimitLabelWidth(m_mainLayer->getContentWidth() - 20.f, 0.8f, 0.1f);
+    m_fileNameLabel->setColor(hasAny ? ccGREEN : ccWHITE);
+}
+
+void CBSubmitBannerPopup::onPickFile(CCObject* sender) {
     Ref<CBSubmitBannerPopup> retainedSelf = this;
-    arc::spawn([retainedSelf]() -> arc::Future<> {
+    bool nonCompact = sender && sender->getTag() == 1 && m_canUploadNonCompact;
+    int requiredHeight = nonCompact ? 350 : 150;
+    arc::spawn([retainedSelf, nonCompact, requiredHeight]() -> arc::Future<> {
         std::unordered_set<std::string> allowedFiles = retainedSelf->m_isLocal
                                                            ? std::unordered_set<std::string>{"*.png", "*.webp", "*.gif"}
                                                            : std::unordered_set<std::string>{"*.png", "*.webp", "*.jpg", "*.jpeg", "*.gif"};
 
-        auto result = co_await geode::utils::file::pick(
-            geode::utils::file::PickMode::OpenFile,
-            geode::utils::file::FilePickOptions{
+        auto result = co_await utils::file::pick(
+            utils::file::PickMode::OpenFile,
+            utils::file::FilePickOptions{
                 .defaultPath = std::nullopt,
                 .filters = {
-                    geode::utils::file::FilePickOptions::Filter{
+                    utils::file::FilePickOptions::Filter{
                         .description = "Image Files",
                         .files = allowedFiles}}});
 
         auto notify = [&](std::string message) {
-            geode::Loader::get()->queueInMainThread([message = std::move(message)]() {
-                geode::Notification::create(message.c_str(), geode::NotificationIcon::Warning)->show();
+            Loader::get()->queueInMainThread([message = std::move(message)]() {
+                Notification::create(message.c_str(), NotificationIcon::Warning)->show();
             });
         };
 
@@ -207,23 +322,25 @@ void CBSubmitBannerPopup::onPickFile(CCObject*) {
                         co_return;
                     }
 
-                    if (image.getWidth() != 1500 || image.getHeight() != 150) {
-                        notify("Image must be 1500x150, got " + numToString(image.getWidth()) + "x" + numToString(image.getHeight()));
+                    if (image.getWidth() != 1500 || image.getHeight() != requiredHeight) {
+                        notify(fmt::format("{} image must be 1500x{}, got {}x{}",
+                            nonCompact ? "Non-compact" : "Compact",
+                            requiredHeight,
+                            image.getWidth(),
+                            image.getHeight()));
                         co_return;
                     }
                 }
 
-                geode::Loader::get()->queueInMainThread([retainedSelf, p = path.string(), filename = std::string(path.filename().value_or(""))]() {
-                    retainedSelf->m_selectedFilePath = p;
-                    if (retainedSelf->m_fileNameLabel) {
-                        retainedSelf->m_fileNameLabel->setString(filename.c_str());
-                        retainedSelf->m_fileNameLabel->setColor({100, 255, 100});
+                Loader::get()->queueInMainThread([retainedSelf, nonCompact, p = path.string()]() {
+                    if (nonCompact) {
+                        retainedSelf->m_selectedNonCompactPath = p;
+                    } else {
+                        retainedSelf->m_selectedFilePath = p;
                     }
+                    retainedSelf->updateFileLabel();
                     if (retainedSelf->m_previewBtn) {
                         retainedSelf->m_previewBtn->setVisible(true);
-                        if (auto menu = retainedSelf->m_previewBtn->getParent()) {
-                            static_cast<CCMenu*>(menu)->updateLayout();
-                        }
                     }
                 });
             }
@@ -234,16 +351,16 @@ void CBSubmitBannerPopup::onPickFile(CCObject*) {
 void CBSubmitBannerPopup::onSubmit(CCObject*) {
     if (m_isLocal) {
         if (m_selectedFilePath.empty()) {
-            geode::Notification::create("Please select an image file.", geode::NotificationIcon::Error)->show();
+            Notification::create("Please select an image file.", NotificationIcon::Error)->show();
             return;
         }
         if (m_nameInput->getString().empty()) {
-            geode::Notification::create("Please enter a banner name.", geode::NotificationIcon::Error)->show();
+            Notification::create("Please enter a banner name.", NotificationIcon::Error)->show();
             return;
         }
 
         if (comment::local::addLocalBanner(m_nameInput->getString(), m_selectedFilePath)) {
-            geode::Notification::create("Local banner added successfully!", geode::NotificationIcon::Success)->show();
+            Notification::create("Local banner added successfully!", NotificationIcon::Success)->show();
             if (auto popup = CBLocalBannersPopup::getInstance()) {
                 popup->fetchBanners();
             } else if (auto scene = CCDirector::sharedDirector()->getRunningScene()) {
@@ -253,22 +370,47 @@ void CBSubmitBannerPopup::onSubmit(CCObject*) {
             }
             this->onClose(nullptr);
         } else {
-            geode::Notification::create("Failed to save local banner.", geode::NotificationIcon::Error)->show();
+            Notification::create("Failed to save local banner.", NotificationIcon::Error)->show();
         }
         return;
     }
 
-    if (m_selectedFilePath.empty()) {
-        geode::Notification::create("Please select an image file.", geode::NotificationIcon::Error)->show();
+    // a new banner always needs the compact image, an edit needs at least one new image
+    if (m_isEdit ? (m_selectedFilePath.empty() && m_selectedNonCompactPath.empty()) : m_selectedFilePath.empty()) {
+        Notification::create("Please select an image file.", NotificationIcon::Error)->show();
         return;
     }
+
+    if (m_isEdit) {
+        if (m_nameInput->getString().empty() || m_descInput->getString().empty()) {
+            Notification::create("Please fill out all required fields.", NotificationIcon::Error)->show();
+            return;
+        }
+        if (m_limitedToggler->isToggled()) {
+            int amount = numFromString<int>(m_amountInput->getString()).unwrapOr(0);
+            if (amount <= 0) {
+                Notification::create("Please specify an amount for the limited banner.", NotificationIcon::Error)->show();
+                return;
+            }
+            if (amount < m_editData.totalBought) {
+                Notification::create("Amount cannot be less than total bought.", NotificationIcon::Error)->show();
+                return;
+            }
+        }
+        Ref<CBSubmitBannerPopup> retainedSelf = this;
+        createQuickPopup("Change Banner Image", "Are you sure you want to <cy>replace the image</c> of this banner? The old image will be removed and <cr>everyone who has it equipped will have it unequipped</c>.", "Cancel", "Update", [retainedSelf](FLAlertLayer*, bool btn2) {
+            if (btn2) retainedSelf->submitEdit();
+        });
+        return;
+    }
+
     if (m_nameInput->getString().empty() || m_descInput->getString().empty() || m_priceInput->getString().empty()) {
-        geode::Notification::create("Please fill out all required fields.", geode::NotificationIcon::Error)->show();
+        Notification::create("Please fill out all required fields.", NotificationIcon::Error)->show();
         return;
     }
     bool isLimited = m_limitedToggler->isToggled();
     if (isLimited && m_amountInput->getString().empty()) {
-        geode::Notification::create("Please specify an amount for the limited banner.", geode::NotificationIcon::Error)->show();
+        Notification::create("Please specify an amount for the limited banner.", NotificationIcon::Error)->show();
         return;
     }
 
@@ -284,7 +426,7 @@ void CBSubmitBannerPopup::onSubmit(CCObject*) {
     int currentAmethysts = Mod::get()->getSavedValue<int>("amethyst", 0);
     if (currentAmethysts < submissionFee) {
         int needed = submissionFee - currentAmethysts;
-        geode::Notification::create(fmt::format("Not enough amethysts! You need {} more.", needed), geode::NotificationIcon::Error)->show();
+        Notification::create(fmt::format("Not enough amethysts! You need {} more.", needed), NotificationIcon::Error)->show();
         return;
     }
 
@@ -295,7 +437,7 @@ void CBSubmitBannerPopup::onSubmit(CCObject*) {
         popupMsg = fmt::format("Because this banner's price is higher than <cp>100,000 amethysts</c>, there is an increased submission fee of <cy>{} amethysts</c>.\nAre you sure you want to proceed? You <cr>cannot change it</c> after it's uploaded.", GameToolbox::pointsToString(submissionFee));
     }
 
-    geode::createQuickPopup(popupTitle.c_str(), popupMsg, "Cancel", "Submit", [this, isLimited, submissionFee](FLAlertLayer*, bool btn2) {
+    createQuickPopup(popupTitle.c_str(), popupMsg, "Cancel", "Submit", [this, isLimited, submissionFee](FLAlertLayer*, bool btn2) {
         if (!btn2) return;
 
         Ref<UploadActionPopup> popup = UploadActionPopup::create(nullptr, "Submitting banner...");
@@ -306,6 +448,8 @@ void CBSubmitBannerPopup::onSubmit(CCObject*) {
         auto price = m_priceInput->getString();
         auto amount = m_amountInput->getString();
         auto filePath = m_selectedFilePath;
+        auto nonCompactPath = m_selectedNonCompactPath;
+        bool isSupporterOnly = m_supporterOnlyToggler && m_supporterOnlyToggler->isToggled();
 
         auto accountData = argon::getGameAccountData();
         auto accountId = accountData.accountId;
@@ -318,10 +462,10 @@ void CBSubmitBannerPopup::onSubmit(CCObject*) {
         }
 
         Ref<CBSubmitBannerPopup> retainedSelf = this;
-        arc::spawn([retainedSelf, accountId, accountData, name, desc, price, amount, isLimited, filePath, popup, submissionFee]() -> arc::Future<> {
+        arc::spawn([retainedSelf, accountId, accountData, name, desc, price, amount, isLimited, isSupporterOnly, filePath, nonCompactPath, popup, submissionFee]() -> arc::Future<> {
             auto authResult = co_await comment::argonToken(accountData);
             if (authResult.empty()) {
-                geode::queueInMainThread([popup] {
+                queueInMainThread([popup] {
                     if (popup && popup->getParent()) {
                         popup->showFailMessage("Authentication failed.");
                     }
@@ -331,7 +475,7 @@ void CBSubmitBannerPopup::onSubmit(CCObject*) {
 
             auto authToken = std::move(authResult);
 
-            geode::utils::web::MultipartForm form;
+            utils::web::MultipartForm form;
             form.param("accountId", numToString(accountId));
             form.param("argonToken", authToken);
             form.param("name", name);
@@ -341,20 +485,14 @@ void CBSubmitBannerPopup::onSubmit(CCObject*) {
             if (isLimited) {
                 form.param("amount", amount);
             }
+            form.param("supporterOnly", isSupporterOnly ? "true" : "false");
 
-            std::string mimeType = "image/png";
-            std::string ext = filePath.substr(filePath.find_last_of(".") + 1);
-            std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
-            if (ext == "webp") {
-                mimeType = "image/webp";
-            } else if (ext == "jpg" || ext == "jpeg") {
-                mimeType = "image/jpeg";
-            } else if (ext == "gif") {
-                mimeType = "image/gif";
+            bool attached = static_cast<bool>(form.file("image", filePath, imageMimeType(filePath)));
+            if (attached && !nonCompactPath.empty()) {
+                attached = static_cast<bool>(form.file("nonCompactImage", nonCompactPath, imageMimeType(nonCompactPath)));
             }
-            auto res = form.file("image", filePath, mimeType);
-            if (!res) {
-                geode::queueInMainThread([popup] {
+            if (!attached) {
+                queueInMainThread([popup] {
                     if (popup && popup->getParent()) {
                         popup->showFailMessage("Failed to attach image file.");
                     }
@@ -362,12 +500,12 @@ void CBSubmitBannerPopup::onSubmit(CCObject*) {
                 co_return;
             }
 
-            auto req = geode::utils::web::WebRequest();
+            auto req = utils::web::WebRequest();
             req.bodyMultipart(std::move(form));
 
             auto response = co_await req.post(fmt::format("{}/submitBanner", comment::baseUrl));
             if (!response.ok()) {
-                geode::queueInMainThread([popup, response] {
+                queueInMainThread([popup, response] {
                     if (popup && popup->getParent()) {
                         popup->showFailMessage(comment::getResponseMessage(response, "Failed to submit banner."));
                     }
@@ -375,7 +513,7 @@ void CBSubmitBannerPopup::onSubmit(CCObject*) {
                 co_return;
             }
 
-            geode::queueInMainThread([popup, retainedSelf, submissionFee] {
+            queueInMainThread([popup, retainedSelf, submissionFee] {
                 bool hasCreatedBanner = Mod::get()->getSavedValue<bool>("has_created_banner", false);
                 if (!hasCreatedBanner) {
                     Mod::get()->setSavedValue("has_created_banner", true);
@@ -402,8 +540,111 @@ void CBSubmitBannerPopup::onSubmit(CCObject*) {
     });
 }
 
+void CBSubmitBannerPopup::submitEdit() {
+    auto accountData = argon::getGameAccountData();
+    auto accountId = accountData.accountId;
+    if (accountId <= 0) {
+        Notification::create("Invalid account ID.", NotificationIcon::Error)->show();
+        return;
+    }
+
+    Ref<UploadActionPopup> popup = UploadActionPopup::create(nullptr, "Updating banner image...");
+    popup->show();
+
+    auto name = m_nameInput->getString();
+    auto desc = m_descInput->getString();
+    auto filePath = m_selectedFilePath;
+    auto nonCompactPath = m_selectedNonCompactPath;
+    int bannerId = m_editData.id;
+    bool isLimited = m_limitedToggler->isToggled();
+    auto amount = m_amountInput->getString();
+    // only sent when the toggle is shown, otherwise the server keeps the current value
+    std::optional<bool> isSupporterOnly;
+    if (m_supporterOnlyToggler) isSupporterOnly = m_supporterOnlyToggler->isToggled();
+
+    Ref<CBSubmitBannerPopup> retainedSelf = this;
+    arc::spawn([retainedSelf, accountId, accountData, bannerId, name, desc, isLimited, amount, isSupporterOnly, filePath, nonCompactPath, popup]() -> arc::Future<> {
+        auto authToken = co_await comment::argonToken(accountData);
+        if (authToken.empty()) {
+            queueInMainThread([popup] {
+                if (popup && popup->getParent()) {
+                    popup->showFailMessage("Authentication failed.");
+                }
+            });
+            co_return;
+        }
+
+        utils::web::MultipartForm form;
+        form.param("accountId", numToString(accountId));
+        form.param("argonToken", authToken);
+        form.param("bannerId", numToString(bannerId));
+        form.param("name", name);
+        form.param("description", desc);
+        form.param("limited", isLimited ? "true" : "false");
+        if (isLimited) {
+            form.param("amount", amount);
+        }
+        if (isSupporterOnly) {
+            form.param("supporterOnly", *isSupporterOnly ? "true" : "false");
+        }
+        bool attached = true;
+        if (!filePath.empty()) {
+            attached = static_cast<bool>(form.file("image", filePath, imageMimeType(filePath)));
+        }
+        if (attached && !nonCompactPath.empty()) {
+            attached = static_cast<bool>(form.file("nonCompactImage", nonCompactPath, imageMimeType(nonCompactPath)));
+        }
+        if (!attached) {
+            queueInMainThread([popup] {
+                if (popup && popup->getParent()) {
+                    popup->showFailMessage("Failed to attach image file.");
+                }
+            });
+            co_return;
+        }
+
+        auto req = utils::web::WebRequest();
+        req.bodyMultipart(std::move(form));
+        auto response = co_await req.post(fmt::format("{}/editBanner", comment::baseUrl));
+        if (!response.ok()) {
+            queueInMainThread([popup, response] {
+                if (popup && popup->getParent()) {
+                    popup->showFailMessage(comment::getResponseMessage(response, "Failed to update banner image."));
+                }
+            });
+            co_return;
+        }
+
+        queueInMainThread([popup, retainedSelf, bannerId] {
+            // the server unequipped this banner from everyone, including us
+            comment::invalidateBannerCache();
+            if (auto shop = CBShopLayer::getInstance()) {
+                if (shop->getEquippedBannerId() == bannerId) {
+                    shop->setEquippedBannerId(-1);
+                }
+                shop->refreshBanners();
+            }
+            if (popup && popup->getParent()) {
+                popup->showSuccessMessage("Banner image updated!");
+            }
+            if (retainedSelf->m_onEditSuccess) retainedSelf->m_onEditSuccess();
+            if (retainedSelf->getParent()) {
+                retainedSelf->onClose(nullptr);
+            }
+        });
+        co_return;
+    });
+}
+
 void CBSubmitBannerPopup::onPreview(CCObject*) {
-    if (m_selectedFilePath.empty()) return;
+    // when editing, images that weren't replaced fall back to the banner's current ones
+    std::string compactImage = m_selectedFilePath;
+    std::string nonCompactImage = m_selectedNonCompactPath;
+    if (m_isEdit) {
+        if (compactImage.empty()) compactImage = m_editData.imageUrl;
+        if (nonCompactImage.empty()) nonCompactImage = m_editData.nonCompactImageUrl;
+    }
+    if (compactImage.empty() && nonCompactImage.empty()) return;
 
     auto blockLayer = CCBlockLayer::create();
     blockLayer->setZOrder(5);
@@ -422,8 +663,8 @@ void CBSubmitBannerPopup::onPreview(CCObject*) {
     auto winSize = CCDirector::sharedDirector()->getWinSize();
 
     // mockup of the in-game comment cell, banner applied the same way as CBHook
-    auto createPreviewNode = [](std::string const& filePath, bool compact) -> CCNode* {
-        return comment::createCommentPreview(filePath, compact);
+    auto createPreviewNode = [&](bool compact) -> CCNode* {
+        return comment::createCommentPreview(compactImage, compact, comment::kCommentCellWidth, nonCompactImage);
     };
 
     // bg for the preview mode or something
@@ -442,17 +683,17 @@ void CBSubmitBannerPopup::onPreview(CCObject*) {
             ->setAutoScale(false)
             ->setAxisAlignment(AxisAlignment::Center));
 
-    auto nonCompactPreview = createPreviewNode(m_selectedFilePath, false);
+    auto nonCompactPreview = createPreviewNode(false);
     container->addChild(nonCompactPreview);
 
-    auto nonCompactLabel = geode::Label::create("Non-Compact Mode", "goldFont.fnt");
+    auto nonCompactLabel = Label::create("Non-Compact Mode", "goldFont.fnt");
     nonCompactLabel->setScale(0.45f);
     container->addChild(nonCompactLabel);
 
-    auto compactPreview = createPreviewNode(m_selectedFilePath, true);
+    auto compactPreview = createPreviewNode(true);
     container->addChild(compactPreview);
 
-    auto compactLabel = geode::Label::create("Compact Mode", "goldFont.fnt");
+    auto compactLabel = Label::create("Compact Mode", "goldFont.fnt");
     compactLabel->setScale(0.45f);
     container->addChild(compactLabel);
 

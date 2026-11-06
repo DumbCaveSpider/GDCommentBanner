@@ -6,7 +6,7 @@
 
 using namespace geode::prelude;
 
-class CBLogsPopup : public geode::Popup {
+class CBLogsPopup : public Popup {
 public:
     static CBLogsPopup* create();
 

@@ -10,6 +10,7 @@
 #include <Geode/modify/CommentCell.hpp>
 #include <Geode/modify/EndLevelLayer.hpp>
 #include <Geode/modify/PlayLayer.hpp>
+#include <Geode/modify/ThreadViewPopup.hpp>
 #include <Geode/binding/CurrencyRewardLayer.hpp>
 #include "../CBShopLayer.hpp"
 #include "../include/CBConstant.hpp"
@@ -25,6 +26,7 @@ using namespace geode::prelude;
 struct CachedBanner {
     bool equipped = false;
     std::string imageUrl = "";
+    std::string nonCompactImageUrl = "";
 };
 
 static std::unordered_map<int, CachedBanner> s_bannerCache;
@@ -42,10 +44,10 @@ namespace comment {
         }
     }
 
-    void updateBannerCache(int accountId, bool equipped, std::string const& imageUrl) {
+    void updateBannerCache(int accountId, bool equipped, std::string const& imageUrl, std::string const& nonCompactImageUrl) {
         if (accountId <= 0) return;
         std::lock_guard<std::mutex> lock(s_cacheMutex);
-        s_bannerCache[accountId] = CachedBanner{equipped, imageUrl};
+        s_bannerCache[accountId] = CachedBanner{equipped, imageUrl, nonCompactImageUrl};
     }
 }
 
@@ -54,7 +56,11 @@ class $modify(GJGarageLayer) {
         if (!GJGarageLayer::init())
             return false;
         if (auto shardMenu = this->getChildByID("shards-menu")) {
-            auto shopButton = Button::createWithNode(CircleButtonSprite::createWithSpriteFrameName("CB_amethyst_001.png"_spr, 1.f, CircleBaseColor::DarkPurple, CircleBaseSize::Small), [](geode::Button* button) {
+            auto shopIcon = CircleButtonSprite::createWithSpriteFrameName("CB_amethyst_001.png"_spr, 1.f, CircleBaseColor::DarkPurple, CircleBaseSize::Small);
+            if (!shopIcon) {
+                return true;
+            }
+            auto shopButton = Button::createWithNode(shopIcon, [](Button* button) {
                 // check if rl is loaded and if so disable the nameplates on comments
                 if (Loader::get()->isModLoaded("arcticwoof.rated_layouts")) {
                     auto rl = Loader::get()->getLoadedMod("arcticwoof.rated_layouts");
@@ -86,8 +92,43 @@ class $modify(GJGarageLayer) {
     }
 };
 
+static void setupNodeSprite(CCNode* row, std::string const& imageUrl) {
+    if (!row) return;
+
+    // rows get recycled, so always clear the previous banner
+    if (auto prevBanner = row->getChildByID("cb-node-banner-node")) {
+        prevBanner->removeFromParent();
+    }
+
+    if (imageUrl.empty()) return;
+
+    auto size = row->getContentSize();
+    if (size.width <= 0.f || size.height <= 0.f) return;
+
+    auto bannerNode = comment::createBannerNode(imageUrl, size);
+    if (!bannerNode) return;
+    bannerNode->setID("cb-thread-banner-node");
+    bannerNode->setPosition({size.width / 2.f, size.height / 2.f});
+
+    row->addChild(bannerNode, -1);
+}
+
+//
+class $modify(CBThreadViewPopup, ThreadViewPopup) {
+    void mountVirtualRow(int index, CCNode* row, CCMenu* menu) {
+        ThreadViewPopup::mountVirtualRow(index, row, menu);
+        auto glm = GameLevelManager::sharedState();
+        /*
+        CCArray* threadMembers = glm->getThreadMembers(m_thread->m_threadID); // when geode hasnt updated the return type on bindings
+        
+        
+        */
+    }
+};
+
 // this is where to fetch the images
-static void setupBannerSprite(CommentCell* cell, std::string const& imageUrl) {
+// nonCompactImageUrl is the optional 1500x350 image used instead of imageUrl in non-compact cells
+static void setupCommentSprite(CommentCell* cell, std::string const& imageUrl, std::string const& nonCompactImageUrl = "") {
     Ref<CommentCell> self = cell;
     if (!self || !self->m_backgroundLayer) return;
 
@@ -105,9 +146,11 @@ static void setupBannerSprite(CommentCell* cell, std::string const& imageUrl) {
         size = self->getContentSize();
     }
 
-    auto bannerSize = self->m_compactMode ? size : CCSize{800.f, 800.f};
+    // the non-compact image matches the non-compact cell's shape, the compact one is cropped to the middle
+    bool useNonCompact = !self->m_compactMode && !nonCompactImageUrl.empty();
+    auto bannerSize = (self->m_compactMode || useNonCompact) ? size : CCSize{800.f, 800.f};
 
-    auto bannerNode = comment::createBannerNode(imageUrl, bannerSize);
+    auto bannerNode = comment::createBannerNode(useNonCompact ? nonCompactImageUrl : imageUrl, bannerSize);
     if (!bannerNode) return;
     bannerNode->setID("cb-comment-banner-node");
     bannerNode->setPosition({size.width / 2.f, size.height / 2.f});
@@ -171,7 +214,7 @@ class $modify(CBCommentCell, CommentCell) {
             if (!equippedLocal.empty()) {
                 auto localPath = comment::local::getLocalBannersDir() / equippedLocal;
                 if (localPath.exists()) {
-                    setupBannerSprite(this, localPath.string());
+                    setupCommentSprite(this, localPath.string());
                     return;
                 }
             }
@@ -183,7 +226,7 @@ class $modify(CBCommentCell, CommentCell) {
             auto it = s_bannerCache.find(accountId);
             if (it != s_bannerCache.end()) {
                 if (it->second.equipped && !it->second.imageUrl.empty()) {
-                    setupBannerSprite(this, it->second.imageUrl);
+                    setupCommentSprite(this, it->second.imageUrl, it->second.nonCompactImageUrl);
                 }
                 return;
             }
@@ -202,7 +245,7 @@ class $modify(CBCommentCell, CommentCell) {
         }
 
         arc::spawn([accountId]() -> arc::Future<> {
-            auto request = geode::utils::web::WebRequest();
+            auto request = utils::web::WebRequest();
             auto body = matjson::makeObject({
                 {"targetAccountId", accountId},
             });
@@ -210,7 +253,7 @@ class $modify(CBCommentCell, CommentCell) {
             auto response = co_await request.bodyJSON(body).post(fmt::format("{}/getImageBanner", comment::baseUrl));
             if (!response.ok()) {
                 log::debug("getImageBanner failed for account {}: {}", accountId, response.errorMessage());
-                geode::queueInMainThread([accountId] {
+                queueInMainThread([accountId] {
                     std::lock_guard<std::mutex> lock(s_cacheMutex);
                     s_fetchingAccounts.erase(accountId);
                     s_pendingCells.erase(accountId);
@@ -221,7 +264,7 @@ class $modify(CBCommentCell, CommentCell) {
             auto jsonRes = response.json();
             if (jsonRes.isErr()) {
                 log::debug("getImageBanner returned invalid JSON for account {}", accountId);
-                geode::queueInMainThread([accountId] {
+                queueInMainThread([accountId] {
                     std::lock_guard<std::mutex> lock(s_cacheMutex);
                     s_fetchingAccounts.erase(accountId);
                     s_pendingCells.erase(accountId);
@@ -232,18 +275,21 @@ class $modify(CBCommentCell, CommentCell) {
             auto json = jsonRes.unwrap();
             auto equipped = json["equipped"].asBool().unwrapOr(false);
             std::string imageUrl = "";
+            std::string nonCompactImageUrl = "";
             if (equipped) {
                 if (auto urlRes = json["imageUrl"].asString(); urlRes.isOk()) {
                     imageUrl = urlRes.unwrap();
                 } else {
                     equipped = false;
                 }
+                nonCompactImageUrl = json["nonCompactImageUrl"].asString().unwrapOr("");
             }
 
-            geode::queueInMainThread([accountId, equipped, imageUrl = std::move(imageUrl)]() {
+            queueInMainThread([accountId, equipped, imageUrl = std::move(imageUrl), nonCompactImageUrl = std::move(nonCompactImageUrl)]() {
                 CachedBanner newCached;
                 newCached.equipped = equipped;
                 newCached.imageUrl = imageUrl;
+                newCached.nonCompactImageUrl = nonCompactImageUrl;
 
                 std::vector<Ref<CommentCell>> cellsToUpdate;
                 {
@@ -262,7 +308,7 @@ class $modify(CBCommentCell, CommentCell) {
                         if (cell) {
                             auto cbCell = static_cast<CBCommentCell*>(cell.data());
                             if (cbCell->m_fields->m_currentAccountId == accountId) {
-                                setupBannerSprite(cell.data(), imageUrl);
+                                setupCommentSprite(cell.data(), imageUrl, nonCompactImageUrl);
                             }
                         }
                     }
@@ -356,7 +402,7 @@ class $modify(CBEndLevelLayer, EndLevelLayer) {
                 }
 
                 auto authToken = std::move(authResult);
-                auto request = geode::utils::web::WebRequest();
+                auto request = utils::web::WebRequest();
                 auto body = matjson::makeObject({
                     {"accountId", accountId},
                     {"argonToken", authToken},
@@ -409,7 +455,7 @@ class $modify(CBEndLevelLayer, EndLevelLayer) {
                     amethystPop->setID("cb-amethyst-reward-sprite");
                     endLayerRef->m_mainLayer->addChild(amethystPop);
 
-                    auto amethystLabel = geode::Label::create(
+                    auto amethystLabel = Label::create(
                         fmt::format("+{}", amethystReward).c_str(), "bigFont.fnt");
                     amethystLabel->setPosition({-5, amethystPop->getContentSize().height / 2});
                     amethystLabel->setAnchorPoint({1.0f, 0.5f});

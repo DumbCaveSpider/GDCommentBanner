@@ -38,14 +38,14 @@ bool CBLocalBannersPopup::init() {
         m_mainLayer->addChildAtPosition(scrollbar, Anchor::Center, {340.f / 2 + 10.f, 10.f}, false);
     }
 
-    m_noBannersLabel = geode::Label::create("No Local Banners Found", "goldFont.fnt");
+    m_noBannersLabel = Label::create("No Local Banners Found", "goldFont.fnt");
     m_noBannersLabel->setScale(0.6f);
     m_noBannersLabel->setVisible(false);
     m_mainLayer->addChildAtPosition(m_noBannersLabel, Anchor::Center, {0.f, 10.f}, false);
 
-    auto addBtn = geode::Button::createWithNode(
+    auto addBtn = Button::createWithNode(
         ButtonSprite::create("Add Banner", "goldFont.fnt", "GJ_button_01.png", .8f),
-        [this](geode::Button* sender) {
+        [this](Button* sender) {
             this->onAddBanner(sender);
         });
     m_buttonMenu->addChildAtPosition(addBtn, Anchor::Bottom, {0.f, 25.f});

@@ -46,26 +46,26 @@ void checkAndShowBadge(const dasshu::badgified::Badge& badge, bool isAdminBadge)
     arc::spawn([targetAccountId, accountData, accountId]() -> arc::Future<> {
         auto authResult = co_await comment::argonToken(accountData);
         if (authResult.empty()) {
-            geode::queueInMainThread([targetAccountId]() {
+            queueInMainThread([targetAccountId]() {
                 s_pendingBadges.erase(targetAccountId);
             });
             co_return;
         }
 
-        auto req = geode::utils::web::WebRequest();
+        auto req = utils::web::WebRequest();
         auto body = matjson::makeObject({{"accountId", accountId},
             {"argonToken", authResult},
             {"targetAccountId", targetAccountId}});
         auto response = co_await req.bodyJSON(body).post(fmt::format("{}/getUser", comment::baseUrl));
         if (!response.ok()) {
-            geode::queueInMainThread([targetAccountId]() {
+            queueInMainThread([targetAccountId]() {
                 s_pendingBadges.erase(targetAccountId);
             });
             co_return;
         }
         auto jsonRes = response.json();
         if (jsonRes.isErr()) {
-            geode::queueInMainThread([targetAccountId]() {
+            queueInMainThread([targetAccountId]() {
                 s_pendingBadges.erase(targetAccountId);
             });
             co_return;
@@ -76,7 +76,7 @@ void checkAndShowBadge(const dasshu::badgified::Badge& badge, bool isAdminBadge)
         roles.isAdmin = json["is_admin"].asBool().unwrapOr(false);
         roles.isStaff = json["is_staff"].asBool().unwrapOr(false);
 
-        geode::queueInMainThread([targetAccountId, roles]() {
+        queueInMainThread([targetAccountId, roles]() {
             s_roleCache[targetAccountId] = roles;
             if (s_pendingBadges.contains(targetAccountId)) {
                 for (auto const& item : s_pendingBadges[targetAccountId]) {
@@ -113,4 +113,4 @@ $execute {
             });
     });
 }
-    */
+*/

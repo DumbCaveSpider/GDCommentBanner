@@ -6,7 +6,7 @@
 
 using namespace geode::prelude;
 
-class CBPurchaseItemPopup : public geode::Popup {
+class CBPurchaseItemPopup : public Popup {
 public:
     static CBPurchaseItemPopup* create(const CBBannerItem& banner);
 
@@ -15,5 +15,5 @@ private:
     void buyBanner();
 
     CBBannerItem m_banner;
-    geode::Button* m_buyButton = nullptr;
+    Button* m_buyButton = nullptr;
 };

@@ -100,7 +100,7 @@ class BannerLoader : public CCObject {
             auto response = co_await web::WebRequest().get(url);
             if (!response.ok()) {
                 log::warn("Failed to fetch banner '{}': {}", url, response.errorMessage());
-                geode::queueInMainThread([url] {
+                queueInMainThread([url] {
                     BannerLoader::get()->onDownloaded(url, {});
                 });
                 co_return;
@@ -119,7 +119,7 @@ class BannerLoader : public CCObject {
                 log::warn("Failed to save banner cache '{}': {}", url, res.unwrapErr());
             }
 
-            geode::queueInMainThread([url, data = std::move(data)]() mutable {
+            queueInMainThread([url, data = std::move(data)]() mutable {
                 BannerLoader::get()->onDownloaded(url, std::move(data));
             });
             co_return;

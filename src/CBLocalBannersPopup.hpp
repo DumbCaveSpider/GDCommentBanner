@@ -5,7 +5,7 @@
 
 using namespace geode::prelude;
 
-class CBLocalBannersPopup : public geode::Popup {
+class CBLocalBannersPopup : public Popup {
 public:
     static CBLocalBannersPopup* create();
     static CBLocalBannersPopup* getInstance();
@@ -18,5 +18,5 @@ private:
 
     static CBLocalBannersPopup* s_instance;
     cue::ListNode* m_list = nullptr;
-    geode::Label* m_noBannersLabel = nullptr;
+    Label* m_noBannersLabel = nullptr;
 };
