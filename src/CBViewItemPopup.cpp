@@ -3,10 +3,11 @@
 #include <Geode/ui/Popup.hpp>
 #include <Geode/ui/Button.hpp>
 #include <Geode/ui/MDTextArea.hpp>
+#include <Geode/ui/Toggler.hpp>
 #include "CBBannerCell.hpp"
 #include "CBProfileBannerPopup.hpp"
 #include "CBUsersListBannerPopup.hpp"
-#include "include/CBConstant.hpp"
+#include "CBBannerPreview.hpp"
 
 using namespace geode::prelude;
 
@@ -29,41 +30,8 @@ bool CBViewItemPopup::init(const CBBannerItem& banner) {
 
     this->setTitle(m_banner.name.c_str(), "bigFont.fnt", 0.7f);
 
-    float titleWidth = m_title->getContentSize().width * m_title->getScale();
-    float currentIconX = -titleWidth / 2.f - 5.f;
-
-    if (m_banner.isLimited) {
-        if (auto limitIcon = CCSprite::createWithSpriteFrameName("GJ_sRecentIcon_001.png")) {
-            limitIcon->setScale(0.8f);
-            limitIcon->setAnchorPoint({1.f, 0.5f});
-            m_mainLayer->addChildAtPosition(limitIcon, Anchor::Top, {currentIconX, -20.f});
-            currentIconX -= limitIcon->getContentSize().width * limitIcon->getScale() + 4.f;
-        }
-    }
-    if (m_banner.isFeatured) {
-        if (auto starIcon = CCSprite::createWithSpriteFrameName("GJ_sStarsIcon_001.png")) {
-            starIcon->setScale(0.8f);
-            starIcon->setAnchorPoint({1.f, 0.5f});
-            m_mainLayer->addChildAtPosition(starIcon, Anchor::Top, {currentIconX, -20.f});
-        }
-    }
-
-    if (m_banner.isFeatured && m_banner.isLimited) {
-        m_title->runAction(CCRepeatForever::create(CCSequence::create(
-            CCTintTo::create(1.f, 255, 255, 50),
-            CCTintTo::create(1.f, 255, 150, 255),
-            nullptr)));
-    } else if (m_banner.isFeatured) {
-        m_title->runAction(CCRepeatForever::create(CCSequence::create(
-            CCTintTo::create(1.f, 255, 255, 50),
-            CCTintTo::create(1.f, 255, 255, 255),
-            nullptr)));
-    } else if (m_banner.isLimited) {
-        m_title->runAction(CCRepeatForever::create(CCSequence::create(
-            CCTintTo::create(1.f, 255, 150, 255),
-            CCTintTo::create(1.f, 255, 255, 255),
-            nullptr)));
-    }
+    // tappable icons left of the title, and the title tint
+    CBBannerCell::decoratePopupTitle(m_mainLayer, m_title, m_banner);
 
     if (!m_banner.username.empty()) {
         if (auto usernameLabel = Button::createWithLabel(fmt::format("By {}", m_banner.username).c_str(), "goldFont.fnt", [this](Button* sender) {
@@ -73,6 +41,21 @@ bool CBViewItemPopup::init(const CBBannerItem& banner) {
             usernameLabel->setScale(0.5f);
             m_mainLayer->addChildAtPosition(usernameLabel, Anchor::Top, {0, -43.f});
         }
+    }
+
+    // when it was uploaded / last edited / approved (dates only, missing ones are skipped)
+    std::vector<std::string> dates;
+    auto addDate = [&](char const* what, std::string const& when) {
+        if (!when.empty()) dates.push_back(fmt::format("{} {}", what, when.substr(0, 10)));
+    };
+    addDate("Uploaded", m_banner.createdAt);
+    addDate("Edited", m_banner.editedAt);
+    addDate("Approved", m_banner.approvedAt);
+    if (!dates.empty()) {
+        auto datesLabel = Label::create(fmt::format("{}", fmt::join(dates, "  |  ")).c_str(), "chatFont.fnt");
+        datesLabel->setLimitLabelWidth(m_mainLayer->getContentWidth() - 120.f, 0.5f, 0.1f);
+        datesLabel->setColor({200, 200, 200});
+        m_mainLayer->addChildAtPosition(datesLabel, Anchor::Top, {0, -55.f}, false);
     }
 
     auto priceNode = CCNode::create();
@@ -97,9 +80,11 @@ bool CBViewItemPopup::init(const CBBannerItem& banner) {
     }
 
     if (!m_banner.imageUrl.empty()) {
-        // fits between the username and the description
-        if (auto preview = CBBannerCell::createCommentPreviewButton(m_banner.imageUrl, {345.f, 65.f}, m_banner.nonCompactImageUrl)) {
+        // the banner on comment cells, fits between the dates and the description
+        if (auto preview = CBBannerPreview::create(m_banner.imageUrl, m_banner.nonCompactImageUrl, {345.f, 65.f})) {
             m_mainLayer->addChildAtPosition(preview, Anchor::Center, {0.f, 15.f}, false);
+            // Non-Compact / Comment Overlay toggles, top right
+            m_mainLayer->addChildAtPosition(preview->createToggles(), Anchor::TopRight, {-8.f, -8.f}, false);
         }
     }
 

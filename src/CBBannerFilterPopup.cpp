@@ -82,15 +82,13 @@ bool CBBannerFilterPopup::init() {
     m_mainLayer->addChildAtPosition(sortHeader, Anchor::Center, {65.f, 75.f}, false);
 
     // one extra row for Supporter Only
+    // several filters can be on at once (bit i = filter i), "All" clears them
     auto filterMenu = createToggleMenu(kFilterNames.size() + 1);
+    int filters = shop->getFilterState();
     for (int i = 0; i < static_cast<int>(kFilterNames.size()); ++i) {
-        m_filterToggles.push_back(addToggle(filterMenu, kFilterNames[i], i == shop->getFilterState(),
-            [this, i](Toggler* sender, bool) {
-                selectOnly(m_filterToggles, sender);
-                if (auto shop = CBShopLayer::getInstance()) {
-                    shop->setFilterState(i);
-                }
-            }));
+        bool toggled = i == 0 ? filters == 0 : (filters & (1 << i)) != 0;
+        m_filterToggles.push_back(addToggle(filterMenu, kFilterNames[i], toggled,
+            [this, i](Toggler*, bool) { this->onFilterToggled(i); }));
     }
 
     // Supporter Only, combines with the filter above (not part of the select-one group)
@@ -137,4 +135,24 @@ bool CBBannerFilterPopup::init() {
     m_mainLayer->addChildAtPosition(resetButton, Anchor::Bottom, {0.f, 25.f}, false);
 
     return true;
+}
+
+void CBBannerFilterPopup::onFilterToggled(int index) {
+    auto shop = CBShopLayer::getInstance();
+    if (!shop) return;
+
+    int filters = shop->getFilterState();
+    if (index == 0) {
+        filters = 0;  // All
+    } else {
+        filters ^= (1 << index);
+        // Owned and Unowned can't both match, picking one drops the other
+        if (index == 1 && (filters & (1 << 1))) filters &= ~(1 << 2);
+        if (index == 2 && (filters & (1 << 2))) filters &= ~(1 << 1);
+    }
+
+    for (int i = 0; i < static_cast<int>(m_filterToggles.size()); ++i) {
+        m_filterToggles[i]->setToggled(i == 0 ? filters == 0 : (filters & (1 << i)) != 0);
+    }
+    shop->setFilterState(filters);
 }

@@ -157,7 +157,9 @@ void CBYourBannersPopup::fetchBanners() {
                 int equippedCount = item["equippedCount"].asInt().unwrapOr(0);
                 int id = item["id"].asInt().unwrapOr(0);
 
-                auto status = isPending ? "PENDING" : "APPROVED";
+                // an approved banner with a new image waiting for review
+                bool isResubmission = item["isResubmission"].asBool().unwrapOr(false);
+                auto status = isResubmission ? "NEW IMAGE PENDING" : (isPending ? "PENDING" : "APPROVED");
 
                 float width = 340.f;
                 float cellHeight = 96.f;
@@ -240,7 +242,8 @@ void CBYourBannersPopup::fetchBanners() {
                 }
                 cell->addChildAtPosition(statusLabel, Anchor::Top, {0, -8}, false);
 
-                if (isPending) {
+                // image changes paid no submission fee, so only new submissions can be refunded
+                if (isPending && !isResubmission) {
                     auto refundBtn = Button::createWithNode(ButtonSprite::create("Refund"), [retainedSelf, id](Button* sender) {
                         retainedSelf->onRefund(sender);
                     });

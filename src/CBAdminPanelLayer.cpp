@@ -11,6 +11,8 @@
 #include <Geode/binding/SetTextPopup.hpp>
 #include "CBManageUserPopup.hpp"
 #include "CBUserCell.hpp"
+#include "CBBannerCell.hpp"
+#include "CBPreviewBanner.hpp"
 #include "CBProfileBannerPopup.hpp"
 #include <Geode/binding/SetTextPopup.hpp>
 #include "CBAdminBannerManagePopup.hpp"
@@ -457,195 +459,14 @@ void CBAdminPanelLayer::renderPage() {
     auto accountId = accountData.accountId;
 
     if (m_currentTab == Tab::Pending) {
+        m_list->setCellColor(ccColor4B{0, 0, 0, 0});
         for (size_t i = start; i < end; ++i) {
-            auto item = jsonArray[i];
-            std::string name = item["name"].asString().unwrapOr("Unknown");
-            std::string user = item["username"].asString().unwrapOr("Unknown");
-            int id = item["id"].asInt().unwrapOr(0);
-            int targetAccountId = item["accountId"].asInt().unwrapOr(0);
-            std::string desc = item["description"].asString().unwrapOr("");
-            int price = item["price"].asInt().unwrapOr(0);
-            bool isLimited = item["isLimited"].asBool().unwrapOr(false);
-            bool isFeatured = item["isFeatured"].asBool().unwrapOr(false);
-            int amount = item["amount"].asInt().unwrapOr(0);
-            // sorted to the top by the server
-            bool creatorIsSupporter = item["creatorIsSupporter"].asBool().unwrapOr(false);
-            std::string imageUrl = item["imageUrl"].asString().unwrapOr("");
-            if (!imageUrl.empty()) {
-                imageUrl = fmt::format("{}{}", comment::baseUrl, imageUrl);
-            }
-
-            float width = 380.f;
-            float cellHeight = 96.f;
-            auto cell = CCLayer::create();
-            cell->setContentSize({width, cellHeight});
-
-            // Background, cyan for a supporter's banner
-            if (auto background = NineSlice::createWithSpriteFrameName("geode.loader/tab-bg.png")) {
-                background->setContentSize({width - 5, cellHeight});
-                background->setPosition({width / 2.f, cellHeight / 2.f});
-                if (creatorIsSupporter) {
-                    background->setColor({0, 220, 255});
-                }
-                if (isFeatured) {
-                    background->runAction(CCRepeatForever::create(CCSequence::create(
-                        CCTintTo::create(1.f, 255, 255, 50),
-                        CCTintTo::create(1.f, background->getColor().r, background->getColor().g, background->getColor().b),
-                        nullptr)));
-                }
-                cell->addChild(background);
-            }
-
-            // Image
-            auto sprite = comment::createBannerNode(imageUrl, {344.f, 104.f});
-            sprite->setPosition({width / 2.f, cellHeight - 30.f});
-            cell->addChild(sprite);
-
-            // Name
-            auto nameLabel = Label::create(name.c_str(), "bigFont.fnt");
-            nameLabel->setAnchorPoint({0.f, 0.5f});
-            float nameX = 10.f;
-            if (isFeatured) {
-                if (auto starIcon = CCSprite::createWithSpriteFrameName("GJ_sStarsIcon_001.png")) {
-                    starIcon->setScale(0.8f);
-                    starIcon->setPosition({nameX, 20.f});
-                    starIcon->setAnchorPoint({0.f, 0.5f});
-                    cell->addChild(starIcon);
-                    nameX += starIcon->getContentSize().width * starIcon->getScale() + 4.f;
-                }
-            }
-            if (isLimited) {
-                if (auto limitIcon = CCSprite::createWithSpriteFrameName("GJ_sRecentIcon_001.png")) {
-                    limitIcon->setScale(0.8f);
-                    limitIcon->setPosition({nameX, 20.f});
-                    limitIcon->setAnchorPoint({0.f, 0.5f});
-                    cell->addChild(limitIcon);
-                    nameX += limitIcon->getContentSize().width * limitIcon->getScale() + 4.f;
-                }
-            }
-
-            if (isFeatured && isLimited) {
-                nameLabel->runAction(CCRepeatForever::create(CCSequence::create(
-                    CCTintTo::create(1.f, 255, 255, 50),
-                    CCTintTo::create(1.f, 255, 150, 255),
-                    nullptr)));
-            } else if (isFeatured) {
-                nameLabel->runAction(CCRepeatForever::create(CCSequence::create(
-                    CCTintTo::create(1.f, 255, 255, 50),
-                    CCTintTo::create(1.f, 255, 255, 255),
-                    nullptr)));
-            } else if (isLimited) {
-                nameLabel->runAction(CCRepeatForever::create(CCSequence::create(
-                    CCTintTo::create(1.f, 255, 150, 255),
-                    CCTintTo::create(1.f, 255, 255, 255),
-                    nullptr)));
-            }
-            nameLabel->setPosition({nameX, 20.f});
-            nameLabel->setLimitLabelWidth(60.f, 0.5f, 0.2f);
-            cell->addChild(nameLabel);
-
-            float currentX = nameX + (nameLabel->getContentSize().width * nameLabel->getScale()) + 8.f;
-
-            // User
-            if (!user.empty()) {
-                auto usernameLabel = Label::create(fmt::format("By {}", user).c_str(), "goldFont.fnt");
-                usernameLabel->setScale(0.4f);
-
-                auto userBtn = Button::createWithNode(usernameLabel, [targetAccountId, user](Button*) {
-                    CBProfileBannerPopup::create(targetAccountId, user)->show();
-                });
-                userBtn->setAnchorPoint({0.f, 0.5f});
-                userBtn->setPosition({currentX, 20.f});
-                cell->addChild(userBtn);
-
-                currentX += (usernameLabel->getContentSize().width * usernameLabel->getScale()) + 15.f;
-            } else {
-                currentX += 15.f;
-            }
-
-            // Price
-            if (auto priceLabel = Label::create(fmt::format("{}", GameToolbox::pointsToString(price)).c_str(), "bigFont.fnt")) {
-                priceLabel->setAnchorPoint({0.f, 0.5f});
-                priceLabel->setLimitLabelWidth(100.f, 0.5f, 0.2f);
-                priceLabel->setPosition({0.f, 0.f});
-
-                auto priceNode = CCNode::create();
-                priceNode->setPosition({currentX, 20.f});
-                priceNode->addChild(priceLabel);
-
-                if (auto amethystIcon = CCSprite::createWithSpriteFrameName("CB_amethyst_002.png"_spr)) {
-                    amethystIcon->setScale(0.5f);
-                    amethystIcon->setAnchorPoint({0.f, 0.5f});
-                    auto priceWidth = priceLabel->getContentSize().width * priceLabel->getScale();
-                    amethystIcon->setPosition({priceWidth + 4.f, 0.f});
-                    priceNode->addChild(amethystIcon);
-                    currentX += priceWidth + (amethystIcon->getContentSize().width * amethystIcon->getScale());
-                } else {
-                    currentX += priceLabel->getContentSize().width * priceLabel->getScale();
-                }
-                cell->addChild(priceNode);
-                currentX += 15.f;
-            }
-
-            // Amount
-            if (isLimited) {
-                if (auto amountLabel = Label::create(fmt::format("Amount: {}", amount).c_str(), "goldFont.fnt")) {
-                    amountLabel->setAnchorPoint({0.f, 0.5f});
-                    amountLabel->setLimitLabelWidth(60.f, 0.4f, 0.2f);
-                    amountLabel->setPosition({26.f, 40.f});
-                    cell->addChild(amountLabel);
-                }
-            }
-
-            // Description
-            if (!desc.empty()) {
-                if (auto descBtn = Button::createWithSpriteFrameName("GJ_infoIcon_001.png", [desc](Button*) {
-                        MDPopup::create("Description", desc, "OK")->show();
-                    })) {
-                    descBtn->setScale(0.6f);
-                    descBtn->setAnchorPoint({0.f, 0.5f});
-                    descBtn->setPosition({currentX, 20.f});
-                    cell->addChild(descBtn);
-                    currentX += (descBtn->getContentSize().width * descBtn->getScale()) + 15.f;
-                }
-            }
-
-            auto menu = CCMenu::create();
-            menu->setContentSize({70.f, 30.f});
-            menu->setPosition({335.f, 20.f});
-            menu->setLayout(RowLayout::create()
-                    ->setAxisAlignment(AxisAlignment::Center)
-                    ->setGap(5.f));
-
-            auto approveSpr = CircleButtonSprite::createWithSpriteFrameName("GJ_completesIcon_001.png", 0.7f, CircleBaseColor::Green, CircleBaseSize::Small);
-            approveSpr->setScale(0.8f);
-            auto approveBtn = Button::createWithNode(
-                approveSpr,
-                [this, id](Button*) {
-                    if (auto popup = CBPendingBannerReasonPopup::create(id, false, this)) {
-                        popup->show();
-                    }
-                });
-            approveBtn->setPosition({-35.f, 0.f});
-            menu->addChild(approveBtn);
-
-            auto rejectSpr = CircleButtonSprite::createWithSpriteFrameName("GJ_deleteIcon_001.png", 0.7f, CircleBaseColor::Red, CircleBaseSize::Small);
-            rejectSpr->setScale(0.8f);
-            auto rejectBtn = Button::createWithNode(
-                rejectSpr,
-                [this, id](Button*) {
-                    if (auto popup = CBPendingBannerReasonPopup::create(id, true, this)) {
-                        popup->show();
-                    }
-                });
-            rejectBtn->setPosition({35.f, 0.f});
-            menu->addChild(rejectBtn);
-
-            cell->addChild(menu);
-            menu->updateLayout();
-
-            m_list->setCellColor(ccColor4B{0, 0, 0, 0});
-            m_list->addCell(cell);
+            auto cell = CBBannerCell::create(CBBannerItem::fromJson(jsonArray[i]), 380.f, {
+                .type = CBBannerCellType::Pending,
+                .disableCommentPreview = true,
+                .adminPanel = this,
+            });
+            if (cell) m_list->addCell(cell);
         }
 
     } else if (m_currentTab == Tab::Users) {
@@ -666,209 +487,25 @@ void CBAdminPanelLayer::renderPage() {
         }
 
     } else if (m_currentTab == Tab::Banners) {
+        m_list->setCellColor(ccColor4B{0, 0, 0, 0});
+        // plain pointer: the panel owns these cells, a Ref here would keep the panel alive forever
+        auto self = this;
         for (size_t i = start; i < end; ++i) {
             auto item = jsonArray[i];
-            std::string name = item["name"].asString().unwrapOr("Unknown");
-            std::string user = item["username"].asString().unwrapOr("Unknown");
-            int id = item["id"].asInt().unwrapOr(0);
-            int targetAccountId = item["accountId"].asInt().unwrapOr(0);
-            std::string desc = item["description"].asString().unwrapOr("");
-            int price = item["price"].asInt().unwrapOr(0);
-            bool isLimited = item["isLimited"].asBool().unwrapOr(false);
-            bool isFeatured = item["isFeatured"].asBool().unwrapOr(false);
-            int amount = item["amount"].asInt().unwrapOr(0);
-            std::string imageUrl = item["imageUrl"].asString().unwrapOr("");
-            std::string nonCompactImageUrl = item["nonCompactImageUrl"].asString().unwrapOr("");
-
-            float width = 380.f;
-            float cellHeight = 96.f;
-            auto cell = CCLayer::create();
-            cell->setContentSize({width, cellHeight});
-
-            // Background
-            if (auto background = NineSlice::createWithSpriteFrameName("geode.loader/tab-bg.png")) {
-                background->setContentSize({width - 5, cellHeight});
-                background->setPosition({width / 2.f, cellHeight / 2.f});
-                if (isFeatured) {
-                    background->runAction(CCRepeatForever::create(CCSequence::create(
-                        CCTintTo::create(1.f, 255, 255, 50),
-                        CCTintTo::create(1.f, background->getColor().r, background->getColor().g, background->getColor().b),
-                        nullptr)));
-                }
-                cell->addChild(background);
-            }
-
-            // Image, in a holder so the compact/non-compact toggle can swap it
-            auto imageHolder = CCNode::create();
-            imageHolder->setPosition({width / 2.f, cellHeight - 30.f});
-            imageHolder->addChild(comment::createBannerNode(imageUrl, {344.f, 104.f}));
-            cell->addChild(imageHolder);
-
-            // Name
-            auto nameLabel = Label::create(name.c_str(), "bigFont.fnt");
-            nameLabel->setAnchorPoint({0.f, 0.5f});
-            float nameX = 10.f;
-            if (isFeatured) {
-                if (auto starIcon = CCSprite::createWithSpriteFrameName("GJ_sStarsIcon_001.png")) {
-                    starIcon->setScale(0.8f);
-                    starIcon->setPosition({nameX, 20.f});
-                    starIcon->setAnchorPoint({0.f, 0.5f});
-                    cell->addChild(starIcon);
-                    nameX += starIcon->getContentSize().width * starIcon->getScale() + 4.f;
-                }
-            }
-            if (isLimited) {
-                if (auto limitIcon = CCSprite::createWithSpriteFrameName("GJ_sRecentIcon_001.png")) {
-                    limitIcon->setScale(0.8f);
-                    limitIcon->setPosition({nameX, 20.f});
-                    limitIcon->setAnchorPoint({0.f, 0.5f});
-                    cell->addChild(limitIcon);
-                    nameX += limitIcon->getContentSize().width * limitIcon->getScale() + 4.f;
-                }
-            }
-
-            if (isFeatured && isLimited) {
-                nameLabel->runAction(CCRepeatForever::create(CCSequence::create(
-                    CCTintTo::create(1.f, 255, 255, 50),
-                    CCTintTo::create(1.f, 255, 150, 255),
-                    nullptr)));
-            } else if (isFeatured) {
-                nameLabel->runAction(CCRepeatForever::create(CCSequence::create(
-                    CCTintTo::create(1.f, 255, 255, 50),
-                    CCTintTo::create(1.f, 255, 255, 255),
-                    nullptr)));
-            } else if (isLimited) {
-                nameLabel->runAction(CCRepeatForever::create(CCSequence::create(
-                    CCTintTo::create(1.f, 255, 150, 255),
-                    CCTintTo::create(1.f, 255, 255, 255),
-                    nullptr)));
-            }
-            nameLabel->setPosition({nameX, 20.f});
-            nameLabel->setLimitLabelWidth(100.f, 0.5f, 0.2f);
-            cell->addChild(nameLabel);
-
-            float currentX = nameX + (nameLabel->getContentSize().width * nameLabel->getScale()) + 8.f;
-
-            // User
-            if (!user.empty()) {
-                auto usernameLabel = Label::create(fmt::format("By {}", user).c_str(), "goldFont.fnt");
-                usernameLabel->setScale(0.4f);
-
-                auto userBtn = Button::createWithNode(usernameLabel, [targetAccountId, user](Button*) {
-                    CBProfileBannerPopup::create(targetAccountId, user)->show();
-                });
-                userBtn->setAnchorPoint({0.f, 0.5f});
-                userBtn->setPosition({currentX, 20.f});
-                cell->addChild(userBtn);
-
-                currentX += (usernameLabel->getContentSize().width * usernameLabel->getScale()) + 15.f;
-            } else {
-                currentX += 15.f;
-            }
-
-            // Description
-            if (!desc.empty()) {
-                if (auto descBtn = Button::createWithSpriteFrameName("GJ_infoIcon_001.png", [desc](Button*) {
-                        MDPopup::create("Description", desc, "OK")->show();
-                    })) {
-                    descBtn->setScale(0.6f);
-                    descBtn->setAnchorPoint({0.f, 0.5f});
-                    descBtn->setPosition({currentX, 20.f});
-                    cell->addChild(descBtn);
-                    currentX += (descBtn->getContentSize().width * descBtn->getScale()) + 15.f;
-                }
-            }
-
-            auto menu = CCMenu::create();
-            menu->setContentSize({100.f, 30.f});
-            menu->setPosition({320.f, 20.f});
-            menu->setLayout(RowLayout::create()
-                    ->setAxisAlignment(AxisAlignment::End)
-                    ->setGap(5.f)
-                    ->setAutoScale(false));
-
-            // compact/non-compact toggle, only when the banner has both images
-            if (!nonCompactImageUrl.empty()) {
-                auto showingNonCompact = std::make_shared<bool>(false);
-                Ref<CCNode> holder = imageHolder;
-                auto toggleBtn = Button::createWithSpriteFrameName("threadBtn_copy_001.png",
-                    [holder, showingNonCompact, imageUrl, nonCompactImageUrl](Button*) {
-                        *showingNonCompact = !*showingNonCompact;
-                        holder->removeAllChildren();
-                        holder->addChild(comment::createBannerNode(*showingNonCompact ? nonCompactImageUrl : imageUrl, {344.f, 104.f}));
-                        Notification::create(*showingNonCompact ? "Showing non-compact image" : "Showing compact image", NotificationIcon::Info, 1.f)->show();
-                    });
-                toggleBtn->setScale(0.7f);
-                menu->addChild(toggleBtn);
-            }
-
-            // feature toggle: an empty star unfeatures, a full star features
-            auto featured = std::make_shared<bool>(isFeatured);
-            auto featureSprite = [](bool isFeatured) {
-                return CircleButtonSprite::createWithSpriteFrameName(
-                    isFeatured ? "GJ_noStarsIcon_001.png" : "GJ_starsIcon_001.png", 1.0f, CircleBaseColor::Green, CircleBaseSize::Small);
-            };
-            int bannerId = id;
-            Ref<CBAdminPanelLayer> self = this;
-            auto featureBtn = Button::createWithNode(featureSprite(isFeatured), [self, bannerId, featured, featureSprite](Button* sender) {
-                Ref<Button> button = sender;
-                bool newState = !*featured;
-                auto accountData = argon::getGameAccountData();
-
-                Ref<UploadActionPopup> popup = UploadActionPopup::create(nullptr, newState ? "Featuring banner..." : "Unfeaturing banner...");
-                popup->show();
-
-                arc::spawn([self, bannerId, newState, featured, featureSprite, button, popup, accountData]() -> arc::Future<> {
-                    auto authToken = co_await comment::argonToken(accountData);
-                    if (authToken.empty()) {
-                        queueInMainThread([popup] {
-                            if (popup && popup->getParent()) popup->showFailMessage("Authentication failed.");
-                        });
-                        co_return;
-                    }
-
-                    auto body = matjson::makeObject({{"accountId", accountData.accountId},
-                        {"argonToken", authToken},
-                        {"bannerId", bannerId},
-                        {"featured", newState}});
-                    auto response = co_await utils::web::WebRequest().bodyJSON(body).post(fmt::format("{}/admin/setFeatured", comment::baseUrl));
-                    if (!response.ok()) {
-                        auto error = comment::getResponseMessage(response, "Failed to update banner.");
-                        queueInMainThread([popup, error] {
-                            if (popup && popup->getParent()) popup->showFailMessage(error);
-                        });
-                        co_return;
-                    }
-
-                    queueInMainThread([self, bannerId, newState, featured, featureSprite, button, popup] {
-                        *featured = newState;
-                        button->setDisplayNode(featureSprite(newState));
-                        // keep the cached list in sync so paging doesn't show the old state
-                        for (auto& entry : self->m_currentData) {
-                            if (entry["id"].asInt().unwrapOr(0) == bannerId) {
-                                entry["isFeatured"] = newState;
-                            }
+            auto cell = CBBannerCell::create(CBBannerItem::fromJson(item), 380.f, {
+                .type = CBBannerCellType::Admin,
+                .disableCommentPreview = true,
+                .adminData = item,
+                .onFeaturedChanged = [self](int bannerId, bool featured) {
+                    // keep the cached list in sync so paging doesn't show the old state
+                    for (auto& entry : self->m_currentData) {
+                        if (entry["id"].asInt().unwrapOr(0) == bannerId) {
+                            entry["isFeatured"] = featured;
                         }
-                        if (popup && popup->getParent()) {
-                            popup->showSuccessMessage(newState ? "Banner featured!" : "Banner unfeatured.");
-                        }
-                    });
-                    co_return;
-                });
+                    }
+                },
             });
-            featureBtn->setScale(0.7f);
-            menu->addChild(featureBtn);
-
-            auto manageBtn = Button::createWithSpriteFrameName("sideBtn_options_001.png", [item](Button*) {
-                CBAdminBannerManagePopup::create(item)->show();
-            });
-            menu->addChild(manageBtn);
-
-            cell->addChild(menu);
-            menu->updateLayout();
-
-            m_list->setCellColor(ccColor4B{0, 0, 0, 0});
-            m_list->addCell(cell);
+            if (cell) m_list->addCell(cell);
         }
     }
 

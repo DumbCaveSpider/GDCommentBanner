@@ -78,14 +78,13 @@ void CBShopLayer::updateLocalEquippedState() {
 void CBShopLayer::updateFilterSortLabel() {
     if (!m_filterSortLabel) return;
 
-    std::string filterName;
-    switch (m_filterState) {
-        case 1: filterName = "Owned"; break;
-        case 2: filterName = "Unowned"; break;
-        case 3: filterName = "Limited"; break;
-        case 4: filterName = "Featured"; break;
-        default: filterName = "All"; break;
+    // every selected filter, e.g. "Owned Limited"
+    static constexpr char const* kFilterNames[] = {"", "Owned", "Unowned", "Limited", "Featured"};
+    std::vector<std::string> filterNames;
+    for (int i = 1; i < 5; ++i) {
+        if (m_filterState & (1 << i)) filterNames.emplace_back(kFilterNames[i]);
     }
+    std::string filterName = filterNames.empty() ? "All" : fmt::format("{}", fmt::join(filterNames, " "));
 
     std::string sortName;
     switch (m_sortState) {
@@ -186,7 +185,8 @@ void CBShopLayer::fetchBanners() {
         int itemsPerPage = self->m_itemsPerPage;
         int filterState = self->m_filterState;
         int sortState = self->m_sortState;
-        bool supporterOnlyFilter = self->m_supporterOnlyFilter;
+        // only supporters can filter for supporter-only banners
+        bool supporterOnlyFilter = self->m_supporterOnlyFilter && comment::isUserSupporter();
         std::string searchQuery = self->m_searchQuery;
         int equippedBannerId = self->m_equippedBannerId;
         int fetchId = ++self->m_fetchId;
@@ -212,7 +212,7 @@ void CBShopLayer::fetchBanners() {
                 {"argonToken", authToken},
                 {"page", currentPage},
                 {"limit", itemsPerPage},
-                {"filter", filterState},
+                {"filters", filterState},
                 {"sort", sortState},
                 {"supporterOnly", supporterOnlyFilter}});
             if (!searchQuery.empty()) {
@@ -316,6 +316,9 @@ void CBShopLayer::fetchBanners() {
                     banner.isFeatured = isFeaturedRes.unwrap();
                 }
                 banner.isSupporterOnly = item["isSupporterOnly"].asBool().unwrapOr(false);
+                banner.createdAt = item["createdAt"].asString().unwrapOr("");
+                banner.editedAt = item["editedAt"].asString().unwrapOr("");
+                banner.approvedAt = item["approvedAt"].asString().unwrapOr("");
                 banner.nonCompactImageUrl = item["nonCompactImageUrl"].asString().unwrapOr("");
                 if (auto amountRes = item["amount"].asInt(); amountRes.isOk()) {
                     banner.amount = static_cast<int>(amountRes.unwrap());
@@ -660,7 +663,7 @@ bool CBShopLayer::init() {
                 "- **<cc>Demon</c>**: 10k-15k Amethysts\n"
                 "-----\n"
                 "### Submission Rules\n"
-                "To ensure that the quality of banners is high and there are no <cr>inappropriate banners</c> being uploaded, all banners must be <cc>reviewed and approved by the staff team</c> before being added to the shop.\n\n"
+                "To ensure that the quality of banners is high and there are no <cr>inappropriate banners</c> being uploaded, all banners must be <cc>reviewed and approved by the staff team</c> before being added to the shop. <cy>Changing a banner's image sends it back for review</c>; until it's approved the banner is pending and can't be equipped.\n\n"
                 "Every submission must follow these rules:\n\n"
                 "- The banner must not contain any <cr>inappropriate content, including nudity, hate speech, or gore</c>.\n"
                 "- Banners must be of an appropriate quality and must not be <cr>low-quality</c>.\n"

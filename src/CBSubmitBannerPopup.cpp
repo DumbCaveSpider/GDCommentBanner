@@ -1,4 +1,5 @@
 #include "CBSubmitBannerPopup.hpp"
+#include "CBPreviewBanner.hpp"
 #include "CBShopLayer.hpp"
 #include <Geode/utils/web.hpp>
 #include <Geode/binding/UploadActionPopup.hpp>
@@ -386,7 +387,7 @@ void CBSubmitBannerPopup::onSubmit(CCObject*) {
             }
         }
         Ref<CBSubmitBannerPopup> retainedSelf = this;
-        createQuickPopup("Change Banner Image", "Are you sure you want to <cy>replace the image</c> of this banner? The old image will be removed and <cr>everyone who has it equipped will have it unequipped</c>.", "Cancel", "Update", [retainedSelf](FLAlertLayer*, bool btn2) {
+        createQuickPopup("Change Banner Image", "Are you sure you want to <cy>replace the image</c> of this banner?\nThe banner goes back to <co>pending</c> until staff <cg>review</c> the new image, and <cr>everyone who has it equipped will have it unequipped</c>. If the new image is rejected, the current one is restored.", "Cancel", "Update", [retainedSelf](FLAlertLayer*, bool btn2) {
             if (btn2) retainedSelf->submitEdit();
         });
         return;
@@ -419,10 +420,10 @@ void CBSubmitBannerPopup::onSubmit(CCObject*) {
     }
 
     std::string popupTitle = "Submit Banner";
-    std::string popupMsg = "Are you sure you want to submit this banner? You <cr>cannot change it</c> after it's uploaded.";
+    std::string popupMsg = "Are you sure you want to submit this banner? It will be <co>pending</c> until staff <cg>review</c> it. Changing its image later sends it back for review.";
     if (priceVal > 100000) {
         popupTitle = "Increased Submission Fee";
-        popupMsg = fmt::format("Because this banner's price is higher than <cp>100,000 amethysts</c>, there is an increased submission fee of <cy>{} amethysts</c>.\nAre you sure you want to proceed? You <cr>cannot change it</c> after it's uploaded.", GameToolbox::pointsToString(submissionFee));
+        popupMsg = fmt::format("Because this banner's price is higher than <cp>100,000 amethysts</c>, there is an increased submission fee of <cy>{} amethysts</c>.\nAre you sure you want to proceed? Changing its image later sends it back for review.", GameToolbox::pointsToString(submissionFee));
     }
 
     createQuickPopup(popupTitle.c_str(), popupMsg, "Cancel", "Submit", [this, isLimited, submissionFee](FLAlertLayer*, bool btn2) {
@@ -603,7 +604,13 @@ void CBSubmitBannerPopup::submitEdit() {
             co_return;
         }
 
-        queueInMainThread([popup, retainedSelf, bannerId] {
+        // e.g. "the new image was sent for review"
+        std::string message = "Banner image updated!";
+        if (auto json = response.json(); json.isOk()) {
+            message = json.unwrap()["message"].asString().unwrapOr(message);
+        }
+
+        queueInMainThread([popup, retainedSelf, bannerId, message] {
             // the server unequipped this banner from everyone, including us
             comment::invalidateBannerCache();
             if (auto shop = CBShopLayer::getInstance()) {
@@ -613,7 +620,7 @@ void CBSubmitBannerPopup::submitEdit() {
                 shop->refreshBanners();
             }
             if (popup && popup->getParent()) {
-                popup->showSuccessMessage("Banner image updated!");
+                popup->showSuccessMessage(message);
             }
             if (retainedSelf->m_onEditSuccess) retainedSelf->m_onEditSuccess();
             if (retainedSelf->getParent()) {
@@ -632,64 +639,8 @@ void CBSubmitBannerPopup::onPreview(CCObject*) {
         if (compactImage.empty()) compactImage = m_editData.imageUrl;
         if (nonCompactImage.empty()) nonCompactImage = m_editData.nonCompactImageUrl;
     }
-    if (compactImage.empty() && nonCompactImage.empty()) return;
 
-    auto blockLayer = CCBlockLayer::create();
-    blockLayer->setZOrder(5);
-
-    auto menu = CCMenu::create();
-    menu->setZOrder(1);
-
-    auto closeBtn = Button::createWithSpriteFrameName("GJ_arrow_01_001.png", [this](Button* sender) { this->onClosePreview(sender); });
-    closeBtn->setUserObject(blockLayer);
-    menu->addChildAtPosition(closeBtn, Anchor::TopLeft, {25.f, -25.f});
-    blockLayer->addChild(menu);
-
-    auto winSize = CCDirector::sharedDirector()->getWinSize();
-
-    // mockup of the in-game comment cell, banner applied the same way as CBHook
-    auto createPreviewNode = [&](bool compact) -> CCNode* {
-        return comment::createCommentPreview(compactImage, compact, comment::kCommentCellWidth, nonCompactImage);
-    };
-
-    // bg for the preview mode or something
-    auto previewbg = NineSlice::create("square02_001.png");
-    previewbg->setContentSize(winSize - CCSize{30.f, 20.f});
-    previewbg->setPosition(winSize / 2);
-    previewbg->setOpacity(150);
-    blockLayer->addChild(previewbg, -1);
-
-    auto container = CCNode::create();
-    container->setContentSize({comment::kCommentCellWidth, 160.f});
-    container->setAnchorPoint({0.5f, 0.5f});
-    container->setPosition(winSize / 2);
-    container->setLayout(ColumnLayout::create()
-            ->setGap(8.f)
-            ->setAutoScale(false)
-            ->setAxisAlignment(AxisAlignment::Center));
-
-    auto nonCompactPreview = createPreviewNode(false);
-    container->addChild(nonCompactPreview);
-
-    auto nonCompactLabel = Label::create("Non-Compact Mode", "goldFont.fnt");
-    nonCompactLabel->setScale(0.45f);
-    container->addChild(nonCompactLabel);
-
-    auto compactPreview = createPreviewNode(true);
-    container->addChild(compactPreview);
-
-    auto compactLabel = Label::create("Compact Mode", "goldFont.fnt");
-    compactLabel->setScale(0.45f);
-    container->addChild(compactLabel);
-
-    container->updateLayout();
-    blockLayer->addChild(container);
-
-    this->addChild(blockLayer);
-}
-
-void CBSubmitBannerPopup::onClosePreview(CCObject* sender) {
-    if (auto node = static_cast<CCNode*>(static_cast<CCNode*>(sender)->getUserObject())) {
-        node->removeFromParent();
+    if (auto preview = CBPreviewBanner::create(compactImage, nonCompactImage)) {
+        preview->show();
     }
 }

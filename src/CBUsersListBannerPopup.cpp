@@ -1,4 +1,5 @@
 #include "CBUsersListBannerPopup.hpp"
+#include "CBUserCell.hpp"
 #include "CBProfileBannerPopup.hpp"
 #include <dankmeme.argon/argon.hpp>
 #include "include/CBConstant.hpp"
@@ -159,40 +160,18 @@ void CBUsersListBannerPopup::fetchUsers() {
                 return;
             }
 
-            for (size_t i = 0; i < usersArr.size(); ++i) {
-                auto item = usersArr[i];
-                int accountId = item["accountId"].asInt().unwrapOr(0);
-                std::string username = item["username"].asString().unwrapOr("Unknown");
-                std::string equippedBannerUrl = item["equippedBannerUrl"].asString().unwrapOr("");
-
-                auto cell = CCNode::create();
-                cell->setContentSize({340.f, 36.f});
-
-                if (!equippedBannerUrl.empty()) {
-                    auto bannerSprite = comment::createBannerNode(fmt::format("{}{}", comment::baseUrl, equippedBannerUrl), {cell->getContentWidth() + 18, cell->getContentHeight() + 18});
-                    if (bannerSprite) {
-                        bannerSprite->setPosition({cell->getContentWidth() / 2 + 8.f, cell->getContentHeight() / 2});
-                        cell->addChild(bannerSprite, -2);
+            if (retainedSelf->m_list) {
+                retainedSelf->m_list->setCellColor(ccColor4B{0, 0, 0, 0});
+                float cellWidth = retainedSelf->m_list->getContentWidth();
+                for (size_t i = 0; i < usersArr.size(); ++i) {
+                    auto data = CBUserData::fromJson(usersArr[i]);
+                    // banner urls are relative to the server
+                    if (!data.equippedBannerUrl.empty() && data.equippedBannerUrl.starts_with("/")) {
+                        data.equippedBannerUrl = fmt::format("{}{}", comment::baseUrl, data.equippedBannerUrl);
                     }
-                }
-
-                auto usernameLabel = Label::create(username.c_str(), "bigFont.fnt");
-                usernameLabel->setLimitLabelWidth(200.f, 0.6f, 0.1f);
-
-                auto usernameBtn = Button::createWithNode(
-                    usernameLabel,
-                    [accountId, username](Button* sender) {
-                        if (auto popup = CBProfileBannerPopup::create(accountId, username)) {
-                            popup->show();
-                        }
-                    });
-
-                usernameBtn->setAnchorPoint({0.f, 0.5f});
-                usernameBtn->setPosition({10.f, 18.f});
-                cell->addChild(usernameBtn);
-
-                if (retainedSelf->m_list) {
-                    retainedSelf->m_list->addCell(cell);
+                    if (auto cell = CBUserCell::create(data, cellWidth)) {
+                        retainedSelf->m_list->addCell(cell);
+                    }
                 }
             }
 

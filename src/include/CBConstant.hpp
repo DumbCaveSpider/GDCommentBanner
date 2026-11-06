@@ -16,7 +16,8 @@ namespace comment {
         co_return std::move(authResult).unwrap();
     };
 
-    inline CCNode* createBannerNode(std::string const& imageUrl, CCSize const& bannerSize) {
+    // priority: load before anything already queued (and past the concurrency limit), for previews
+    inline CCNode* createBannerNode(std::string const& imageUrl, CCSize const& bannerSize, bool priority = false) {
         if (imageUrl.empty()) {
             auto node = CCNode::create();
             node->setContentSize(bannerSize);
@@ -29,9 +30,9 @@ namespace comment {
 
         // loading is deferred until the banner is on screen, see CBBannerLoader
         if (imageUrl.starts_with("/")) {
-            loader::queue(sprite, fmt::format("{}{}", comment::baseUrl, imageUrl));
+            loader::queue(sprite, fmt::format("{}{}", comment::baseUrl, imageUrl), priority);
         } else {
-            loader::queue(sprite, imageUrl);
+            loader::queue(sprite, imageUrl, priority);
         }
 
         return sprite;

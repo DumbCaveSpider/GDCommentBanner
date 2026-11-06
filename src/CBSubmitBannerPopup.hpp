@@ -27,7 +27,6 @@ private:
     void onSubmit(CCObject*);
     void onToggleLimited(CCObject*);
     void onPreview(CCObject*);
-    void onClosePreview(CCObject*);
 
     TextInput* m_nameInput = nullptr;
     TextInput* m_descInput = nullptr;

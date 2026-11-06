@@ -11,6 +11,8 @@ public:
 
 private:
     bool init();
+    // toggles filter i (0 = All) and syncs the toggles with the shop's filters
+    void onFilterToggled(int index);
 
     std::vector<Toggler*> m_filterToggles;
     std::vector<Toggler*> m_sortToggles;

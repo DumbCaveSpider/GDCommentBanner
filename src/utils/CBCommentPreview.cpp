@@ -42,7 +42,7 @@ static void addCellLines(CCNode* cell, float width, float height) {
 }
 
 namespace comment {
-    CCNode* createCommentPreview(std::string const& imageUrl, bool compact, float width, std::string const& nonCompactImageUrl) {
+    CCNode* createCommentPreview(std::string const& imageUrl, bool compact, float width, std::string const& nonCompactImageUrl, bool showOverlay, bool priorityLoad) {
         float height = compact ? kCompactCommentCellHeight : kCommentCellHeight;
         CCSize size{width, height};
 
@@ -50,26 +50,34 @@ namespace comment {
         clip->setContentSize(size);
         clip->setAnchorPoint({0.5f, 0.5f});
 
-        // m_backgroundLayer, with the banner under it like setupCommentSprite in CBHook
+        // everything drawn over the banner (cell background, comment, lines), shown/hidden as one
+        // with setCommentPreviewOverlay. The banner is a sibling underneath, not a child,
+        // so hiding the overlay never hides the banner or its loading spinner.
+        auto overlay = CCNode::create();
+        overlay->setID(kCommentPreviewOverlayID);
+        overlay->setContentSize(size);
+        clip->addChild(overlay, 1);
+
+        // m_backgroundLayer, drawn over the banner like setupCommentSprite in CBHook
         auto bgColor = compact ? ccColor3B{156, 85, 42} : ccColor3B{161, 88, 44};
         auto bgLayer = CCLayerColor::create({bgColor.r, bgColor.g, bgColor.b, 255}, width, height);
-        clip->addChild(bgLayer);
+        overlay->addChild(bgLayer, -1);
 
         // same rules as setupCommentSprite in CBHook
         bool useNonCompact = !compact && !nonCompactImageUrl.empty();
         if (!imageUrl.empty() || useNonCompact) {
             auto bannerSize = (compact || useNonCompact) ? size : CCSize{800.f, 800.f};
-            if (auto banner = createBannerNode(useNonCompact ? nonCompactImageUrl : imageUrl, bannerSize)) {
+            if (auto banner = createBannerNode(useNonCompact ? nonCompactImageUrl : imageUrl, bannerSize, priorityLoad)) {
                 banner->setPosition(size / 2.f);
                 bgLayer->setOpacity(100);
-                bgLayer->addChild(banner, -1);
+                clip->addChild(banner, 0);
             }
         }
 
         // m_mainLayer
         auto mainLayer = CCNode::create();
         mainLayer->setContentSize(size);
-        clip->addChild(mainLayer, 1);
+        overlay->addChild(mainLayer, 1);
 
         auto player = createPlayerIcon();
         player->setScale((compact ? 0.75f : 1.f) * 0.6f);
@@ -142,8 +150,16 @@ namespace comment {
         age->setPosition({width - (compact ? 8.f : 11.f), compact ? 7.f : 14.f});
         mainLayer->addChild(age, 1);
 
-        addCellLines(clip, width, height);
+        addCellLines(overlay, width, height);
 
+        overlay->setVisible(showOverlay);
         return clip;
+    }
+
+    void setCommentPreviewOverlay(CCNode* preview, bool visible) {
+        if (!preview) return;
+        if (auto overlay = preview->getChildByID(kCommentPreviewOverlayID)) {
+            overlay->setVisible(visible);
+        }
     }
 }

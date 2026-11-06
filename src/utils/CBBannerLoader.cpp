@@ -12,6 +12,7 @@ static constexpr size_t kMaxActiveLoads = 3;
 struct PendingBanner {
     WeakRef<LazySprite> sprite;
     std::string source;
+    bool priority = false;
 };
 
 static LazySprite::Format guessFormat(std::string_view urlOrPath) {
@@ -25,6 +26,7 @@ static bool isRemote(std::string_view source) {
 }
 
 // stable across runs, unlike std::hash
+// https://github.com/irfantopal/fnv1a
 static uint64_t fnv1a(std::string_view str) {
     uint64_t hash = 14695981039346656037ull;
     for (unsigned char c : str) {
@@ -156,8 +158,13 @@ public:
         return instance;
     }
 
-    void queue(LazySprite* sprite, std::string source) {
-        m_pending.push_back({WeakRef(sprite), std::move(source)});
+    void queue(LazySprite* sprite, std::string source, bool priority) {
+        if (priority) {
+            // in front of banners that were queued earlier (e.g. a list behind a preview)
+            m_pending.insert(m_pending.begin(), {WeakRef(sprite), std::move(source), true});
+        } else {
+            m_pending.push_back({WeakRef(sprite), std::move(source), false});
+        }
         this->ensureScheduled();
     }
 
@@ -167,7 +174,12 @@ public:
             return !sprite || !sprite->isLoading();
         });
 
-        for (auto it = m_pending.begin(); it != m_pending.end() && activeCount() < kMaxActiveLoads;) {
+        for (auto it = m_pending.begin(); it != m_pending.end();) {
+            // priority loads aren't held back by the limit, the rest wait for a free slot
+            if (!it->priority && activeCount() >= kMaxActiveLoads) {
+                ++it;
+                continue;
+            }
             auto sprite = it->sprite.lock();
             if (!sprite) {
                 it = m_pending.erase(it);
@@ -193,9 +205,9 @@ public:
 };
 
 namespace comment::loader {
-    void queue(LazySprite* sprite, std::string source) {
+    void queue(LazySprite* sprite, std::string source, bool priority) {
         if (!sprite || source.empty()) return;
-        BannerLoader::get()->queue(sprite, std::move(source));
+        BannerLoader::get()->queue(sprite, std::move(source), priority);
     }
 
     asp::fs::Path getCacheDir() {

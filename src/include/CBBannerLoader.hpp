@@ -6,7 +6,8 @@
 using namespace geode::prelude;
 
 namespace comment::loader {
-    void queue(LazySprite* sprite, std::string source);
+    // priority: goes ahead of everything already waiting and isn't held back by the concurrency limit
+    void queue(LazySprite* sprite, std::string source, bool priority = false);
 
     asp::fs::Path getCacheDir();
     void clearDiskCache();

@@ -256,6 +256,9 @@ void CBProfileBannerPopup::fetchBanners() {
                 }
                 banner.nonCompactImageUrl = item["nonCompactImageUrl"].asString().unwrapOr("");
                 banner.isSupporterOnly = item["isSupporterOnly"].asBool().unwrapOr(false);
+                banner.createdAt = item["createdAt"].asString().unwrapOr("");
+                banner.editedAt = item["editedAt"].asString().unwrapOr("");
+                banner.approvedAt = item["approvedAt"].asString().unwrapOr("");
                 if (auto usernameRes = item["username"].asString(); usernameRes.isOk()) {
                     banner.username = usernameRes.unwrap();
                 }

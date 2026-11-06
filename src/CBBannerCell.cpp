@@ -14,6 +14,11 @@
 #include <dankmeme.argon/argon.hpp>
 #include "include/CBLocalBanner.hpp"
 #include "CBLocalBannersPopup.hpp"
+#include <Geode/ui/MDPopup.hpp>
+#include "CBPreviewBanner.hpp"
+#include "CBAdminPanelLayer.hpp"
+#include "CBAdminBannerManagePopup.hpp"
+#include "CBPendingBannerReasonPopup.hpp"
 
 struct EquipRequest {
     int AccountID;
@@ -23,13 +28,22 @@ struct EquipRequest {
 
 static constexpr auto kPreviewID = "cb-comment-preview";
 static constexpr auto kPreviewCompactKey = "preview-compact";
+static constexpr auto kPreviewOverlayKey = "preview-overlay";
 static constexpr float kPreviewMaxHeight = 54.f;
 
 // shows the compact or non-compact mockup depending on the saved preference
+// (and shows/hides the comment drawn over the banner)
 static void applyPreviewMode(CCNode* container) {
     bool compact = Mod::get()->getSavedValue<bool>(kPreviewCompactKey, false);
-    if (auto normalPreview = container->getChildByTag(0)) normalPreview->setVisible(!compact);
-    if (auto compactPreview = container->getChildByTag(1)) compactPreview->setVisible(compact);
+    bool overlay = Mod::get()->getSavedValue<bool>(kPreviewOverlayKey, true);
+    if (auto normalPreview = container->getChildByTag(0)) {
+        normalPreview->setVisible(!compact);
+        comment::setCommentPreviewOverlay(normalPreview, overlay);
+    }
+    if (auto compactPreview = container->getChildByTag(1)) {
+        compactPreview->setVisible(compact);
+        comment::setCommentPreviewOverlay(compactPreview, overlay);
+    }
 }
 
 static void applyPreviewModeRecursive(CCNode* node) {
@@ -64,6 +78,83 @@ static CCNode* createCellPreview(std::string const& imageUrl, CCSize const& maxS
     return container;
 }
 
+Button* CBBannerCell::createBannerIcon(CBBannerIcon icon) {
+    char const* frame = "GJ_sRecentIcon_001.png";
+    char const* title = "Limited";
+    char const* text = "This banner is <cp>Limited</c>: only a set number of copies can be bought. "
+                       "Once it's <cr>sold out</c>, nobody else can buy it.";
+    switch (icon) {
+        case CBBannerIcon::SupporterOnly:
+            frame = "particle_230_001.png";
+            title = "Supporter Only";
+            text = "This banner is <cy>Supporter Only</c>: only <cp>Supporters</c> can buy and use it.";
+            break;
+        case CBBannerIcon::Featured:
+            frame = "GJ_sStarsIcon_001.png";
+            title = "Featured";
+            text = "This banner was <cy>featured</c> by the <cg>staff team</c> for being high quality.";
+            break;
+        case CBBannerIcon::Limited:
+            break;
+    }
+
+    auto button = Button::createWithSpriteFrameName(frame, [title, text](Button*) {
+        FLAlertLayer::create(title, text, "OK")->show();
+    });
+    // all icons 12 units tall (the star/limited icons at 0.8 scale)
+    float height = button->getContentHeight();
+    button->setScale(height > 0.f ? 12.f / height : 0.8f);
+    return button;
+}
+
+void CBBannerCell::decoratePopupTitle(CCNode* mainLayer, Label* title, CBBannerItem const& banner) {
+    // icons right to left, ending just before the title
+    float x = -title->getScaledContentWidth() / 2.f - 5.f;
+    auto addIcon = [&](CBBannerIcon type) {
+        auto icon = createBannerIcon(type);
+        icon->setAnchorPoint({1.f, 0.5f});
+        mainLayer->addChildAtPosition(icon, Anchor::Top, {x, -20.f}, false);
+        x -= icon->getScaledContentWidth() + 4.f;
+    };
+    if (banner.isLimited) addIcon(CBBannerIcon::Limited);
+    if (banner.isFeatured) addIcon(CBBannerIcon::Featured);
+    if (banner.isSupporterOnly) addIcon(CBBannerIcon::SupporterOnly);
+
+    auto pulse = [&](ccColor3B a, ccColor3B b) {
+        title->runAction(CCRepeatForever::create(CCSequence::create(
+            CCTintTo::create(1.f, a.r, a.g, a.b),
+            CCTintTo::create(1.f, b.r, b.g, b.b),
+            nullptr)));
+    };
+    if (banner.isSupporterOnly) {
+        pulse({0, 220, 255}, {255, 255, 255});
+    } else if (banner.isFeatured && banner.isLimited) {
+        pulse({255, 255, 50}, {255, 150, 255});
+    } else if (banner.isFeatured) {
+        pulse({255, 255, 50}, {255, 255, 255});
+    } else if (banner.isLimited) {
+        pulse({255, 150, 255}, {255, 255, 255});
+    }
+}
+
+bool CBBannerCell::isPreviewCompact() {
+    return Mod::get()->getSavedValue<bool>(kPreviewCompactKey, false);
+}
+
+void CBBannerCell::setPreviewCompact(bool compact) {
+    Mod::get()->setSavedValue(kPreviewCompactKey, compact);
+    if (auto scene = CCDirector::sharedDirector()->getRunningScene()) applyPreviewModeRecursive(scene);
+}
+
+bool CBBannerCell::isPreviewOverlay() {
+    return Mod::get()->getSavedValue<bool>(kPreviewOverlayKey, true);
+}
+
+void CBBannerCell::setPreviewOverlay(bool overlay) {
+    Mod::get()->setSavedValue(kPreviewOverlayKey, overlay);
+    if (auto scene = CCDirector::sharedDirector()->getRunningScene()) applyPreviewModeRecursive(scene);
+}
+
 CCNode* CBBannerCell::createCommentPreviewButton(std::string const& imageUrl, CCSize const& maxSize, std::string const& nonCompactImageUrl) {
     return Button::createWithNode(createCellPreview(imageUrl, maxSize, nonCompactImageUrl), [](Button* sender) {
         // switch between compact and non-compact, applied to every visible preview
@@ -75,10 +166,40 @@ CCNode* CBBannerCell::createCommentPreviewButton(std::string const& imageUrl, CC
     });
 }
 
+CBBannerItem CBBannerItem::fromJson(matjson::Value const& json) {
+    CBBannerItem item;
+    item.id = static_cast<int>(json["id"].asInt().unwrapOr(0));
+    item.accountId = static_cast<int>(json["accountId"].asInt().unwrapOr(0));
+    item.name = json["name"].asString().unwrapOr("Unknown");
+    item.description = json["description"].asString().unwrapOr("");
+    item.username = json["username"].asString().unwrapOr("");
+    item.imageUrl = json["imageUrl"].asString().unwrapOr("");
+    item.nonCompactImageUrl = json["nonCompactImageUrl"].asString().unwrapOr("");
+    item.price = static_cast<int>(json["price"].asInt().unwrapOr(0));
+    item.owns = json["owns"].asBool().unwrapOr(false);
+    item.isLimited = json["isLimited"].asBool().unwrapOr(false);
+    item.isFeatured = json["isFeatured"].asBool().unwrapOr(false);
+    item.isSupporterOnly = json["isSupporterOnly"].asBool().unwrapOr(false);
+    item.amount = static_cast<int>(json["amount"].asInt().unwrapOr(0));
+    item.totalBought = static_cast<int>(json["totalBought"].asInt().unwrapOr(0));
+    item.equippedCount = static_cast<int>(json["equippedCount"].asInt().unwrapOr(0));
+    item.creatorIsSupporter = json["creatorIsSupporter"].asBool().unwrapOr(false);
+    item.isResubmission = json["isResubmission"].asBool().unwrapOr(false);
+    item.createdAt = json["createdAt"].asString().unwrapOr("");
+    item.editedAt = json["editedAt"].asString().unwrapOr("");
+    item.approvedAt = json["approvedAt"].asString().unwrapOr("");
+    return item;
+}
+
 CBBannerCell* CBBannerCell::create(const CBBannerItem& banner, float width, bool disableCommentPreview) {
+    return create(banner, width, CBBannerCellOptions{.disableCommentPreview = disableCommentPreview});
+}
+
+CBBannerCell* CBBannerCell::create(const CBBannerItem& banner, float width, CBBannerCellOptions options) {
     static constexpr auto cellHeight = 96.f;
     auto cellBg = new CBBannerCell();
     cellBg->m_banner = banner;
+    cellBg->m_options = std::move(options);
     if (!cellBg->init()) {
         delete cellBg;
         return nullptr;
@@ -86,16 +207,23 @@ CBBannerCell* CBBannerCell::create(const CBBannerItem& banner, float width, bool
     cellBg->setContentSize({width, cellHeight});
     cellBg->autorelease();
 
+    auto type = cellBg->m_options.type;
+    bool isAdminCell = type != CBBannerCellType::Shop;
+
     // @geode-ignore(unknown-resource)
     if (auto background = NineSlice::createWithSpriteFrameName("geode.loader/tab-bg.png")) {
         background->setContentSize({width - 5, cellHeight});
         background->setPosition({width / 2.f, cellHeight / 2.f});
         ccColor3B bgColor = {255, 255, 255};
-        if (banner.equipped) {
+        if (type == CBBannerCellType::Pending) {
+            if (banner.creatorIsSupporter) {
+                bgColor = {0, 220, 255};  // Cyan, submitted by a supporter
+            }
+        } else if (banner.equipped) {
             bgColor = {255, 165, 0};  // Orange
         } else if (banner.isSupporterOnly) {
             bgColor = {0, 220, 255};  // Cyan, supporter only
-        } else if (banner.owns || banner.isLocal) {
+        } else if (!isAdminCell && (banner.owns || banner.isLocal)) {
             bgColor = {0, 200, 0};  // Green
         }
         background->setColor(bgColor);
@@ -108,8 +236,8 @@ CBBannerCell* CBBannerCell::create(const CBBannerItem& banner, float width, bool
         cellBg->addChild(background);
     }
 
-    if (disableCommentPreview) {
-        auto sprite = comment::createBannerNode(banner.imageUrl, {324.f, 104.f});
+    if (cellBg->m_options.disableCommentPreview) {
+        auto sprite = comment::createBannerNode(banner.imageUrl, {width - 16.f, 104.f});
         sprite->setPosition({width / 2.f, cellHeight - 30.f});
         cellBg->addChild(sprite);
     } else if (auto previewButton = createCommentPreviewButton(banner.imageUrl, {width - 32.f, kPreviewMaxHeight}, banner.nonCompactImageUrl)) {
@@ -123,34 +251,17 @@ CBBannerCell* CBBannerCell::create(const CBBannerItem& banner, float width, bool
         if (nameLabel) {
             nameLabel->setAnchorPoint({0.f, 0.5f});
             float nameX = 10.f;
-            if (banner.isSupporterOnly) {
-                if (auto supporterIcon = CCSprite::createWithSpriteFrameName("particle_230_001.png")) {
-                    // same height as the star/limited icons
-                    supporterIcon->setScale(12.f / std::max(supporterIcon->getContentHeight(), 1.f));
-                    supporterIcon->setPosition({nameX, 23.f});
-                    supporterIcon->setAnchorPoint({0.f, 0.5f});
-                    cellBg->addChild(supporterIcon);
-                    nameX += supporterIcon->getScaledContentWidth() + 4.f;
-                }
-            }
-            if (banner.isFeatured) {
-                if (auto starIcon = CCSprite::createWithSpriteFrameName("GJ_sStarsIcon_001.png")) {
-                    starIcon->setScale(0.8f);
-                    starIcon->setPosition({nameX, 23.f});
-                    starIcon->setAnchorPoint({0.f, 0.5f});
-                    cellBg->addChild(starIcon);
-                    nameX += starIcon->getContentSize().width * starIcon->getScale() + 4.f;
-                }
-            }
-            if (banner.isLimited) {
-                if (auto limitIcon = CCSprite::createWithSpriteFrameName("GJ_sRecentIcon_001.png")) {
-                    limitIcon->setScale(0.8f);
-                    limitIcon->setPosition({nameX, 23.f});
-                    limitIcon->setAnchorPoint({0.f, 0.5f});
-                    cellBg->addChild(limitIcon);
-                    nameX += limitIcon->getContentSize().width * limitIcon->getScale() + 4.f;
-                }
-            }
+            // tappable icons before the name, each explains what it means
+            auto addIcon = [&](CBBannerIcon type) {
+                auto icon = createBannerIcon(type);
+                icon->setAnchorPoint({0.f, 0.5f});
+                icon->setPosition({nameX, 23.f});
+                cellBg->addChild(icon);
+                nameX += icon->getScaledContentWidth() + 4.f;
+            };
+            if (banner.isSupporterOnly) addIcon(CBBannerIcon::SupporterOnly);
+            if (banner.isFeatured) addIcon(CBBannerIcon::Featured);
+            if (banner.isLimited) addIcon(CBBannerIcon::Limited);
 
             if (banner.isSupporterOnly) {
                 nameLabel->runAction(CCRepeatForever::create(CCSequence::create(
@@ -190,6 +301,8 @@ CBBannerCell* CBBannerCell::create(const CBBannerItem& banner, float width, bool
         }
     }
 
+    // price, then (admin cells) the extra details in the same row
+    float detailX = nameLabel ? nameLabel->getPositionX() + nameLabel->getScaledContentWidth() + 10.f : 20.f;
     if (!banner.isLocal) {
         if (auto price = Label::create(fmt::format("{}", GameToolbox::pointsToString(banner.price)).c_str(), "bigFont.fnt")) {
             price->setAnchorPoint({0.f, 0.5f});
@@ -197,13 +310,9 @@ CBBannerCell* CBBannerCell::create(const CBBannerItem& banner, float width, bool
             price->setPosition({0.f, 0.f});
 
             auto priceNode = CCNode::create();
-            float priceX = 20.f;
-            if (nameLabel) {
-                priceX = nameLabel->getPositionX() + nameLabel->getContentSize().width * nameLabel->getScale() + 10.f;
-            }
-            priceNode->setPosition({priceX, 25.f});
-
+            priceNode->setPosition({detailX, 25.f});
             priceNode->addChild(price);
+            detailX += price->getScaledContentWidth();
 
             if (auto amethystIcon = CCSprite::createWithSpriteFrameName("CB_amethyst_002.png"_spr)) {
                 amethystIcon->setScale(0.5f);
@@ -211,12 +320,60 @@ CBBannerCell* CBBannerCell::create(const CBBannerItem& banner, float width, bool
                 amethystIcon->setPosition({priceWidth + 4.f, 0.f});
                 amethystIcon->setAnchorPoint({0.f, 0.5f});
                 priceNode->addChild(amethystIcon);
+                detailX += 4.f + amethystIcon->getScaledContentWidth();
             }
 
             cellBg->addChild(priceNode);
+            detailX += 8.f;
         }
     }
 
+    if (isAdminCell) {
+        // an approved banner with a new image, rejecting restores the old one
+        if (type == CBBannerCellType::Pending && banner.isResubmission) {
+            if (auto resubLabel = Label::create("Image Change", "goldFont.fnt")) {
+                resubLabel->setAnchorPoint({0.f, 0.5f});
+                resubLabel->setScale(0.4f);
+                resubLabel->setColor({0, 220, 255});
+                resubLabel->setPosition({detailX, 25.f});
+                cellBg->addChild(resubLabel);
+                detailX += resubLabel->getScaledContentWidth() + 8.f;
+            }
+        }
+        // limited stock (pending: what was requested)
+        if (banner.isLimited) {
+            if (auto amountLabel = Label::create(fmt::format("Amount: {}", banner.amount).c_str(), "goldFont.fnt")) {
+                amountLabel->setAnchorPoint({0.f, 0.5f});
+                amountLabel->setLimitLabelWidth(60.f, 0.4f, 0.2f);
+                amountLabel->setPosition({detailX, 25.f});
+                cellBg->addChild(amountLabel);
+                detailX += amountLabel->getScaledContentWidth() + 8.f;
+            }
+        }
+        // full banner details (description, preview, stats)
+        if (auto descBtn = Button::createWithSpriteFrameName("GJ_infoIcon_001.png", [banner](Button*) {
+                if (auto popup = CBViewItemPopup::create(banner)) {
+                    popup->show();
+                }
+            })) {
+            descBtn->setScale(0.5f);
+            descBtn->setAnchorPoint({0.f, 0.5f});
+            descBtn->setPosition({detailX, 25.f});
+            cellBg->addChild(descBtn);
+        }
+    }
+
+    switch (type) {
+        case CBBannerCellType::Shop: cellBg->addShopButtons(); break;
+        case CBBannerCellType::Pending: cellBg->addPendingButtons(); break;
+        case CBBannerCellType::Admin: cellBg->addAdminButtons(); break;
+    }
+
+    return cellBg;
+}
+
+void CBBannerCell::addShopButtons() {
+    auto banner = m_banner;
     if (banner.isLocal) {
         if (auto equipButton = Button::createWithNode(ButtonSprite::create(banner.equipped ? "Unequip" : "Equip", 100.f, true, "goldFont.fnt", banner.equipped ? "GJ_button_06.png" : "GJ_button_02.png", .0f, 1.f), [banner](Button* sender) {
                 if (banner.equipped) {
@@ -236,7 +393,7 @@ CBBannerCell* CBBannerCell::create(const CBBannerItem& banner, float width, bool
                 }
             })) {
             equipButton->setScale(0.6f);
-            cellBg->addChildAtPosition(equipButton, Anchor::BottomRight, {-50.f, 15.f}, false);
+            this->addChildAtPosition(equipButton, Anchor::BottomRight, {-50.f, 15.f}, false);
         }
 
         if (auto deleteButton = Button::createWithNode(ButtonSprite::create("Delete", 100.f, true, "goldFont.fnt", "GJ_button_06.png", .0f, 1.f), [banner](Button* sender) {
@@ -256,16 +413,16 @@ CBBannerCell* CBBannerCell::create(const CBBannerItem& banner, float width, bool
                 });
             })) {
             deleteButton->setScale(0.6f);
-            cellBg->addChildAtPosition(deleteButton, Anchor::BottomRight, {-50.f, 35.f}, false);
+            this->addChildAtPosition(deleteButton, Anchor::BottomRight, {-50.f, 35.f}, false);
         }
     } else {
-        if (auto buyButton = Button::createWithNode(ButtonSprite::create(banner.equipped ? "Unequip" : (banner.owns ? "Equip" : "Buy"), 100.f, true, "goldFont.fnt", banner.equipped ? "GJ_button_06.png" : (banner.owns ? "GJ_button_02.png" : "GJ_button_01.png"), .0f, 1.f), [cellBg, banner](Button* sender) {
+        if (auto buyButton = Button::createWithNode(ButtonSprite::create(banner.equipped ? "Unequip" : (banner.owns ? "Equip" : "Buy"), 100.f, true, "goldFont.fnt", banner.equipped ? "GJ_button_06.png" : (banner.owns ? "GJ_button_02.png" : "GJ_button_01.png"), .0f, 1.f), [this, banner](Button* sender) {
                 if (banner.equipped) {
-                    cellBg->unequipBanner();
+                    this->unequipBanner();
                     return;
                 }
                 if (banner.owns) {
-                    cellBg->applyBanner();
+                    this->applyBanner();
                     return;
                 }
 
@@ -292,12 +449,12 @@ CBBannerCell* CBBannerCell::create(const CBBannerItem& banner, float width, bool
                         true);
                     return;
                 }
-                if (auto popup = CBPurchaseItemPopup::create(cellBg->m_banner)) {
+                if (auto popup = CBPurchaseItemPopup::create(this->m_banner)) {
                     popup->show();
                 }
             })) {
             buyButton->setScale(0.6f);
-            cellBg->addChildAtPosition(buyButton, Anchor::BottomRight, {-50.f, 15.f}, false);
+            this->addChildAtPosition(buyButton, Anchor::BottomRight, {-50.f, 15.f}, false);
         }
 
         if (auto infoBtn = Button::createWithNode(ButtonSprite::create("Info", 100.f, true, "goldFont.fnt", "GJ_button_01.png", .0f, 1.f), [banner](Button* sender) {
@@ -306,11 +463,141 @@ CBBannerCell* CBBannerCell::create(const CBBannerItem& banner, float width, bool
                 }
             })) {
             infoBtn->setScale(0.6f);
-            cellBg->addChildAtPosition(infoBtn, Anchor::BottomRight, {-50.f, 35.f}, false);
+            this->addChildAtPosition(infoBtn, Anchor::BottomRight, {-50.f, 35.f}, false);
         }
     }
 
-    return cellBg;
+}
+
+CCMenu* CBBannerCell::createAdminMenu() {
+    // bottom right, same spot as the shop cell's buttons
+    auto menu = CCMenu::create();
+    menu->ignoreAnchorPointForPosition(false);
+    menu->setAnchorPoint({1.f, 0.5f});
+    menu->setContentSize({140.f, 30.f});
+    menu->setLayout(RowLayout::create()
+            ->setAxisAlignment(AxisAlignment::End)
+            ->setGap(5.f)
+            ->setAutoScale(false));
+    this->addChildAtPosition(menu, Anchor::BottomRight, {-12.f, 25.f}, false);
+    return menu;
+}
+
+void CBBannerCell::addAdminButton(CCMenu* menu, Button* button) {
+    // every admin button the same height, whatever sprite it uses
+    constexpr float kButtonHeight = 28.f;
+    float height = button->getContentHeight();
+    if (height > 0.f) button->setScale(kButtonHeight / height);
+    menu->addChild(button);
+    menu->updateLayout();
+}
+
+void CBBannerCell::addPendingButtons() {
+    auto menu = createAdminMenu();
+    int id = m_banner.id;
+    // plain pointer: the panel owns this cell, a Ref here would keep the panel alive forever
+    auto adminPanel = m_options.adminPanel;
+
+    addAdminButton(menu, Button::createWithNode(
+        CircleButtonSprite::createWithSpriteFrameName("GJ_completesIcon_001.png", 0.8f, CircleBaseColor::Green, CircleBaseSize::Small),
+        [id, adminPanel](Button*) {
+            if (auto popup = CBPendingBannerReasonPopup::create(id, false, adminPanel)) {
+                popup->show();
+            }
+        }));
+
+    addAdminButton(menu, Button::createWithNode(
+        CircleButtonSprite::createWithSpriteFrameName("GJ_deleteIcon_001.png", 0.8f, CircleBaseColor::Red, CircleBaseSize::Small),
+        [id, adminPanel](Button*) {
+            if (auto popup = CBPendingBannerReasonPopup::create(id, true, adminPanel)) {
+                popup->show();
+            }
+        }));
+
+    // preview on a comment cell (both images when it has a non-compact one)
+    auto imageUrl = m_banner.imageUrl;
+    auto nonCompactImageUrl = m_banner.nonCompactImageUrl;
+    addAdminButton(menu, Button::createWithSpriteFrameName("dtrackBtn_search_001.png", [imageUrl, nonCompactImageUrl](Button*) {
+        if (auto preview = CBPreviewBanner::create(imageUrl, nonCompactImageUrl)) {
+            preview->show();
+        }
+    }));
+}
+
+void CBBannerCell::addAdminButtons() {
+    auto menu = createAdminMenu();
+
+    // preview of both comment modes, only when the banner has both images
+    if (!m_banner.nonCompactImageUrl.empty()) {
+        auto imageUrl = m_banner.imageUrl;
+        auto nonCompactImageUrl = m_banner.nonCompactImageUrl;
+        addAdminButton(menu, Button::createWithSpriteFrameName("dtrackBtn_search_001.png", [imageUrl, nonCompactImageUrl](Button*) {
+            if (auto preview = CBPreviewBanner::create(imageUrl, nonCompactImageUrl)) {
+                preview->show();
+            }
+        }));
+    }
+
+    // feature toggle: an empty star unfeatures, a full star features
+    addAdminButton(menu, Button::createWithNode(
+        CircleButtonSprite::createWithSpriteFrameName(
+            m_banner.isFeatured ? "GJ_noStarsIcon_001.png" : "GJ_starsIcon_001.png", 1.0f, CircleBaseColor::Green, CircleBaseSize::Small),
+        [this](Button* sender) { this->toggleFeatured(sender); }));
+
+    auto adminData = m_options.adminData;
+    addAdminButton(menu, Button::createWithSpriteFrameName("sideBtn_options_001.png", [adminData](Button*) {
+        if (auto popup = CBAdminBannerManagePopup::create(adminData)) {
+            popup->show();
+        }
+    }));
+}
+
+void CBBannerCell::toggleFeatured(Button* button) {
+    bool newState = !m_banner.isFeatured;
+    auto accountData = argon::getGameAccountData();
+
+    Ref<UploadActionPopup> popup = UploadActionPopup::create(nullptr, newState ? "Featuring banner..." : "Unfeaturing banner...");
+    popup->show();
+
+    Ref<CBBannerCell> self = this;
+    Ref<Button> btn = button;
+    int bannerId = m_banner.id;
+    arc::spawn([self, btn, bannerId, newState, popup, accountData]() -> arc::Future<> {
+        auto authToken = co_await comment::argonToken(accountData);
+        if (authToken.empty()) {
+            queueInMainThread([popup] {
+                if (popup && popup->getParent()) popup->showFailMessage("Authentication failed.");
+            });
+            co_return;
+        }
+
+        auto body = matjson::makeObject({{"accountId", accountData.accountId},
+            {"argonToken", authToken},
+            {"bannerId", bannerId},
+            {"featured", newState}});
+        auto response = co_await utils::web::WebRequest().bodyJSON(body).post(fmt::format("{}/admin/setFeatured", comment::baseUrl));
+        if (!response.ok()) {
+            auto error = comment::getResponseMessage(response, "Failed to update banner.");
+            queueInMainThread([popup, error] {
+                if (popup && popup->getParent()) popup->showFailMessage(error);
+            });
+            co_return;
+        }
+
+        queueInMainThread([self, btn, bannerId, newState, popup] {
+            self->m_banner.isFeatured = newState;
+            self->m_options.adminData["isFeatured"] = newState;
+            float scale = btn->getScale();
+            btn->setDisplayNode(CircleButtonSprite::createWithSpriteFrameName(
+                newState ? "GJ_noStarsIcon_001.png" : "GJ_starsIcon_001.png", 1.0f, CircleBaseColor::Green, CircleBaseSize::Small));
+            btn->setScale(scale);
+            if (self->m_options.onFeaturedChanged) self->m_options.onFeaturedChanged(bannerId, newState);
+            if (popup && popup->getParent()) {
+                popup->showSuccessMessage(newState ? "Banner featured!" : "Banner unfeatured.");
+            }
+        });
+        co_return;
+    });
 }
 
 void CBBannerCell::showPurchaseConfirm() {

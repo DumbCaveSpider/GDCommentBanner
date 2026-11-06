@@ -8,6 +8,7 @@
 #include <Geode/utils/web.hpp>
 #include <dankmeme.argon/argon.hpp>
 #include "include/CBConstant.hpp"
+#include "CBBannerPreview.hpp"
 
 using namespace geode::prelude;
 
@@ -33,6 +34,8 @@ bool CBPurchaseItemPopup::init(const CBBannerItem& banner) {
     }
 
     this->setTitle(m_banner.name.c_str(), "bigFont.fnt", 0.7f);
+    // tappable icons left of the title, and the title tint
+    CBBannerCell::decoratePopupTitle(m_mainLayer, m_title, m_banner);
 
     if (m_closeBtn) m_closeBtn->removeFromParent();
 
@@ -59,9 +62,11 @@ bool CBPurchaseItemPopup::init(const CBBannerItem& banner) {
     }
 
     if (!m_banner.imageUrl.empty()) {
-        auto bannerSprite = CBBannerCell::createCommentPreviewButton(m_banner.imageUrl, {345.f, 65.f}, m_banner.nonCompactImageUrl);
-        if (bannerSprite) {
-            m_mainLayer->addChildAtPosition(bannerSprite, Anchor::Center, {0.f, 15.f}, false);
+        // the banner on comment cells, fits between the price and the description
+        if (auto preview = CBBannerPreview::create(m_banner.imageUrl, m_banner.nonCompactImageUrl, {345.f, 65.f})) {
+            m_mainLayer->addChildAtPosition(preview, Anchor::Center, {0.f, 15.f}, false);
+            // Non-Compact / Comment Overlay toggles, top right
+            m_mainLayer->addChildAtPosition(preview->createToggles(), Anchor::TopRight, {-8.f, -8.f}, false);
         }
     }
 
