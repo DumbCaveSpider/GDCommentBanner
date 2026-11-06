@@ -15,6 +15,7 @@
 - Added Supporter Only Banners and Badge
 - Added Gifting Amethyst to other players
 - Added toggle to view compact or non-compact banners on the shop
+- Refacoted the Notification & Logs Popup
 - Supporter: Delete/Modify your banners' images
 
 ## v0.1.8-beta.1
