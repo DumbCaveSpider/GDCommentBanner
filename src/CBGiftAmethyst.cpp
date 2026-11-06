@@ -6,6 +6,7 @@
 #include <Geode/binding/GameManager.hpp>
 #include <Geode/binding/SimplePlayer.hpp>
 #include <Geode/ui/NineSlice.hpp>
+#include <Geode/ui/MDPopup.hpp>
 #include <Geode/utils/web.hpp>
 #include <dankmeme.argon/argon.hpp>
 
@@ -83,21 +84,17 @@ CBGiftAmethyst::Column CBGiftAmethyst::createColumn() {
         amethyst->setScale(0.5f);
         column.balanceRow->addChild(amethyst);
     }
-    column.balanceLabel = Label::create("...", "bigFont.fnt");
+    column.balanceLabel = CCCounterLabel::create(0, "bigFont.fnt", FormatterType::Integer);
     column.balanceLabel->setScale(0.45f);
+    column.balanceLabel->setVisible(false);  // until the balance is loaded
     column.balanceRow->addChild(column.balanceLabel);
     column.balanceRow->updateLayout();
     column.menu->addChild(column.balanceRow);
 
-    // row 3: the amount input on your side, an empty spacer on theirs (added by init)
-
-    column.afterLabel = Label::create("", "bigFont.fnt");
-    column.afterLabel->setScale(0.45f);
     return column;
 }
 
 void CBGiftAmethyst::addColumn(Column const& column, CCPoint offset) {
-    column.menu->addChild(column.afterLabel);
     column.menu->updateLayout();
     m_mainLayer->addChildAtPosition(column.menu, Anchor::Center, offset, false);
 
@@ -112,7 +109,10 @@ void CBGiftAmethyst::setUser(Column& column, std::string const& name, int balanc
     column.nameLabel->setString(name.c_str());
     column.nameLabel->setLimitLabelWidth(kColumnWidth - 30.f, 0.6f, 0.2f);
     column.nameRow->updateLayout();
-    column.balanceLabel->setString(GameToolbox::pointsToString(balance).c_str());
+    column.balance = balance;
+    column.balanceLabel->setTargetCount(balance);
+    column.balanceLabel->fastUpdateCounter();
+    column.balanceLabel->setVisible(true);
     column.balanceRow->updateLayout();
 }
 
@@ -121,6 +121,31 @@ bool CBGiftAmethyst::init(int targetAccountId) {
     m_targetAccountId = targetAccountId;
 
     this->setTitle("Gift Amethysts");
+
+    // how gifting works cuz yes
+    auto infoBtn = Button::createWithSpriteFrameName("GJ_infoIcon_001.png", [](Button*) {
+        MDPopup::create(
+            "Gifting Amethysts",
+            fmt::format(
+                "You can send some of your <cp>Amethysts</c> to another player as a gift.\n\n"
+                "### How to gift\n"
+                "- Type how many amethysts you want to gift.\n"
+                "- Check the preview: <cr>your balance</c> counts down and <cg>theirs</c> counts up.\n"
+                "- Press <cg>Gift</c> and confirm.\n\n"
+                "- You can gift between <cy>{}</c> and <cy>{}</c> amethysts at a time.\n"
+                "- The player must already have at least <cy>{}</c> amethysts to receive gifts.\n"
+                "- You can't gift more than you have, or gift to yourself.\n"
+                "- Gifts are sent instantly and <cr>can't be undone</c>.\n\n"
+                "Both of you get a notification in your <cl>Logs</c>.",
+                GameToolbox::pointsToString(kMinGiftAmount),
+                GameToolbox::pointsToString(kMaxGiftAmount),
+                GameToolbox::pointsToString(kMinRecipientBalance)),
+            "OK")
+            ->show();
+    });
+    infoBtn->setScale(0.8f);
+    infoBtn->setZOrder(2);
+    m_mainLayer->addChildAtPosition(infoBtn, Anchor::TopRight, {-20.f, -20.f}, false);
     addSideArt(m_mainLayer, SideArt::All, SideArtStyle::PopupBlue, false);
 
     // your column, with your local icon
@@ -129,7 +154,7 @@ bool CBGiftAmethyst::init(int targetAccountId) {
     applyIcon(m_myColumn.player, gm->getPlayerFrame(), gm->getPlayerColor(), gm->getPlayerColor2(), gm->getPlayerGlowColor(), gm->getPlayerGlow());
     m_amountInput = TextInput::create(110.f, "Amount");
     m_amountInput->setCommonFilter(CommonFilter::Int);
-    m_amountInput->setMaxCharCount(9);
+    m_amountInput->setMaxCharCount(8);  // up to 10,000,000
     m_amountInput->setCallback([this](std::string const&) { this->updatePreview(); });
     m_amountInput->setEnabled(false);
     m_myColumn.menu->addChild(m_amountInput);
@@ -150,10 +175,9 @@ bool CBGiftAmethyst::init(int targetAccountId) {
     m_statusLabel->setLimitLabelWidth(m_mainLayer->getContentSize().width - 30.f, 0.7f, 0.1f);
     m_mainLayer->addChildAtPosition(m_statusLabel, Anchor::Bottom, {0.f, 55.f}, false);
 
-    m_giftBtn = Button::createWithNode(ButtonSprite::create("Gift", "goldFont.fnt", "GJ_button_01.png", .8f), [this](Button* sender) { this->onGift(sender); });
+    m_giftBtn = Button::createWithNode(ButtonSprite::create("Gift", "goldFont.fnt", "GJ_button_04.png", .8f), [this](Button* sender) { this->onGift(sender); });
     m_giftBtn->setEnabled(false);
-    m_giftBtn->setCascadeOpacityEnabled(true);  // so the dimmed look reaches the sprite
-    m_giftBtn->setOpacity(150);
+
     m_buttonMenu->addChildAtPosition(m_giftBtn, Anchor::Bottom, {0.f, 25.f});
 
     m_loadingCircle = cue::LoadingCircle::create(true);
@@ -226,8 +250,6 @@ void CBGiftAmethyst::onUsersLoaded(std::string myName, int myBalance, matjson::V
     int targetBalance = static_cast<int>(target["amethyst"].asInt().unwrapOr(0));
 
     m_loaded = true;
-    m_myBalance = myBalance;
-    m_targetBalance = targetBalance;
     m_targetName = targetName;
 
     setUser(m_myColumn, myName, myBalance);
@@ -247,6 +269,14 @@ void CBGiftAmethyst::onUsersLoaded(std::string myName, int myBalance, matjson::V
     updatePreview();
 }
 
+int CBGiftAmethyst::myBalance() const {
+    return m_myColumn.balance;
+}
+
+int CBGiftAmethyst::targetBalance() const {
+    return m_targetColumn.balance;
+}
+
 int CBGiftAmethyst::getAmount() const {
     return numFromString<int>(m_amountInput->getString()).unwrapOr(0);
 }
@@ -254,42 +284,50 @@ int CBGiftAmethyst::getAmount() const {
 void CBGiftAmethyst::updatePreview() {
     if (!m_loaded) return;
 
-    bool canReceive = m_targetBalance >= kMinRecipientBalance;
+    bool canReceive = targetBalance() >= kMinRecipientBalance;
     int amount = getAmount();
-    bool valid = canReceive && amount > 0 && amount <= m_myBalance;
+    bool valid = canReceive && isGiftAmountAllowed(amount) && amount <= myBalance();
 
+    // the balances count to what they'd be after the gift: yours down (red), theirs up (green)
     if (amount > 0) {
-        // your balance goes down (red), theirs goes up (green)
-        m_myColumn.afterLabel->setString(fmt::format("{} (-{})", GameToolbox::pointsToString(std::max(0, m_myBalance - amount)), GameToolbox::pointsToString(amount)).c_str());
-        m_myColumn.afterLabel->setColor(amount > m_myBalance ? ccGRAY : ccRED);
-        m_targetColumn.afterLabel->setString(fmt::format("{} (+{})", GameToolbox::pointsToString(m_targetBalance + amount), GameToolbox::pointsToString(amount)).c_str());
-        m_targetColumn.afterLabel->setColor(canReceive ? ccGREEN : ccGRAY);
+        m_myColumn.balanceLabel->setTargetCount(std::max(0, myBalance() - amount));
+        m_myColumn.balanceLabel->setColor(amount > myBalance() ? ccGRAY : ccRED);
+        m_targetColumn.balanceLabel->setTargetCount(targetBalance() + amount);
+        m_targetColumn.balanceLabel->setColor(canReceive ? ccGREEN : ccGRAY);
     } else {
-        m_myColumn.afterLabel->setString(GameToolbox::pointsToString(m_myBalance).c_str());
-        m_myColumn.afterLabel->setColor(ccWHITE);
-        m_targetColumn.afterLabel->setString(GameToolbox::pointsToString(m_targetBalance).c_str());
-        m_targetColumn.afterLabel->setColor(ccWHITE);
+        m_myColumn.balanceLabel->setTargetCount(myBalance());
+        m_myColumn.balanceLabel->setColor(ccWHITE);
+        m_targetColumn.balanceLabel->setTargetCount(targetBalance());
+        m_targetColumn.balanceLabel->setColor(ccWHITE);
     }
-    m_myColumn.afterLabel->setLimitLabelWidth(kColumnWidth - 10.f, 0.45f, 0.2f);
-    m_targetColumn.afterLabel->setLimitLabelWidth(kColumnWidth - 10.f, 0.45f, 0.2f);
+    startBalanceRowUpdates();
 
     if (!canReceive) {
         m_statusLabel->setString(fmt::format("{} needs at least {} amethysts to receive gifts.", m_targetName, GameToolbox::pointsToString(kMinRecipientBalance)).c_str());
         m_statusLabel->setColor(ccRED);
-    } else if (amount > m_myBalance) {
+    } else if (amount > myBalance()) {
         m_statusLabel->setString("You don't have enough amethysts.");
+        m_statusLabel->setColor(ccRED);
+    } else if (amount > 0 && !isGiftAmountAllowed(amount)) {
+        m_statusLabel->setString(fmt::format("You can gift between {} and {} amethysts at a time.",
+            GameToolbox::pointsToString(kMinGiftAmount),
+            GameToolbox::pointsToString(kMaxGiftAmount))
+                .c_str());
         m_statusLabel->setColor(ccRED);
     } else {
         m_statusLabel->setString("");
     }
 
+    // green when the gift can be sent, grey when it can't
     m_giftBtn->setEnabled(valid);
-    m_giftBtn->setOpacity(valid ? 255 : 150);
+    if (auto sprite = typeinfo_cast<ButtonSprite*>(m_giftBtn->getDisplayNode())) {
+        sprite->updateBGImage(valid ? "GJ_button_01.png" : "GJ_button_04.png");
+    }
 }
 
 void CBGiftAmethyst::onGift(CCObject*) {
     int amount = getAmount();
-    if (!m_loaded || amount <= 0 || amount > m_myBalance || m_targetBalance < kMinRecipientBalance) return;
+    if (!m_loaded || !isGiftAmountAllowed(amount) || amount > myBalance() || targetBalance() < kMinRecipientBalance) return;
 
     Ref<CBGiftAmethyst> self = this;
     createQuickPopup(
@@ -346,4 +384,22 @@ void CBGiftAmethyst::sendGift(int amount) {
         });
         co_return;
     });
+}
+
+void CBGiftAmethyst::startBalanceRowUpdates() {
+    if (m_updatingRows) return;
+    m_updatingRows = true;
+    this->schedule(schedule_selector(CBGiftAmethyst::updateBalanceRows));
+}
+
+void CBGiftAmethyst::updateBalanceRows(float) {
+    // the counter labels change width as they count, keep the amethyst and number centred
+    m_myColumn.balanceRow->updateLayout();
+    m_targetColumn.balanceRow->updateLayout();
+
+    auto done = [](CCCounterLabel* label) { return label->m_currentCount == label->m_targetCount; };
+    if (done(m_myColumn.balanceLabel) && done(m_targetColumn.balanceLabel)) {
+        this->unschedule(schedule_selector(CBGiftAmethyst::updateBalanceRows));
+        m_updatingRows = false;
+    }
 }
