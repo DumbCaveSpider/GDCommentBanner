@@ -3,6 +3,7 @@
 #include <Geode/Geode.hpp>
 #include <Geode/binding/UploadActionPopup.hpp>
 #include <Geode/ui/Button.hpp>
+#include <Geode/ui/TextInput.hpp>
 
 using namespace geode::prelude;
 
@@ -43,34 +44,32 @@ enum class CBBannerIcon {
     SupporterOnly,
     Featured,
     Limited,
-    Favorite,  // in the viewer's favorites
+    Favorite,
 };
 
 enum class CBBannerCellType {
-    Shop,     // shop / profile / local banners: buy, equip, info (or equip/delete for local)
-    Pending,  // admin panel, Pending tab: approve, reject, preview
-    Admin,    // admin panel, Banners tab: preview, feature, manage
+    Shop,     // shop / profile / local banners
+    Pending,  // approve, reject, preview
+    Admin,    // preview, feature, manage
+    Manage,   // name/description/price inputs, save, delete
 };
 
 struct CBBannerCellOptions {
     CBBannerCellType type = CBBannerCellType::Shop;
-    // show the plain banner image instead of the comment cell mockup
     bool disableCommentPreview = false;
-    // Pending: the approve/reject popups report back to the admin panel
     CBAdminPanelLayer* adminPanel = nullptr;
-    // Admin: raw banner json, passed to CBAdminBannerManagePopup
     matjson::Value adminData;
-    // Admin: called after the banner was featured/unfeatured
     std::function<void(int bannerId, bool featured)> onFeaturedChanged;
+    std::function<void(int bannerId, std::string name, std::string description, int price)> onSave;
+    std::function<void(int bannerId)> onDelete;
+    bool canDelete = true;
 };
 
 class CBBannerCell : public cocos2d::CCLayer {
 public:
-    // disableCommentPreview: show the plain banner image instead of the comment cell mockup
+    // show the plain banner image instead of the comment cell mockup
     static CBBannerCell* create(const CBBannerItem& banner, float width, bool disableCommentPreview = false);
     static CBBannerCell* create(const CBBannerItem& banner, float width, CBBannerCellOptions options);
-    // Comment cell mockup of the banner that fits inside maxSize, tap it to switch compact/non-compact
-    // tappable icon, shows what it means when clicked
     static Button* createBannerIcon(CBBannerIcon icon);
     // the banner's icons left of a popup title and the matching title tint
     static void decoratePopupTitle(CCNode* mainLayer, Label* title, CBBannerItem const& banner);
@@ -87,10 +86,11 @@ private:
     void addShopButtons();
     void addPendingButtons();
     void addAdminButtons();
-    // the right-hand button row of the admin cell types, every button sized alike
+    void addManageButtons();
     CCMenu* createAdminMenu();
     void addAdminButton(CCMenu* menu, Button* button);
     void toggleFeatured(Button* button);
+    void setFeatured(Button* button, bool featured);
 
     void showPurchaseConfirm();
     void applyBanner();
@@ -99,4 +99,7 @@ private:
 
     CBBannerItem m_banner;
     CBBannerCellOptions m_options;
+    TextInput* m_nameInput = nullptr;
+    TextInput* m_descInput = nullptr;
+    TextInput* m_priceInput = nullptr;
 };

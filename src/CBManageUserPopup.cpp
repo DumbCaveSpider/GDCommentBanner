@@ -1,4 +1,5 @@
 #include "CBManageUserPopup.hpp"
+#include "CBBannerCell.hpp"
 #include <dankmeme.argon/argon.hpp>
 #include <Geode/binding/UploadActionPopup.hpp>
 #include <Geode/binding/ProfilePage.hpp>
@@ -323,93 +324,18 @@ void CBManageUserPopup::fetchUserBanners() {
 }
 
 void CBManageUserPopup::createBannerCell(matjson::Value const& banner) {
-    auto cell = CCLayer::create();
-    cell->setContentSize({290.f, 40.f});
-
-    std::string name = banner["name"].asString().unwrapOr("Unknown");
-    std::string description = banner["description"].asString().unwrapOr("");
-    std::string imageUrl = banner["imageUrl"].asString().unwrapOr("");
-    if (!imageUrl.empty()) {
-        imageUrl = fmt::format("{}", imageUrl);
-    }
-
-    auto sprite = comment::createBannerNode(imageUrl, {355.f, 50.f});
-    sprite->setPosition({145.f, 20.f});
-    cell->addChild(sprite, -2);
-
-    //auto bg = CCLayerGradient::create({0, 0, 0, 255}, {0, 0, 0, 0}, {1, 0});
-    //bg->setContentSize(cell->getContentSize());
-    //bg->setAnchorPoint({0, 0});
-    //cell->addChild(bg, -1);
-
-    auto nameInput = TextInput::create(240.f, "Name", "bigFont.fnt");
-    nameInput->setAnchorPoint({0, 0.5f});
-    nameInput->setTextAlign(TextInputAlign::Left);
-    nameInput->setCommonFilter(CommonFilter::Name);
-    nameInput->setPosition({10.f, 27.f});
-    nameInput->setString(name);
-    nameInput->setScale(0.5f);
-    cell->addChild(nameInput);
-
-    auto descInput = TextInput::create(240.f, "Description", "chatFont.fnt");
-    descInput->setAnchorPoint({0, 0.5f});
-    descInput->setTextAlign(TextInputAlign::Left);
-    descInput->setCommonFilter(CommonFilter::Any);
-    descInput->setPosition({10.f, 12.f});
-    descInput->setString(description);
-    descInput->setScale(0.5f);
-    cell->addChild(descInput);
-
-    int bannerId = banner["id"].asInt().unwrapOr(0);
-    int price = banner["price"].asInt().unwrapOr(0);
-
-    auto bannerMenu = CCMenu::create();
-    bannerMenu->setPosition({0, 0});
-
-    auto amyIcon = CCSprite::createWithSpriteFrameName("CB_amethyst_002.png"_spr);
-    amyIcon->setScale(0.5f);
-    amyIcon->setAnchorPoint({1.f, 0.5f});
-    amyIcon->setPosition({168.f, 20.f});
-    bannerMenu->addChild(amyIcon);
-
-    auto priceInput = TextInput::create(60.f, "Price");
-    priceInput->setCommonFilter(CommonFilter::Int);
-    priceInput->setString(numToString(price));
-    priceInput->setScale(0.7f);
-    priceInput->setAnchorPoint({0, 0.5f});
-    priceInput->setPosition({170.f, 20.f});
-    bannerMenu->addChild(priceInput);
-
-    auto savePriceSpr = CircleButtonSprite::createWithSpriteFrameName("GJ_completesIcon_001.png", 0.7f, CircleBaseColor::Green, CircleBaseSize::Small);
-    savePriceSpr->setScale(0.7f);
-    auto savePriceBtn = Button::createWithNode(
-        savePriceSpr,
-        [this, bannerId, nameInput, descInput, priceInput](Button*) {
-            this->updateBannerDetails(bannerId, nameInput->getString(), descInput->getString(), numFromString<int>(priceInput->getString()).unwrapOr(0));
-        });
-    savePriceBtn->setAnchorPoint({0.5f, 0.5f});
-    savePriceBtn->setPosition({235.f, 20.f});
-    bannerMenu->addChild(savePriceBtn);
-
-    auto deleteBtn = Button::createWithSpriteFrameName("GJ_resetBtn_001.png", [this, bannerId](Button*) {
-            createQuickPopup("Delete Banner", "Are you sure you want to <cr>delete this banner</c>?", "Cancel", "Delete", [this, bannerId](FLAlertLayer*, bool btn2) {
-                if (btn2) {
-                    this->deleteBanner(bannerId);
-                }
-            });
-        });
-    deleteBtn->setAnchorPoint({0.5f, 0.5f});
-    deleteBtn->setPosition({270.f, 20.f});
-
-    bool isAdmin = Mod::get()->getSavedValue<bool>("is_admin", false);
-    if (!isAdmin) {
-        deleteBtn->setEnabled(false);
-        deleteBtn->setColor({150, 150, 150});
-    }
-
-    bannerMenu->addChild(deleteBtn);
-
-    cell->addChild(bannerMenu);
+    // plain pointer: this popup owns the list, a Ref here would keep it alive forever
+    auto self = this;
+    auto cell = CBBannerCell::create(CBBannerItem::fromJson(banner), m_bannersList->getContentWidth(), {
+        .type = CBBannerCellType::Manage,
+        .disableCommentPreview = true,
+        .onSave = [self](int bannerId, std::string name, std::string description, int price) {
+            self->updateBannerDetails(bannerId, name, description, price);
+        },
+        .onDelete = [self](int bannerId) { self->deleteBanner(bannerId); },
+        .canDelete = Mod::get()->getSavedValue<bool>("is_admin", false),
+    });
+    if (!cell) return;
 
     m_bannersList->setCellColor(ccColor4B{0, 0, 0, 0});
     m_bannersList->addCell(cell);

@@ -22,8 +22,7 @@ static constexpr LeaderboardTabInfo kTabs[] = {
     {LeaderboardTab::Earners, "Top Earners", "earners", "No earners found.",
         "<cy>Top Earners</c> only shows the total <cp>Amethysts</c> earned from users purchasing <cg>banners</c> these users created with <co>taxes</c>.\n"
         "<cy>This leaderboard does not include the amethysts earned from beating rated levels</c>"},
-    {LeaderboardTab::Sales, "Top Sales", "sales", "No sales found.",
-        "<cy>Top Sales</c> shows the users whose <cg>banners</c> have been <cl>purchased</c> the most times."},
+    {LeaderboardTab::Sales, "Top Sales", "sales", "No sales found.", "<cy>Top Sales</c> shows the users whose <cg>banners</c> have been <cl>purchased</c> the most times."},
     {LeaderboardTab::Rate, "Top Rate", "rate", "No earning rates found.",
         "<cy>Top Rate</c> ranks users by how many <cp>Amethysts</c> their <cg>banners</c> will earn in the next <cl>monthly payout</c>.\n"
         "Each banner earns <cg>5%</c> of its price once equipped, <cg>+5%</c> for every <cy>5 users</c> equipping it, up to <cg>30%</c>."},
@@ -63,10 +62,10 @@ bool CBLeaderboardLayer::init() {
         this->addChild(m_background);
     }
 
-    // temp fix when geode::addBackButton is broken
-    auto backBtn = Button::createWithSpriteFrameName("GJ_arrow_03_001.png", [this](Button*) { this->keyBackClicked(); });
-    backBtn->setZOrder(CCScene::get()->getHighestChildZ() + 1);
-    this->addChildAtPosition(backBtn, Anchor::TopLeft, {25.f, -25.f}, false);
+    addBackButton(this, BackButtonStyle::Pink);
+    // auto backBtn = Button::createWithSpriteFrameName("GJ_arrow_03_001.png", [this](Button*) { this->keyBackClicked(); });
+    // backBtn->setZOrder(CCScene::get()->getHighestChildZ() + 1);
+    // this->addChildAtPosition(backBtn, Anchor::TopLeft, {25.f, -25.f}, false);
     addSideArt(this, SideArt::All);
 
     m_list = cue::ListNode::create({356.f, 220}, cue::Brown, cue::ListBorderStyle::SlimLevels);
@@ -80,7 +79,6 @@ bool CBLeaderboardLayer::init() {
     }
 
     // tabs
-    
 
     createTabs();
 
@@ -214,10 +212,10 @@ void CBLeaderboardLayer::fetchLeaderboard() {
                 }
 
                 auto cell = CBUserCell::create(data, 356.f, {
-                    .rank = static_cast<int>(i + 1),
-                    .showBanner = showBanner,
-                    .showSalesCount = tab == LeaderboardTab::Sales,
-                });
+                                                                .rank = static_cast<int>(i + 1),
+                                                                .showBanner = showBanner,
+                                                                .showSalesCount = tab == LeaderboardTab::Sales,
+                                                            });
                 if (cell && retainedSelf->m_list) {
                     retainedSelf->m_list->addCell(cell);
                 }

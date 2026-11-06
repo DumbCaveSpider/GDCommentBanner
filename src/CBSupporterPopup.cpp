@@ -3,6 +3,8 @@
 #include <Geode/binding/UploadActionPopup.hpp>
 #include <dankmeme.argon/argon.hpp>
 #include "Geode/ui/General.hpp"
+#include <Geode/ui/MDPopup.hpp>
+#include <Geode/ui/Button.hpp>
 #include "include/CBConstant.hpp"
 
 CBSupporterPopup* CBSupporterPopup::create() {
@@ -20,6 +22,24 @@ bool CBSupporterPopup::init() {
 
     this->setTitle("Link Supporter Membership");
     addSideArt(m_mainLayer, SideArt::All, SideArtStyle::PopupBlue, false);
+
+    auto infoBtn = Button::createWithSpriteFrameName("GJ_infoIcon_001.png", [](Button*) {
+        MDPopup::create(
+            "Supporter Benefits",
+            "Supporting <cp>Comment Banners</c> on <cl>Ko-fi</c> helps pay for the servers, and gives you:\n\n"
+            "- <cy>Supporter Only</c> banners: submit banners only supporters can buy, and filter the shop for them.\n"
+            "- <cg>Change your banner's image</c> after it's approved (it's reviewed again before going live).\n"
+            "- A separate <cy>non-compact</c> image (1500x350) for your banners, shown in non-compact comments.\n"
+            "- <cr>Delete</c> your own banners (buyers are refunded).\n"
+            "- Upload images up to <cg>5MB</c> instead of 500KiB, for higher quality banners.\n\n"
+            "Supporter perks last while your <cl>Ko-fi</c> membership is active. "
+            "Link it here with the <cy>email</c> or <cy>Discord username</c> you used on Ko-fi.",
+            "OK")
+            ->show();
+    });
+    infoBtn->setScale(0.8f);
+    m_mainLayer->addChildAtPosition(infoBtn, Anchor::TopRight, {-20.f, -20.f}, false);
+    infoBtn->setZOrder(2);
 
     auto infoLabel = Label::create("Enter the email or Discord username you used on Ko-fi.", "chatFont.fnt");
     infoLabel->setLimitLabelWidth(m_mainLayer->getContentWidth() - 30.f, 0.7f, 0.1f);

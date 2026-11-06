@@ -218,6 +218,7 @@ CBBannerCell* CBBannerCell::create(const CBBannerItem& banner, float width, CBBa
 
     auto type = cellBg->m_options.type;
     bool isAdminCell = type != CBBannerCellType::Shop;
+    bool isManage = type == CBBannerCellType::Manage;
 
     // @geode-ignore(unknown-resource)
     if (auto background = NineSlice::createWithSpriteFrameName("geode.loader/tab-bg.png")) {
@@ -268,10 +269,13 @@ CBBannerCell* CBBannerCell::create(const CBBannerItem& banner, float width, CBBa
                 cellBg->addChild(icon);
                 nameX += icon->getScaledContentWidth() + 4.f;
             };
-            if (banner.isSupporterOnly) addIcon(CBBannerIcon::SupporterOnly);
-            if (banner.isFeatured) addIcon(CBBannerIcon::Featured);
-            if (banner.isLimited) addIcon(CBBannerIcon::Limited);
-            if (banner.isFavorite) addIcon(CBBannerIcon::Favorite);
+            // the manage cell has the name input there instead
+            if (!isManage) {
+                if (banner.isSupporterOnly) addIcon(CBBannerIcon::SupporterOnly);
+                if (banner.isFeatured) addIcon(CBBannerIcon::Featured);
+                if (banner.isLimited) addIcon(CBBannerIcon::Limited);
+                if (banner.isFavorite) addIcon(CBBannerIcon::Favorite);
+            }
 
             if (banner.isSupporterOnly) {
                 nameLabel->runAction(CCRepeatForever::create(CCSequence::create(
@@ -297,10 +301,31 @@ CBBannerCell* CBBannerCell::create(const CBBannerItem& banner, float width, CBBa
             nameLabel->setPosition({nameX, 25.f});
             nameLabel->setLimitLabelWidth(100.f, 0.5f, 0.2f);
             cellBg->addChild(nameLabel);
+
+            if (isManage) {
+                // editable instead: same spot, after the icons
+                nameLabel->setVisible(false);
+                cellBg->m_nameInput = TextInput::create(220.f, "Name", "bigFont.fnt");
+                cellBg->m_nameInput->setCommonFilter(CommonFilter::Name);
+                cellBg->m_nameInput->setString(banner.name);
+                cellBg->m_nameInput->setScale(0.5f);
+                cellBg->m_nameInput->setAnchorPoint({0.f, 0.5f});
+                cellBg->m_nameInput->setPosition({nameX, 25.f});
+                cellBg->addChild(cellBg->m_nameInput, 1);
+            }
         }
     }
 
-    if (!banner.isLocal && !banner.username.empty()) {
+    if (isManage) {
+        // the description instead of "By user" (the popup is already about that user)
+        cellBg->m_descInput = TextInput::create(400.f, "Description", "chatFont.fnt");
+        cellBg->m_descInput->setCommonFilter(CommonFilter::Any);
+        cellBg->m_descInput->setString(banner.description);
+        cellBg->m_descInput->setScale(0.4f);
+        cellBg->m_descInput->setAnchorPoint({0.f, 0.5f});
+        cellBg->m_descInput->setPosition({10.f, 10.f});
+        cellBg->addChild(cellBg->m_descInput, 1);
+    } else if (!banner.isLocal && !banner.username.empty()) {
         if (auto usernameLabel = Button::createWithLabel(fmt::format("By {}", banner.username).c_str(), "goldFont.fnt", [banner](Button* sender) {
                 CBProfileBannerPopup::create(banner.accountId, banner.username)->show();
             })) {
@@ -313,7 +338,28 @@ CBBannerCell* CBBannerCell::create(const CBBannerItem& banner, float width, CBBa
 
     // price, then (admin cells) the extra details in the same row
     float detailX = nameLabel ? nameLabel->getPositionX() + nameLabel->getScaledContentWidth() + 10.f : 20.f;
-    if (!banner.isLocal) {
+    if (cellBg->m_nameInput) {
+        detailX = cellBg->m_nameInput->getPositionX() + cellBg->m_nameInput->getScaledContentWidth() + 6.f;
+    }
+    if (isManage) {
+        // editable price with the amethyst after it
+        cellBg->m_priceInput = TextInput::create(110.f, "Price", "bigFont.fnt");
+        cellBg->m_priceInput->setCommonFilter(CommonFilter::Int);
+        cellBg->m_priceInput->setString(numToString(banner.price));
+        cellBg->m_priceInput->setScale(0.5f);
+        cellBg->m_priceInput->setAnchorPoint({0.f, 0.5f});
+        cellBg->m_priceInput->setPosition({detailX, 25.f});
+        cellBg->addChild(cellBg->m_priceInput, 1);
+        detailX += cellBg->m_priceInput->getScaledContentWidth() + 3.f;
+
+        if (auto amethystIcon = CCSprite::createWithSpriteFrameName("CB_amethyst_002.png"_spr)) {
+            amethystIcon->setScale(0.5f);
+            amethystIcon->setAnchorPoint({0.f, 0.5f});
+            amethystIcon->setPosition({detailX, 25.f});
+            cellBg->addChild(amethystIcon);
+            detailX += amethystIcon->getScaledContentWidth() + 8.f;
+        }
+    } else if (!banner.isLocal) {
         if (auto price = Label::create(fmt::format("{}", GameToolbox::pointsToString(banner.price)).c_str(), "bigFont.fnt")) {
             price->setAnchorPoint({0.f, 0.5f});
             price->setScale(0.5f);
@@ -338,7 +384,7 @@ CBBannerCell* CBBannerCell::create(const CBBannerItem& banner, float width, CBBa
         }
     }
 
-    if (isAdminCell) {
+    if (isAdminCell && !isManage) {
         // an approved banner with a new image, rejecting restores the old one
         if (type == CBBannerCellType::Pending && banner.isResubmission) {
             if (auto resubLabel = Label::create("Image Change", "goldFont.fnt")) {
@@ -377,6 +423,7 @@ CBBannerCell* CBBannerCell::create(const CBBannerItem& banner, float width, CBBa
         case CBBannerCellType::Shop: cellBg->addShopButtons(); break;
         case CBBannerCellType::Pending: cellBg->addPendingButtons(); break;
         case CBBannerCellType::Admin: cellBg->addAdminButtons(); break;
+        case CBBannerCellType::Manage: cellBg->addManageButtons(); break;
     }
 
     return cellBg;
@@ -554,8 +601,54 @@ void CBBannerCell::addAdminButtons() {
     }));
 }
 
+void CBBannerCell::addManageButtons() {
+    auto menu = createAdminMenu();
+    int id = m_banner.id;
+
+    // save name / description / price
+    addAdminButton(menu, Button::createWithNode(
+        CircleButtonSprite::createWithSpriteFrameName("GJ_completesIcon_001.png", 0.8f, CircleBaseColor::Green, CircleBaseSize::Small),
+        [this, id](Button*) {
+            if (!m_options.onSave) return;
+            m_options.onSave(id, m_nameInput->getString(), m_descInput->getString(),
+                numFromString<int>(m_priceInput->getString()).unwrapOr(m_banner.price));
+        }));
+
+    // delete (admins only, greyed out for staff)
+    auto deleteBtn = Button::createWithNode(
+        CircleButtonSprite::createWithSpriteFrameName("GJ_deleteIcon_001.png", 0.8f, CircleBaseColor::Red, CircleBaseSize::Small),
+        [this, id](Button*) {
+            if (!m_options.onDelete) return;
+            auto onDelete = m_options.onDelete;
+            createQuickPopup("Delete Banner", fmt::format("Are you sure you want to <cr>delete</c> <cy>{}</c>?", m_banner.name), "Cancel", "Delete",
+                [onDelete, id](FLAlertLayer*, bool confirmed) {
+                    if (confirmed) onDelete(id);
+                });
+        });
+    if (!m_options.canDelete) {
+        deleteBtn->setEnabled(false);
+        deleteBtn->setCascadeColorEnabled(true);
+        deleteBtn->setColor({120, 120, 120});
+    }
+    addAdminButton(menu, deleteBtn);
+}
+
 void CBBannerCell::toggleFeatured(Button* button) {
     bool newState = !m_banner.isFeatured;
+    Ref<CBBannerCell> self = this;
+    Ref<Button> btn = button;
+    createQuickPopup(
+        newState ? "Feature Banner" : "Unfeature Banner",
+        newState
+            ? fmt::format("Are you sure you want to <cy>feature</c> <cg>{}</c>?\nIt gets the <cy>featured</c> star and shows up in the <cl>Featured</c> filter.", m_banner.name)
+            : fmt::format("Are you sure you want to <cr>unfeature</c> <cg>{}</c>?", m_banner.name),
+        "Cancel", newState ? "Feature" : "Unfeature",
+        [self, btn, newState](FLAlertLayer*, bool confirmed) {
+            if (confirmed) self->setFeatured(btn, newState);
+        });
+}
+
+void CBBannerCell::setFeatured(Button* button, bool newState) {
     auto accountData = argon::getGameAccountData();
 
     Ref<UploadActionPopup> popup = UploadActionPopup::create(nullptr, newState ? "Featuring banner..." : "Unfeaturing banner...");

@@ -78,11 +78,7 @@ class $modify(GJGarageLayer) {
                         ->show();
                     return;
                 }
-                auto scene = CCScene::create();
-                if (auto shop = CBShopLayer::create()) {
-                    scene->addChild(shop);
-                    CCDirector::sharedDirector()->pushScene(CCTransitionMoveInT::create(0.5f, scene));
-                }
+                pushSceneWithLayer(CBShopLayer::create());
             });
             shardMenu->addChild(shopButton);
             shardMenu->updateLayout();

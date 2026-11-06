@@ -162,7 +162,7 @@ bool CBSubmitBannerPopup::init(bool isLocal, bool isEdit, CBEditBannerData const
         auto row = CCMenu::create();
         row->setAnchorPoint({0.f, 0.5f});
         row->setContentSize({100.f, 30.f});
-        row->setLayout(RowLayout::create()->setGap(0.f)->setAutoScale(false)->setAxisAlignment(AxisAlignment::Start));
+        row->setLayout(RowLayout::create()->setGap(5.f)->setAutoScale(false)->setAxisAlignment(AxisAlignment::Start));
 
         auto label = Label::create(text, "bigFont.fnt");
         label->setLimitLabelWidth(row->getContentWidth() - 30.f, 0.4f, 0.2f);
@@ -547,7 +547,6 @@ void CBSubmitBannerPopup::submitEdit() {
     int bannerId = m_editData.id;
     bool isLimited = m_limitedToggler->isToggled();
     auto amount = m_amountInput->getString();
-    // only sent when the toggle is shown, otherwise the server keeps the current value
     std::optional<bool> isSupporterOnly;
     if (m_supporterOnlyToggler) isSupporterOnly = m_supporterOnlyToggler->isToggled();
 

@@ -563,10 +563,10 @@ bool CBShopLayer::init() {
         this->addChild(m_background);
     }
 
-    // temp fix when geode::addBackButton is broken
-    auto backBtn = Button::createWithSpriteFrameName("GJ_arrow_03_001.png", [this](Button*) { this->keyBackClicked(); });
-    backBtn->setZOrder(CCScene::get()->getHighestChildZ() + 1);
-    this->addChildAtPosition(backBtn, Anchor::TopLeft, {25.f, -25.f}, false);
+    addBackButton(this, BackButtonStyle::Pink);
+    // auto backBtn = Button::createWithSpriteFrameName("GJ_arrow_03_001.png", [this](Button*) { this->keyBackClicked(); });
+    // backBtn->setZOrder(CCScene::get()->getHighestChildZ() + 1);
+    // this->addChildAtPosition(backBtn, Anchor::TopLeft, {25.f, -25.f}, false);
     addSideArt(this, SideArt::Bottom);
     addSideArt(this, SideArt::TopLeft);
 
@@ -613,9 +613,7 @@ bool CBShopLayer::init() {
     }
 
     if (auto leaderboardButton = Button::createWithNode(CircleButtonSprite::createWithSpriteFrameName("CB_leaderboard.png"_spr, 1.f, CircleBaseColor::DarkPurple, CircleBaseSize::Small), [this](Button* sender) {
-            auto scene = CCScene::create();
-            scene->addChild(CBLeaderboardLayer::create());
-            CCDirector::sharedDirector()->pushScene(CCTransitionFade::create(0.5f, scene));
+            pushSceneWithLayer(CBLeaderboardLayer::create());
         })) {
         bottomRightMenu->addChild(leaderboardButton);
         bottomRightMenu->updateLayout();
