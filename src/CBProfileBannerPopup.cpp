@@ -1,5 +1,7 @@
 #include "CBProfileBannerPopup.hpp"
 #include "CBBannerCell.hpp"
+#include "CBUserCell.hpp"
+#include "CBGiftAmethyst.hpp"
 #include <dankmeme.argon/argon.hpp>
 #include "include/CBConstant.hpp"
 #include <Geode/ui/Scrollbar.hpp>
@@ -26,6 +28,8 @@ bool CBProfileBannerPopup::init(int targetAccountId, const std::string& targetUs
 
     std::string titleStr = targetUsername.empty() ? "User Banners" : fmt::format("{}'s Banners", targetUsername);
     this->setTitle(titleStr, "goldFont.fnt");
+    // moved up to make room for the stats row underneath
+    m_title->setPositionY(m_title->getPositionY() + 5.f);
 
     auto profileBtn = Button::createWithSpriteFrameName("GJ_profileButton_001.png", [this](Button* sender) {
         ProfilePage::create(m_targetAccountId, false)->show();
@@ -33,12 +37,25 @@ bool CBProfileBannerPopup::init(int targetAccountId, const std::string& targetUs
     profileBtn->setScale(0.7f);
     m_buttonMenu->addChildAtPosition(profileBtn, Anchor::TopRight, {-3.f, -3.f});
 
-    m_list = cue::ListNode::create({340.f, 220.f}, {0, 0, 0, 0}, cue::ListBorderStyle::Comments);
+    // gift amethysts to this user (not on your own profile)
+    if (targetAccountId != argon::getGameAccountData().accountId) {
+        auto giftBtn = Button::createWithNode(
+            CircleButtonSprite::createWithSpriteFrameName("CB_amethyst_002.png"_spr, 1.f, CircleBaseColor::DarkPurple, CircleBaseSize::Small),
+            [this](Button*) {
+                if (auto popup = CBGiftAmethyst::create(m_targetAccountId)) {
+                    popup->show();
+                }
+            });
+        m_buttonMenu->addChildAtPosition(giftBtn, Anchor::TopRight, {-43.f, -3.f});
+    }
+
+    // 10px shorter and lower than before, the stats row sits above it
+    m_list = cue::ListNode::create({340.f, 210.f}, {0, 0, 0, 0}, cue::ListBorderStyle::Comments);
     if (m_list) {
-        m_mainLayer->addChildAtPosition(m_list, Anchor::Center, {0.f, -5.f}, false);
+        m_mainLayer->addChildAtPosition(m_list, Anchor::Center, {0.f, -10.f}, false);
 
         auto scrollbar = Scrollbar::create(m_list->getScrollLayer());
-        m_mainLayer->addChildAtPosition(scrollbar, Anchor::Center, {340.f / 2 + 5.f, -5.f}, false);
+        m_mainLayer->addChildAtPosition(scrollbar, Anchor::Center, {340.f / 2 + 5.f, -10.f}, false);
     }
 
     auto listBg = NineSlice::create("square02_001.png");
@@ -77,8 +94,54 @@ bool CBProfileBannerPopup::init(int targetAccountId, const std::string& targetUs
 
     updatePaginationButtons();
     fetchBanners();
+    fetchStats();
 
     return true;
+}
+
+void CBProfileBannerPopup::fetchStats() {
+    auto accountData = argon::getGameAccountData();
+    auto accountId = accountData.accountId;
+    // /getUser needs a logged in account
+    if (accountId <= 0) return;
+
+    Ref<CBProfileBannerPopup> retainedSelf = this;
+    int targetAccountId = m_targetAccountId;
+    arc::spawn([retainedSelf, accountId, accountData, targetAccountId]() -> arc::Future<> {
+        auto authToken = co_await comment::argonToken(accountData);
+        if (authToken.empty()) co_return;
+
+        auto body = matjson::makeObject({{"accountId", accountId},
+            {"argonToken", authToken},
+            {"targetAccountId", targetAccountId}});
+        auto response = co_await utils::web::WebRequest().bodyJSON(body).post(fmt::format("{}/getUser", comment::baseUrl));
+        if (!response.ok()) co_return;
+
+        auto json = response.json();
+        if (json.isErr()) co_return;
+
+        queueInMainThread([retainedSelf, user = json.unwrap()] {
+            if (retainedSelf->getParent()) {
+                retainedSelf->showStats(user);
+            }
+        });
+        co_return;
+    });
+}
+
+void CBProfileBannerPopup::showStats(matjson::Value const& user) {
+    if (m_statsNode) m_statsNode->removeFromParent();
+
+    CBUserData data;
+    data.amethyst = static_cast<int>(user["amethyst"].asInt().unwrapOr(0));
+    data.monthlyEarnings = static_cast<int>(user["monthly_earnings"].asInt().unwrapOr(0));
+    data.totalEarned = static_cast<int>(user["totalEarned"].asInt().unwrapOr(0));
+    data.totalSales = static_cast<int>(user["totalSales"].asInt().unwrapOr(0));
+
+    m_statsNode = CBUserCell::createStatsNode(data);
+    m_statsNode->setAnchorPoint({0.5f, 0.5f});
+    m_statsNode->setScale(1.2f);
+    m_mainLayer->addChildAtPosition(m_statsNode, Anchor::Top, {0.f, -33.f}, false);
 }
 
 void CBProfileBannerPopup::onNextPage(cocos2d::CCObject* sender) {

@@ -109,7 +109,7 @@ bool CBSubmitBannerPopup::init(bool isLocal, bool isEdit, CBEditBannerData const
     m_descInput = TextInput::create(300.f, "Description");
     m_descInput->setLabel("Description");
     m_descInput->setCommonFilter(CommonFilter::Any);
-    m_buttonMenu->addChildAtPosition(m_descInput, Anchor::Center, {0.f, -10.f});
+    m_buttonMenu->addChildAtPosition(m_descInput, Anchor::Center, {0.f, -15.f});
 
     // Price & Limited row
     auto row1 = CCMenu::create();
@@ -129,7 +129,7 @@ bool CBSubmitBannerPopup::init(bool isLocal, bool isEdit, CBEditBannerData const
     row1->addChild(m_amountInput);
     row1->updateLayout();
 
-    m_buttonMenu->addChildAtPosition(row1, Anchor::Center, {0.f, -50.f}, {0.5, 0.5});
+    m_buttonMenu->addChildAtPosition(row1, Anchor::Center, {0.f, -57.f}, {0.5, 0.5});
 
     auto costRow = CCMenu::create();
     costRow->setContentSize({300.f, 20.f});

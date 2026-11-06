@@ -16,10 +16,12 @@ private:
     void onSelectDiscord(CCObject*);
     void setUseDiscord(bool useDiscord);
     void onSubmit(CCObject*);
+    void updateStatusLabel(bool isSupporter);
 
     TextInput* m_emailInput = nullptr;
     TextInput* m_discordInput = nullptr;
     ButtonSprite* m_emailTabSprite = nullptr;
     ButtonSprite* m_discordTabSprite = nullptr;
+    Label* m_statusLabel = nullptr;
     bool m_useDiscord = false;
 };

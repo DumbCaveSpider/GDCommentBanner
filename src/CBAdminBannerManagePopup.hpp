@@ -15,7 +15,6 @@ protected:
     TextInput* m_descInput;
     TextInput* m_priceInput;
     TextInput* m_amountInput = nullptr;
-    CCMenuItemToggler* m_featuredToggler = nullptr;
 
     bool init(matjson::Value const& bannerData);
 

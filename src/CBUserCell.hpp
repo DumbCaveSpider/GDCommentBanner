@@ -40,9 +40,11 @@ class CBUserCell : public CCNode {
 public:
     static CBUserCell* create(CBUserData const& data, float width, CBUserCellOptions options = {});
 
+    // amethysts, +x/mo and sales in a row (anchor 0, 0.5), also used by CBProfileBannerPopup
+    static CCNode* createStatsNode(CBUserData const& data, bool showSalesCount = false);
+
 private:
     bool init(CBUserData const& data, float width, CBUserCellOptions options);
-    CCNode* createStatsRow();
 
     CBUserData m_data;
     CBUserCellOptions m_options;

@@ -14,6 +14,10 @@ class CBProfileBannerPopup : public Popup {
 public:
     void fetchBanners();
 private:
+    void fetchStats();
+    void showStats(matjson::Value const& user);
+
+    CCNode* m_statsNode = nullptr;
     int m_targetAccountId;
     std::string m_targetUsername;
     cue::ListNode* m_list = nullptr;

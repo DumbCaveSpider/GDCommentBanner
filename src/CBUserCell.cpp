@@ -7,7 +7,7 @@
 namespace {
     constexpr float kCellHeight = 40.f;
 
-    // a stat with an icon in front, e.g. [amethyst] 12,345
+    // a stat with an icon in front
     CCNode* createStat(char const* frameName, std::string const& text, ccColor3B color) {
         auto node = CCNode::create();
         node->setAnchorPoint({0.f, 0.5f});
@@ -60,21 +60,21 @@ CBUserCell* CBUserCell::create(CBUserData const& data, float width, CBUserCellOp
     return nullptr;
 }
 
-CCNode* CBUserCell::createStatsRow() {
+CCNode* CBUserCell::createStatsNode(CBUserData const& data, bool showSalesCount) {
     auto row = CCNode::create();
-    row->setAnchorPoint({1.f, 0.5f});
+    row->setAnchorPoint({0.f, 0.5f});
     row->setContentSize({0.f, 14.f});
     row->setLayout(RowLayout::create()
             ->setGap(8.f)
             ->setAutoScale(false)
             ->setAutoGrowAxis(0.f)
-            ->setAxisAlignment(AxisAlignment::End));
+            ->setAxisAlignment(AxisAlignment::Start));
 
-    row->addChild(createStat("CB_amethyst_001.png"_spr, GameToolbox::pointsToString(m_data.amethyst), {255, 255, 255}));
-    row->addChild(createStat("particle_337_001.png", fmt::format("+{}/mo", GameToolbox::pointsToString(m_data.monthlyEarnings)), {100, 255, 100}));
+    row->addChild(createStat("CB_amethyst_001.png"_spr, GameToolbox::pointsToString(data.amethyst), {255, 255, 255}));
+    row->addChild(createStat("particle_337_001.png", fmt::format("+{}/mo", GameToolbox::pointsToString(data.monthlyEarnings)), {100, 255, 100}));
     row->addChild(createStat("particle_336_001.png",
-        m_options.showSalesCount ? fmt::format("{} Sales", GameToolbox::pointsToString(m_data.totalSales))
-                                 : GameToolbox::pointsToString(m_data.totalEarned),
+        showSalesCount ? fmt::format("{} Sales", GameToolbox::pointsToString(data.totalSales))
+                       : GameToolbox::pointsToString(data.totalEarned),
         {150, 255, 150}));
 
     row->updateLayout();
@@ -139,7 +139,7 @@ bool CBUserCell::init(CBUserData const& data, float width, CBUserCellOptions opt
     if (m_options.onManage) {
         auto onManage = m_options.onManage;
         auto manageBtn = Button::createWithNode(
-            EditorButtonSprite::createWithSpriteFrameName("followBtnOff_001.png", 1.f, EditorBaseColor::Gray),
+            CircleButtonSprite::createWithSpriteFrameName("followBtnOff_001.png", 1.f, CircleBaseColor::Blue),
             [onManage](Button*) { onManage(); });
         manageBtn->setScale(0.75f);
         manageBtn->setPosition({width - 22.f, kCellHeight / 2.f});
@@ -147,18 +147,13 @@ bool CBUserCell::init(CBUserData const& data, float width, CBUserCellOptions opt
         rightEdge = width - 42.f;
     }
 
-    // stats on the right
-    auto stats = this->createStatsRow();
-    stats->setPosition({rightEdge, kCellHeight / 2.f});
-    this->addChild(stats, 1);
-    float statsLeft = rightEdge - stats->getScaledContentWidth() - 8.f;
+    float availableWidth = rightEdge - x;
+    constexpr float kNameY = 27.f;
+    constexpr float kStatsY = 12.f;
 
-    // username (opens their profile), with the role or badge next to/under it
-    bool hasRoleLine = m_options.showRole;
-    float nameY = hasRoleLine ? 26.f : kCellHeight / 2.f;
-
+    // username (opens their profile)
     auto nameLabel = Label::create(m_data.username.c_str(), "goldFont.fnt");
-    nameLabel->setLimitLabelWidth(std::max(40.f, statsLeft - x - 18.f), 0.6f, 0.2f);
+    nameLabel->setLimitLabelWidth(std::max(40.f, availableWidth - 60.f), 0.6f, 0.2f);
     int accountId = m_data.accountId;
     std::string username = m_data.username;
     auto nameBtn = Button::createWithNode(nameLabel, [accountId, username](Button*) {
@@ -167,27 +162,40 @@ bool CBUserCell::init(CBUserData const& data, float width, CBUserCellOptions opt
         }
     });
     nameBtn->setAnchorPoint({0.f, 0.5f});
-    nameBtn->setPosition({x, nameY});
+    nameBtn->setPosition({x, kNameY});
     menu->addChild(nameBtn);
+    float nameRight = x + nameBtn->getScaledContentWidth() + 4.f;
 
+    // badge, as tall as the name
     if (m_data.isAdmin || m_data.isStaff) {
         if (auto badge = CCSprite::createWithSpriteFrameName(m_data.isAdmin ? "CB_admin_badge.png"_spr : "CB_staff_badge.png"_spr)) {
-            badge->setScale(0.07f);
+            float nameHeight = nameLabel->getScaledContentHeight();
+            badge->setScale(nameHeight / std::max(badge->getContentHeight(), 1.f));
             badge->setAnchorPoint({0.f, 0.5f});
-            badge->setPosition({x + nameBtn->getScaledContentWidth() + 4.f, nameY});
+            badge->setPosition({nameRight, kNameY});
             this->addChild(badge, 1);
+            nameRight += badge->getScaledContentWidth() + 4.f;
         }
     }
 
-    if (hasRoleLine) {
+    // role on the name line (admin panel)
+    if (m_options.showRole) {
         std::string role = m_data.isAdmin ? "Admin" : (m_data.isStaff ? "Staff" : "User");
         auto roleLabel = Label::create(role.c_str(), "chatFont.fnt");
         roleLabel->setScale(0.4f);
         roleLabel->setAnchorPoint({0.f, 0.5f});
-        roleLabel->setPosition({x, 12.f});
+        roleLabel->setPosition({nameRight, kNameY - 1.f});
         roleLabel->setColor(m_data.isAdmin ? ccColor3B{255, 100, 100} : (m_data.isStaff ? ccColor3B{100, 255, 100} : ccColor3B{200, 200, 200}));
         this->addChild(roleLabel, 1);
     }
+
+    // stats under the name
+    auto stats = createStatsNode(m_data, m_options.showSalesCount);
+    if (stats->getContentWidth() > availableWidth) {
+        stats->setScale(availableWidth / stats->getContentWidth());
+    }
+    stats->setPosition({x, kStatsY});
+    this->addChild(stats, 1);
 
     return true;
 }

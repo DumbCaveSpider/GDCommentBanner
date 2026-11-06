@@ -9,6 +9,7 @@ using namespace geode::prelude;
 enum class LeaderboardTab {
     Earners = 1,
     Sales = 2,
+    Rate = 3,
 };
 
 class CBLeaderboardLayer : public CCLayer {

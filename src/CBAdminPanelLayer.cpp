@@ -1,5 +1,6 @@
 #include "CBAdminPanelLayer.hpp"
 #include <Geode/utils/web.hpp>
+#include <cue/Colors.hpp>
 #include <dankmeme.argon/argon.hpp>
 #include "Geode/ui/BasedButtonSprite.hpp"
 #include "Geode/ui/General.hpp"
@@ -37,7 +38,7 @@ bool CBAdminPanelLayer::init() {
     this->setTitle("Comment Banners Admin Panel");
     addSideArt(m_mainLayer, SideArt::Top, SideArtStyle::PopupBlue);
 
-    m_list = cue::ListNode::create({380.f, 190.f}, {0, 0, 0, 0}, cue::ListBorderStyle::CommentsBlue);
+    m_list = cue::ListNode::create({380.f, 190.f}, cue::DarkBrown, cue::ListBorderStyle::CommentsBlue);
     if (m_list) {
         m_mainLayer->addChildAtPosition(m_list, Anchor::Center, {0.f, -25.f}, false);
 
@@ -469,6 +470,8 @@ void CBAdminPanelLayer::renderPage() {
             bool isLimited = item["isLimited"].asBool().unwrapOr(false);
             bool isFeatured = item["isFeatured"].asBool().unwrapOr(false);
             int amount = item["amount"].asInt().unwrapOr(0);
+            // sorted to the top by the server
+            bool creatorIsSupporter = item["creatorIsSupporter"].asBool().unwrapOr(false);
             std::string imageUrl = item["imageUrl"].asString().unwrapOr("");
             if (!imageUrl.empty()) {
                 imageUrl = fmt::format("{}{}", comment::baseUrl, imageUrl);
@@ -479,10 +482,13 @@ void CBAdminPanelLayer::renderPage() {
             auto cell = CCLayer::create();
             cell->setContentSize({width, cellHeight});
 
-            // Background
+            // Background, cyan for a supporter's banner
             if (auto background = NineSlice::createWithSpriteFrameName("geode.loader/tab-bg.png")) {
                 background->setContentSize({width - 5, cellHeight});
                 background->setPosition({width / 2.f, cellHeight / 2.f});
+                if (creatorIsSupporter) {
+                    background->setColor({0, 220, 255});
+                }
                 if (isFeatured) {
                     background->runAction(CCRepeatForever::create(CCSequence::create(
                         CCTintTo::create(1.f, 255, 255, 50),
@@ -649,13 +655,13 @@ void CBAdminPanelLayer::renderPage() {
         for (size_t i = start; i < end; ++i) {
             auto item = jsonArray[i];
             auto cell = CBUserCell::create(CBUserData::fromJson(item), 380.f, {
-                .showRole = true,
-                .onManage = [item]() {
-                    if (auto popup = CBManageUserPopup::create(item)) {
-                        popup->show();
-                    }
-                },
-            });
+                                                                                  .showRole = true,
+                                                                                  .onManage = [item]() {
+                                                                                      if (auto popup = CBManageUserPopup::create(item)) {
+                                                                                          popup->show();
+                                                                                      }
+                                                                                  },
+                                                                              });
             if (cell) {
                 m_list->addCell(cell);
             }
@@ -674,6 +680,7 @@ void CBAdminPanelLayer::renderPage() {
             bool isFeatured = item["isFeatured"].asBool().unwrapOr(false);
             int amount = item["amount"].asInt().unwrapOr(0);
             std::string imageUrl = item["imageUrl"].asString().unwrapOr("");
+            std::string nonCompactImageUrl = item["nonCompactImageUrl"].asString().unwrapOr("");
 
             float width = 380.f;
             float cellHeight = 96.f;
@@ -693,10 +700,11 @@ void CBAdminPanelLayer::renderPage() {
                 cell->addChild(background);
             }
 
-            // Image
-            auto sprite = comment::createBannerNode(imageUrl, {344.f, 104.f});
-            sprite->setPosition({width / 2.f, cellHeight - 30.f});
-            cell->addChild(sprite);
+            // Image, in a holder so the compact/non-compact toggle can swap it
+            auto imageHolder = CCNode::create();
+            imageHolder->setPosition({width / 2.f, cellHeight - 30.f});
+            imageHolder->addChild(comment::createBannerNode(imageUrl, {344.f, 104.f}));
+            cell->addChild(imageHolder);
 
             // Name
             auto nameLabel = Label::create(name.c_str(), "bigFont.fnt");
@@ -777,14 +785,85 @@ void CBAdminPanelLayer::renderPage() {
             menu->setContentSize({100.f, 30.f});
             menu->setPosition({320.f, 20.f});
             menu->setLayout(RowLayout::create()
-                    ->setAxisAlignment(AxisAlignment::Center)
-                    ->setGap(5.f));
+                    ->setAxisAlignment(AxisAlignment::End)
+                    ->setGap(5.f)
+                    ->setAutoScale(false));
 
-            auto manageBtn = Button::createWithNode(
-                ButtonSprite::create("Manage", "goldFont.fnt", "GJ_button_01.png", 0.5f),
-                [item](Button*) {
-                    CBAdminBannerManagePopup::create(item)->show();
+            // compact/non-compact toggle, only when the banner has both images
+            if (!nonCompactImageUrl.empty()) {
+                auto showingNonCompact = std::make_shared<bool>(false);
+                Ref<CCNode> holder = imageHolder;
+                auto toggleBtn = Button::createWithSpriteFrameName("threadBtn_copy_001.png",
+                    [holder, showingNonCompact, imageUrl, nonCompactImageUrl](Button*) {
+                        *showingNonCompact = !*showingNonCompact;
+                        holder->removeAllChildren();
+                        holder->addChild(comment::createBannerNode(*showingNonCompact ? nonCompactImageUrl : imageUrl, {344.f, 104.f}));
+                        Notification::create(*showingNonCompact ? "Showing non-compact image" : "Showing compact image", NotificationIcon::Info, 1.f)->show();
+                    });
+                toggleBtn->setScale(0.7f);
+                menu->addChild(toggleBtn);
+            }
+
+            // feature toggle: an empty star unfeatures, a full star features
+            auto featured = std::make_shared<bool>(isFeatured);
+            auto featureSprite = [](bool isFeatured) {
+                return CircleButtonSprite::createWithSpriteFrameName(
+                    isFeatured ? "GJ_noStarsIcon_001.png" : "GJ_starsIcon_001.png", 1.0f, CircleBaseColor::Green, CircleBaseSize::Small);
+            };
+            int bannerId = id;
+            Ref<CBAdminPanelLayer> self = this;
+            auto featureBtn = Button::createWithNode(featureSprite(isFeatured), [self, bannerId, featured, featureSprite](Button* sender) {
+                Ref<Button> button = sender;
+                bool newState = !*featured;
+                auto accountData = argon::getGameAccountData();
+
+                Ref<UploadActionPopup> popup = UploadActionPopup::create(nullptr, newState ? "Featuring banner..." : "Unfeaturing banner...");
+                popup->show();
+
+                arc::spawn([self, bannerId, newState, featured, featureSprite, button, popup, accountData]() -> arc::Future<> {
+                    auto authToken = co_await comment::argonToken(accountData);
+                    if (authToken.empty()) {
+                        queueInMainThread([popup] {
+                            if (popup && popup->getParent()) popup->showFailMessage("Authentication failed.");
+                        });
+                        co_return;
+                    }
+
+                    auto body = matjson::makeObject({{"accountId", accountData.accountId},
+                        {"argonToken", authToken},
+                        {"bannerId", bannerId},
+                        {"featured", newState}});
+                    auto response = co_await utils::web::WebRequest().bodyJSON(body).post(fmt::format("{}/admin/setFeatured", comment::baseUrl));
+                    if (!response.ok()) {
+                        auto error = comment::getResponseMessage(response, "Failed to update banner.");
+                        queueInMainThread([popup, error] {
+                            if (popup && popup->getParent()) popup->showFailMessage(error);
+                        });
+                        co_return;
+                    }
+
+                    queueInMainThread([self, bannerId, newState, featured, featureSprite, button, popup] {
+                        *featured = newState;
+                        button->setDisplayNode(featureSprite(newState));
+                        // keep the cached list in sync so paging doesn't show the old state
+                        for (auto& entry : self->m_currentData) {
+                            if (entry["id"].asInt().unwrapOr(0) == bannerId) {
+                                entry["isFeatured"] = newState;
+                            }
+                        }
+                        if (popup && popup->getParent()) {
+                            popup->showSuccessMessage(newState ? "Banner featured!" : "Banner unfeatured.");
+                        }
+                    });
+                    co_return;
                 });
+            });
+            featureBtn->setScale(0.7f);
+            menu->addChild(featureBtn);
+
+            auto manageBtn = Button::createWithSpriteFrameName("sideBtn_options_001.png", [item](Button*) {
+                CBAdminBannerManagePopup::create(item)->show();
+            });
             menu->addChild(manageBtn);
 
             cell->addChild(menu);

@@ -93,6 +93,8 @@ CBBannerCell* CBBannerCell::create(const CBBannerItem& banner, float width, bool
         ccColor3B bgColor = {255, 255, 255};
         if (banner.equipped) {
             bgColor = {255, 165, 0};  // Orange
+        } else if (banner.isSupporterOnly) {
+            bgColor = {0, 220, 255};  // Cyan, supporter only
         } else if (banner.owns || banner.isLocal) {
             bgColor = {0, 200, 0};  // Green
         }
@@ -121,6 +123,16 @@ CBBannerCell* CBBannerCell::create(const CBBannerItem& banner, float width, bool
         if (nameLabel) {
             nameLabel->setAnchorPoint({0.f, 0.5f});
             float nameX = 10.f;
+            if (banner.isSupporterOnly) {
+                if (auto supporterIcon = CCSprite::createWithSpriteFrameName("particle_230_001.png")) {
+                    // same height as the star/limited icons
+                    supporterIcon->setScale(12.f / std::max(supporterIcon->getContentHeight(), 1.f));
+                    supporterIcon->setPosition({nameX, 23.f});
+                    supporterIcon->setAnchorPoint({0.f, 0.5f});
+                    cellBg->addChild(supporterIcon);
+                    nameX += supporterIcon->getScaledContentWidth() + 4.f;
+                }
+            }
             if (banner.isFeatured) {
                 if (auto starIcon = CCSprite::createWithSpriteFrameName("GJ_sStarsIcon_001.png")) {
                     starIcon->setScale(0.8f);
@@ -140,7 +152,12 @@ CBBannerCell* CBBannerCell::create(const CBBannerItem& banner, float width, bool
                 }
             }
 
-            if (banner.isFeatured && banner.isLimited) {
+            if (banner.isSupporterOnly) {
+                nameLabel->runAction(CCRepeatForever::create(CCSequence::create(
+                    CCTintTo::create(1.f, 0, 220, 255),
+                    CCTintTo::create(1.f, 255, 255, 255),
+                    nullptr)));
+            } else if (banner.isFeatured && banner.isLimited) {
                 nameLabel->runAction(CCRepeatForever::create(CCSequence::create(
                     CCTintTo::create(1.f, 255, 255, 50),
                     CCTintTo::create(1.f, 255, 150, 255),

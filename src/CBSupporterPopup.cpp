@@ -48,14 +48,41 @@ bool CBSupporterPopup::init() {
     m_discordInput->setCommonFilter(CommonFilter::Any);
     m_mainLayer->addChildAtPosition(m_discordInput, Anchor::Center, {0.f, -15.f}, false);
 
+    // Submit + Get Supporter buttons at the bottom
+    auto bottomMenu = CCMenu::create();
+    bottomMenu->setContentSize({280.f, 40.f});
+    bottomMenu->setLayout(RowLayout::create()->setGap(10.f));
+
     auto submitBtn = CCMenuItemSpriteExtra::create(
         ButtonSprite::create("Submit", "goldFont.fnt", "GJ_button_01.png", .8f),
         this,
         menu_selector(CBSupporterPopup::onSubmit));
-    m_buttonMenu->addChildAtPosition(submitBtn, Anchor::Bottom, {0.f, 25.f}, false);
+    bottomMenu->addChild(submitBtn);
+
+    auto supporterBtn = Button::createWithNode(
+        ButtonSprite::create("Get Supporter", "goldFont.fnt", "GJ_button_03.png", .8f),
+        [](Button*) {
+            utils::web::openLinkInBrowser("https://ko-fi.com/arcticwoof");
+            Notification::create("Opened Ko-fi in your browser.", NotificationIcon::Info)->show();
+        });
+    bottomMenu->addChild(supporterBtn);
+
+    bottomMenu->updateLayout();
+    m_mainLayer->addChildAtPosition(bottomMenu, Anchor::Bottom, {0.f, 25.f}, {0.5f, 0.5f});
+
+    // label to indicate if the user is already a supporter
+    m_statusLabel = Label::create("", "bigFont.fnt");
+    m_mainLayer->addChildAtPosition(m_statusLabel, Anchor::Bottom, {0.f, 55.f}, false);
+    updateStatusLabel(comment::isUserSupporter());
 
     setUseDiscord(false);
     return true;
+}
+
+void CBSupporterPopup::updateStatusLabel(bool isSupporter) {
+    m_statusLabel->setString(isSupporter ? "You are a Supporter!" : "You are not a Supporter yet");
+    m_statusLabel->setColor(isSupporter ? ccColor3B{100, 255, 100} : ccColor3B{255, 165, 0});
+    m_statusLabel->setLimitLabelWidth(m_mainLayer->getContentWidth() - 40.f, 0.45f, 0.1f);
 }
 
 void CBSupporterPopup::onSelectEmail(CCObject*) {
@@ -134,6 +161,7 @@ void CBSupporterPopup::onSubmit(CCObject*) {
 
         queueInMainThread([retainedSelf, popup, isSupporter, message] {
             Mod::get()->setSavedValue("is_supporter", isSupporter);
+            retainedSelf->updateStatusLabel(isSupporter);
             if (popup && popup->getParent()) {
                 if (isSupporter) {
                     popup->showSuccessMessage(message);

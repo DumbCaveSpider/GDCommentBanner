@@ -9,9 +9,12 @@
 - Added Disable Animated Background
 - Added Disable Banner Leaderboard
 - Added Top Sales on the Leaderboard
+- Added Top Rate on the Leaderboard
 - Added Comment Preview, you can now preview the banner with the comment on it
 - Fixed bug where leaving the shop and navigating the shop breaks the shop
 - Added Supporter Only Banners and Badge
+- Added Gifting Amethyst to other players
+- Added toggle to view compact or non-compact banners on the shop
 - Supporter: Delete/Modify your banners' images
 
 ## v0.1.8-beta.1

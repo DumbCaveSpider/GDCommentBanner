@@ -27,7 +27,7 @@ namespace {
         if (type == "APPROVED") return {"party", "GJ_completesIcon_001.png", green};
         if (type == "REJECTED") return {"mail", "GJ_deleteIcon_001.png", red};
         if (type == "BANNER_SOLD") return {"trophy", "GJ_sStarsIcon_001.png", green};
-        if (type == "BANNER_PAYOUT" || type == "AMETHYST_REWARD" || type == "ADMIN_AMETHYST_CHANGE")
+        if (type == "BANNER_PAYOUT" || type == "AMETHYST_REWARD" || type == "ADMIN_AMETHYST_CHANGE" || type == "AMETHYST_GIFT_RECEIVED")
             return {"chest", "GJ_sStarsIcon_001.png", pink};
         if (type == "FEATURED") return {"star", "GJ_starsIcon_001.png", gold};
         if (type == "UNFEATURED") return {"star", "GJ_starsIcon_001.png", {200, 200, 200}};

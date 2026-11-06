@@ -7,6 +7,7 @@
 #include <Geode/utils/web.hpp>
 #include <Geode/ui/Scrollbar.hpp>
 #include <Geode/ui/Button.hpp>
+#include <cue/Colors.hpp>
 #include <cue/RepeatingBackground.hpp>
 
 struct LeaderboardTabInfo {
@@ -23,6 +24,9 @@ static constexpr LeaderboardTabInfo kTabs[] = {
         "<cy>This leaderboard does not include the amethysts earned from beating rated levels</c>"},
     {LeaderboardTab::Sales, "Top Sales", "sales", "No sales found.",
         "<cy>Top Sales</c> shows the users whose <cg>banners</c> have been <cl>purchased</c> the most times."},
+    {LeaderboardTab::Rate, "Top Rate", "rate", "No earning rates found.",
+        "<cy>Top Rate</c> ranks users by how many <cp>Amethysts</c> their <cg>banners</c> will earn in the next <cl>monthly payout</c>.\n"
+        "Each banner earns <cg>5%</c> of its price once equipped, <cg>+5%</c> for every <cy>5 users</c> equipping it, up to <cg>30%</c>."},
 };
 
 static LeaderboardTabInfo const& getTabInfo(LeaderboardTab tab) {
@@ -62,7 +66,7 @@ bool CBLeaderboardLayer::init() {
     //addBackButton(this, BackButtonStyle::Pink);
     addSideArt(this, SideArt::All);
 
-    m_list = cue::ListNode::create({356.f, 220}, {0, 0, 0, 0}, cue::ListBorderStyle::SlimLevels);
+    m_list = cue::ListNode::create({356.f, 220}, cue::Brown, cue::ListBorderStyle::SlimLevels);
     if (m_list) {
         m_list->setZOrder(2);
         this->addChildAtPosition(m_list, Anchor::Center, CCPointZero, false);
