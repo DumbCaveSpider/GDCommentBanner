@@ -11,7 +11,7 @@
 #include <Geode/modify/EndLevelLayer.hpp>
 #include <Geode/modify/PlayLayer.hpp>
 #include <Geode/modify/ThreadViewPopup.hpp>
-#include <Geode/binding/CurrencyRewardLayer.hpp>
+#include "../CBAmethystRewardLayer.hpp"
 #include "../CBShopLayer.hpp"
 #include "../include/CBConstant.hpp"
 #include "../include/CBLocalBanner.hpp"
@@ -120,8 +120,8 @@ class $modify(CBThreadViewPopup, ThreadViewPopup) {
         auto glm = GameLevelManager::sharedState();
         /*
         CCArray* threadMembers = glm->getThreadMembers(m_thread->m_threadID); // when geode hasnt updated the return type on bindings
-        
-        
+
+
         */
     }
 };
@@ -474,53 +474,11 @@ class $modify(CBEndLevelLayer, EndLevelLayer) {
 
                     bool animationEnabled = !Mod::get()->getSettingValue<bool>("disable-reward-animation");
                     if (animationEnabled && amethystReward > 0) {
-                        if (auto rewardLayer = CurrencyRewardLayer::create(
-                                0, 0, 0, amethystReward, CurrencySpriteType::Star, 0, CurrencySpriteType::Star, 0, amethystPop->getPosition(), CurrencyRewardType::Default, 0.0, 1.0)) {
-                            rewardLayer->setID("cb-currency-reward-layer");
-
-                            if (rewardLayer->m_diamondsLabel) {
-                                rewardLayer->m_diamonds = 0;
-                                rewardLayer->incrementDiamondsCount(current - amethystReward);
-                                rewardLayer->m_diamondsLabel->runAction(CCRepeatForever::create(CCSequence::create(
-                                    CCTintTo::create(0.5f, 255, 100, 255),
-                                    CCTintTo::create(0.5f, 255, 255, 255),
-                                    nullptr)));
-                            }
-
-                            std::string frameName = "CB_amethyst_001.png"_spr;
-                            auto displayFrame = CCSpriteFrameCache::sharedSpriteFrameCache()->spriteFrameByName(frameName.c_str());
-                            CCTexture2D* texture = nullptr;
-                            if (!displayFrame) {
-                                texture = CCTextureCache::sharedTextureCache()->addImage(frameName.c_str(), false);
-                                if (texture) {
-                                    displayFrame = CCSpriteFrame::createWithTexture(texture, {{0, 0}, texture->getContentSize()});
-                                }
-                            } else {
-                                texture = displayFrame->getTexture();
-                            }
-
-                            if (rewardLayer->m_diamondsSprite && displayFrame) {
-                                rewardLayer->m_diamondsSprite->setDisplayFrame(displayFrame);
-                            }
-
-                            if (rewardLayer->m_currencyBatchNode && texture) {
-                                rewardLayer->m_currencyBatchNode->setTexture(texture);
-                            }
-
-                            for (auto sprite : CCArrayExt<CurrencySprite*>(rewardLayer->m_objects)) {
-                                if (!sprite) continue;
-                                if (sprite->m_burstSprite) sprite->m_burstSprite->setVisible(false);
-                                if (auto child = sprite->getChildByIndex(0)) {
-                                    child->setVisible(false);
-                                }
-
-                                if (sprite->m_spriteType == CurrencySpriteType::Diamond) {
-                                    if (displayFrame) {
-                                        sprite->setDisplayFrame(displayFrame);
-                                    }
-                                }
-                            }
-
+                        auto burstPos = endLayerRef->convertToNodeSpace(
+                            endLayerRef->m_mainLayer->convertToWorldSpace(amethystPop->getPosition()));
+                        auto gdRewardLayer = CBAmethystRewardLayer::findGDRewardLayer(CCDirector::sharedDirector()->getRunningScene());
+                        if (auto rewardLayer = CBAmethystRewardLayer::create(current - amethystReward, amethystReward, burstPos, gdRewardLayer)) {
+                            rewardLayer->setID("cb-amethyst-reward-layer");
                             endLayerRef->addChild(rewardLayer, 100);
                             FMODAudioEngine::sharedEngine()->playEffect("secretKey.ogg");
                         }

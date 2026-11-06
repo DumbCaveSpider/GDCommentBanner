@@ -39,7 +39,7 @@ bool CBViewItemPopup::init(const CBBannerItem& banner) {
             })) {
             usernameLabel->setAnchorPoint({0.5f, 0.5f});
             usernameLabel->setScale(0.5f);
-            m_mainLayer->addChildAtPosition(usernameLabel, Anchor::Top, {0, -43.f});
+            m_mainLayer->addChildAtPosition(usernameLabel, Anchor::Top, {0, -40.f});
         }
     }
 

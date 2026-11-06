@@ -6,6 +6,7 @@
 - Improved Filtering and Sorting
 - Updated Sprites
 - Fixed crashes for low end devices when loading too many banners
+- Fixed the Amethyst Reward Animation overlapping with the existing Current Reward Layer
 - Added Disable Animated Background
 - Added Disable Banner Leaderboard
 - Added Top Sales on the Leaderboard
