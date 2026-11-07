@@ -20,6 +20,8 @@ private:
     void showStats(matjson::Value const& user);
 
     CCNode* m_statsNode = nullptr;
+    CCNode* m_badgesNode = nullptr;
+    CCNode* m_playerNode = nullptr;
     int m_targetAccountId;
     std::string m_targetUsername;
     cue::ListNode* m_list = nullptr;

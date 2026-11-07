@@ -10,7 +10,5 @@ namespace comment {
     inline constexpr auto kCommentPreviewOverlayID = "cb-comment-preview-overlay";
 
     CCNode* createCommentPreview(std::string const& imageUrl, bool compact, float width = kCommentCellWidth, std::string const& nonCompactImageUrl = "", bool showOverlay = true, bool priorityLoad = false);
-
-    // shows/hides the comment drawn over the banner, without rebuilding (or reloading) the preview
     void setCommentPreviewOverlay(CCNode* preview, bool visible);
 }

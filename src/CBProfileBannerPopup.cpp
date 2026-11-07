@@ -26,10 +26,8 @@ bool CBProfileBannerPopup::init(int targetAccountId, const std::string& targetUs
     m_targetAccountId = targetAccountId;
     m_targetUsername = targetUsername;
 
-    std::string titleStr = targetUsername.empty() ? "User Banners" : fmt::format("{}'s Banners", targetUsername);
-    this->setTitle(titleStr, "goldFont.fnt");
-    // moved up to make room for the stats row underneath
-    m_title->setPositionY(m_title->getPositionY() + 5.f);
+    std::string titleStr = targetUsername.empty() ? "Player" : targetUsername;
+    this->setTitle(titleStr, "bigFont.fnt");
 
     auto profileBtn = Button::createWithSpriteFrameName("GJ_profileButton_001.png", [this](Button* sender) {
         ProfilePage::create(m_targetAccountId, false)->show();
@@ -50,9 +48,9 @@ bool CBProfileBannerPopup::init(int targetAccountId, const std::string& targetUs
     }
 
     // 10px shorter and lower than before, the stats row sits above it
-    m_list = cue::ListNode::create({340.f, 210.f}, {0, 0, 0, 0}, cue::ListBorderStyle::Comments);
+    m_list = cue::ListNode::create({340.f, 200.f}, {0, 0, 0, 0}, cue::ListBorderStyle::Comments);
     if (m_list) {
-        m_mainLayer->addChildAtPosition(m_list, Anchor::Center, {0.f, -10.f}, false);
+        m_mainLayer->addChildAtPosition(m_list, Anchor::Center, {0.f, -15.f}, false);
 
         auto scrollbar = Scrollbar::create(m_list->getScrollLayer());
         m_mainLayer->addChildAtPosition(scrollbar, Anchor::Center, {340.f / 2 + 5.f, -10.f}, false);
@@ -124,17 +122,37 @@ void CBProfileBannerPopup::fetchStats() {
 
 void CBProfileBannerPopup::showStats(matjson::Value const& user) {
     if (m_statsNode) m_statsNode->removeFromParent();
+    if (m_badgesNode) m_badgesNode->removeFromParent();
+    m_statsNode = nullptr;
+    m_badgesNode = nullptr;
 
-    CBUserData data;
-    data.amethyst = static_cast<int>(user["amethyst"].asInt().unwrapOr(0));
+    auto data = CBUserData::fromJson(user);
+    // /getUser names this one differently from the leaderboard
     data.monthlyEarnings = static_cast<int>(user["monthly_earnings"].asInt().unwrapOr(0));
-    data.totalEarned = static_cast<int>(user["totalEarned"].asInt().unwrapOr(0));
-    data.totalSales = static_cast<int>(user["totalSales"].asInt().unwrapOr(0));
 
+    // stats centered under the title
     m_statsNode = CBUserCell::createStatsNode(data);
     m_statsNode->setAnchorPoint({0.5f, 0.5f});
     m_statsNode->setScale(1.2f);
-    m_mainLayer->addChildAtPosition(m_statsNode, Anchor::Top, {0.f, -33.f}, false);
+    m_mainLayer->addChildAtPosition(m_statsNode, Anchor::Top, {0.f, -40.f}, false);
+
+    if (m_title) {
+        // cube on the left of the title (SimplePlayer is centered on its position, ~30px wide unscaled)
+        if (m_playerNode) m_playerNode->removeFromParent();
+        auto player = CBUserCell::createPlayer(data);
+        player->setScale(0.7f);
+        float halfCube = 30.f * player->getScale() / 2.f;
+        player->setPosition(m_title->getPosition() - CCPoint{m_title->getScaledContentWidth() / 2.f + 4.f + halfCube, 0.f});
+        m_mainLayer->addChild(player, m_title->getZOrder());
+        m_playerNode = player;
+
+        // badges right after the title
+        if (auto badges = CBUserCell::createBadges(data, m_title->getScaledContentHeight())) {
+            m_badgesNode = badges;
+            badges->setPosition(m_title->getPosition() + CCPoint{m_title->getScaledContentWidth() / 2.f + 4.f, 0.f});
+            m_mainLayer->addChild(badges, m_title->getZOrder());
+        }
+    }
 }
 
 void CBProfileBannerPopup::onNextPage(cocos2d::CCObject* sender) {

@@ -12,7 +12,7 @@ using namespace geode::prelude;
 namespace comment::local {
     struct LocalBanner {
         int id = 0;
-        std::string filename; // relative filename, e.g., "banner_1.png"
+        std::string filename;
         std::string name;
         bool equipped = false;
 

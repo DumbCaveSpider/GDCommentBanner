@@ -5,7 +5,6 @@
 
 using namespace geode::prelude;
 
-// Links a Ko-fi membership (by email or Discord username) to the current GD account.
 class CBSupporterPopup : public Popup {
 public:
     static CBSupporterPopup* create();

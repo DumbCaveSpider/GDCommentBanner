@@ -13,8 +13,6 @@ struct CBLogEntry {
 class CBLogsCell : public CCNode {
 public:
     static CBLogsCell* create(CBLogEntry const& entry, float width);
-
-    // readable title for a log action type, e.g. BANNER_SOLD -> "Banner Sold"
     static std::string titleForType(std::string const& actionType);
 
 private:

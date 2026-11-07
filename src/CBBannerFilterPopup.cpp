@@ -82,8 +82,7 @@ bool CBBannerFilterPopup::init() {
     sortHeader->setScale(0.5f);
     m_mainLayer->addChildAtPosition(sortHeader, Anchor::Center, {65.f, 95.f}, false);
 
-    // one extra row for Supporter Only
-    // several filters can be on at once (bit i = filter i), "All" clears them
+
     auto filterMenu = createToggleMenu(kFilterNames.size() + 1);
     int filters = shop->getFilterState();
     for (int i = 0; i < static_cast<int>(kFilterNames.size()); ++i) {
@@ -92,7 +91,6 @@ bool CBBannerFilterPopup::init() {
             [this, i](Toggler*, bool) { this->onFilterToggled(i); }));
     }
 
-    // Supporter Only, combines with the filter above (not part of the select-one group)
     m_supporterOnlyToggle = addToggle(filterMenu, "Supporter", shop->getSupporterOnlyFilter(),
         [](Toggler* sender, bool) {
             if (auto shop = CBShopLayer::getInstance()) {

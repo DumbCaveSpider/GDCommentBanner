@@ -11,7 +11,6 @@ struct CBUserData {
     bool isSupporter = false;
     std::string equippedBannerUrl;
 
-    // player cube, 0 = unknown (shown as the default cube)
     int iconId = 0;
     int color1 = 0;
     int color2 = 0;
@@ -23,25 +22,23 @@ struct CBUserData {
     int totalEarned = 0;
     int totalSales = 0;
 
-    // reads the fields returned by /getLeaderboard and /admin/searchUsers
     static CBUserData fromJson(matjson::Value const& json);
 };
 
 struct CBUserCellOptions {
-    int rank = 0;                // shown on the left when > 0
-    bool showBanner = true;      // equipped banner behind the cell
-    bool showRole = false;       // "Admin" / "Staff" / "User" under the name
-    bool showSalesCount = false; // sales stat shows the number of sales instead of amethysts earned
-    std::function<void()> onManage;  // adds the manage button when set
+    int rank = 0;
+    bool showBanner = true;
+    bool showRole = false;
+    bool showSalesCount = false;
+    std::function<void()> onManage;
 };
 
-// A user row with their cube, name, amethysts, monthly earning rate and sales.
 class CBUserCell : public CCNode {
 public:
     static CBUserCell* create(CBUserData const& data, float width, CBUserCellOptions options = {});
-
-    // amethysts, +x/mo and sales in a row (anchor 0, 0.5), also used by CBProfileBannerPopup
     static CCNode* createStatsNode(CBUserData const& data, bool showSalesCount = false);
+    static SimplePlayer* createPlayer(CBUserData const& data);
+    static CCNode* createBadges(CBUserData const& data, float height);
 
 private:
     bool init(CBUserData const& data, float width, CBUserCellOptions options);

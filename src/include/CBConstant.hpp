@@ -16,7 +16,6 @@ namespace comment {
         co_return std::move(authResult).unwrap();
     };
 
-    // priority: load before anything already queued (and past the concurrency limit), for previews
     inline CCNode* createBannerNode(std::string const& imageUrl, CCSize const& bannerSize, bool priority = false) {
         if (imageUrl.empty()) {
             auto node = CCNode::create();
@@ -28,7 +27,6 @@ namespace comment {
         auto sprite = LazySprite::create(bannerSize, true);
         sprite->setAutoResize(true);
 
-        // loading is deferred until the banner is on screen, see CBBannerLoader
         if (imageUrl.starts_with("/")) {
             loader::queue(sprite, fmt::format("{}{}", comment::baseUrl, imageUrl), priority);
         } else {
@@ -49,7 +47,6 @@ namespace comment {
         return fallback;
     }
 
-    // cached from /getUser (see CBShopLayer), the server re-checks supporter-only actions
     inline bool isUserSupporter() {
         return Mod::get()->getSavedValue<bool>("is_supporter", false);
     };

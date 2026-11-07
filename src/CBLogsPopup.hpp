@@ -33,5 +33,5 @@ private:
     CBLogsFilter m_filter;
     int m_page = 0;
     int m_total = 0;
-    int m_fetchId = 0;  // bumped on every fetch, older responses are ignored
+    int m_fetchId = 0;
 };

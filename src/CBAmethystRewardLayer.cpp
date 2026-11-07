@@ -16,7 +16,7 @@ class $modify(CBCurrencyRewardLayer, CurrencyRewardLayer) {
 };
 
 namespace {
-    constexpr char const* kAmethystFrame = "CB_amethyst_001.png"_spr;
+    constexpr char const* kAmethystFrame = "CB_amethyst_003.png"_spr;
     constexpr int kMaxPieces = 60;
     constexpr int kMaxTrails = 20;
     constexpr float kUnitHeight = 12.f;

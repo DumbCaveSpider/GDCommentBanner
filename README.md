@@ -36,6 +36,6 @@ The mod includes its own **<cg>economy</c>**, where you can create banners, set 
 
 ### Credits
 
-- <cg>**Amethyst Designs**:</c> [Darkore](user:3595559)
+- <cg>**Mod Sprites**:</c> [Darkore](user:3595559)
 
 ![King Clawthorne](arcticwoof.rated_layouts/king.png)

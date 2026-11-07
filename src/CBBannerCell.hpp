@@ -22,24 +22,21 @@ struct CBBannerItem {
     bool isLimited = false;
     bool isFeatured = false;
     bool isSupporterOnly = false;
-    std::string nonCompactImageUrl;  // optional, shown in non-compact comment cells
+    std::string nonCompactImageUrl;
     int amount = 0;
     int totalBought = 0;
     int equippedCount = 0;
     bool isLocal = false;
-    bool creatorIsSupporter = false;  // pending banners: the submitter is a supporter
-    bool isResubmission = false;      // approved banner whose new image is waiting for review
-    bool isFavorite = false;          // the viewer marked it as a favorite (shop lists only)
-    // "YYYY-MM-DD hh:mm:ss", empty when unknown (banners from before these were tracked)
+    bool creatorIsSupporter = false;
+    bool isResubmission = false;
+    bool isFavorite = false;
     std::string createdAt;
     std::string editedAt;
     std::string approvedAt;
 
-    // reads a banner as returned by the server (getBanners, pendingBanners, admin lists)
     static CBBannerItem fromJson(matjson::Value const& json);
 };
 
-// the small icons next to a banner's name
 enum class CBBannerIcon {
     SupporterOnly,
     Featured,
@@ -67,14 +64,12 @@ struct CBBannerCellOptions {
 
 class CBBannerCell : public cocos2d::CCLayer {
 public:
-    // show the plain banner image instead of the comment cell mockup
     static CBBannerCell* create(const CBBannerItem& banner, float width, bool disableCommentPreview = false);
     static CBBannerCell* create(const CBBannerItem& banner, float width, CBBannerCellOptions options);
     static Button* createBannerIcon(CBBannerIcon icon);
-    // the banner's icons left of a popup title and the matching title tint
+
     static void decoratePopupTitle(CCNode* mainLayer, Label* title, CBBannerItem const& banner);
 
-    // preview settings, saved and applied to every comment preview on screen
     static bool isPreviewCompact();
     static void setPreviewCompact(bool compact);
     static bool isPreviewOverlay();

@@ -629,7 +629,7 @@ bool CBShopLayer::init() {
         bottomRightMenu->updateLayout();
     }
 
-    if (auto supporterButton = Button::createWithNode(CircleButtonSprite::createWithSpriteFrameName("gj_heartOn_001.png", 1.f, CircleBaseColor::DarkPurple, CircleBaseSize::Small), [](Button* sender) {
+    if (auto supporterButton = Button::createWithNode(CircleButtonSprite::createWithSpriteFrameName("CB_supporter_badge.png"_spr, 1.f, CircleBaseColor::DarkPurple, CircleBaseSize::Small), [](Button* sender) {
             if (auto popup = CBSupporterPopup::create()) {
                 popup->show();
             }

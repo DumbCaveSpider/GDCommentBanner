@@ -68,7 +68,7 @@ CCNode* CBUserCell::createStatsNode(CBUserData const& data, bool showSalesCount)
             ->setGap(8.f)
             ->setAutoScale(false)
             ->setAutoGrowAxis(0.f)
-            ->setAxisAlignment(AxisAlignment::Start));
+            ->setAxisAlignment(AxisAlignment::Center));
 
     row->addChild(createStat("CB_amethyst_001.png"_spr, GameToolbox::pointsToString(data.amethyst), {255, 255, 255}));
     row->addChild(createStat("particle_337_001.png", fmt::format("+{}/mo", GameToolbox::pointsToString(data.monthlyEarnings)), {100, 255, 100}));
@@ -77,6 +77,50 @@ CCNode* CBUserCell::createStatsNode(CBUserData const& data, bool showSalesCount)
                        : GameToolbox::pointsToString(data.totalEarned),
         {150, 255, 150}));
 
+    row->updateLayout();
+    return row;
+}
+
+SimplePlayer* CBUserCell::createPlayer(CBUserData const& data) {
+    auto gm = GameManager::sharedState();
+    int iconId = data.iconId > 0 ? data.iconId : 1;
+    auto player = SimplePlayer::create(iconId);
+    player->updatePlayerFrame(iconId, IconType::Cube);
+    if (data.iconId > 0) {
+        player->setColor(gm->colorForIdx(data.color1));
+        player->setSecondColor(gm->colorForIdx(data.color2));
+        if (data.hasGlow) {
+            player->setGlowOutline(gm->colorForIdx(data.glowColor));
+        } else {
+            player->disableGlowOutline();
+        }
+    }
+    player->updateColors();
+    return player;
+}
+
+CCNode* CBUserCell::createBadges(CBUserData const& data, float height) {
+    std::vector<char const*> frames;
+    if (data.isAdmin) frames.push_back("CB_admin_badge.png"_spr);
+    else if (data.isStaff) frames.push_back("CB_staff_badge.png"_spr);
+    if (data.isSupporter) frames.push_back("CB_supporter_badge.png"_spr);
+    if (frames.empty()) return nullptr;
+
+    auto row = CCNode::create();
+    row->setAnchorPoint({0.f, 0.5f});
+    row->setContentSize({0.f, height});
+    row->setLayout(RowLayout::create()
+            ->setGap(4.f)
+            ->setAutoScale(false)
+            ->setAutoGrowAxis(0.f)
+            ->setAxisAlignment(AxisAlignment::Start));
+
+    for (auto frame : frames) {
+        if (auto badge = CCSprite::createWithSpriteFrameName(frame)) {
+            badge->setScale(height / std::max(badge->getContentHeight(), 1.f));
+            row->addChild(badge);
+        }
+    }
     row->updateLayout();
     return row;
 }
@@ -110,20 +154,7 @@ bool CBUserCell::init(CBUserData const& data, float width, CBUserCellOptions opt
     }
 
     // player cube
-    auto gm = GameManager::sharedState();
-    int iconId = m_data.iconId > 0 ? m_data.iconId : 1;
-    auto player = SimplePlayer::create(iconId);
-    player->updatePlayerFrame(iconId, IconType::Cube);
-    if (m_data.iconId > 0) {
-        player->setColor(gm->colorForIdx(m_data.color1));
-        player->setSecondColor(gm->colorForIdx(m_data.color2));
-        if (m_data.hasGlow) {
-            player->setGlowOutline(gm->colorForIdx(m_data.glowColor));
-        } else {
-            player->disableGlowOutline();
-        }
-    }
-    player->updateColors();
+    auto player = createPlayer(m_data);
     player->setScale(0.7f);
     player->setPosition({x + 12.f, kCellHeight / 2.f});
     this->addChild(player, 1);
@@ -166,19 +197,14 @@ bool CBUserCell::init(CBUserData const& data, float width, CBUserCellOptions opt
     menu->addChild(nameBtn);
     float nameRight = x + nameBtn->getScaledContentWidth() + 4.f;
 
-    // badge, as tall as the name
-    if (m_data.isAdmin || m_data.isStaff) {
-        if (auto badge = CCSprite::createWithSpriteFrameName(m_data.isAdmin ? "CB_admin_badge.png"_spr : "CB_staff_badge.png"_spr)) {
-            float nameHeight = nameLabel->getScaledContentHeight();
-            badge->setScale(nameHeight / std::max(badge->getContentHeight(), 1.f));
-            badge->setAnchorPoint({0.f, 0.5f});
-            badge->setPosition({nameRight, kNameY});
-            this->addChild(badge, 1);
-            nameRight += badge->getScaledContentWidth() + 4.f;
-        }
+
+    // badges, as tall as the name
+    if (auto badges = createBadges(m_data, nameLabel->getScaledContentHeight())) {
+        badges->setPosition({nameRight, kNameY});
+        this->addChild(badges, 1);
+        nameRight += badges->getScaledContentWidth() + 4.f;
     }
 
-    // role on the name line (admin panel)
     if (m_options.showRole) {
         std::string role = m_data.isAdmin ? "Admin" : (m_data.isStaff ? "Staff" : "User");
         auto roleLabel = Label::create(role.c_str(), "chatFont.fnt");
