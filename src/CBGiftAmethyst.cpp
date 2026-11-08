@@ -124,23 +124,22 @@ bool CBGiftAmethyst::init(int targetAccountId) {
 
     // how gifting works cuz yes
     auto infoBtn = Button::createWithSpriteFrameName("GJ_infoIcon_001.png", [](Button*) {
-        MDPopup::create(
+        FLAlertLayer::create(
+            nullptr,
             "Gifting Amethysts",
             fmt::format(
-                "You can send some of your <cp>Amethysts</c> to another player as a gift.\n\n"
-                "### How to gift\n"
-                "- Type how many amethysts you want to gift.\n"
-                "- Check the preview: <cr>your balance</c> counts down and <cg>theirs</c> counts up.\n"
-                "- Press <cg>Gift</c> and confirm.\n\n"
-                "- You can gift between <cy>{}</c> and <cy>{}</c> amethysts at a time.\n"
-                "- The player must already have at least <cy>{}</c> amethysts to receive gifts.\n"
-                "- You can't gift more than you have, or gift to yourself.\n"
-                "- Gifts are sent instantly and <cr>can't be undone</c>.\n\n"
+                "You can send some of your <cp>Amethysts</c> to another player as a gift.\n"
+                "The amount you send must be between <cp>{}</c> and <cp>{}</c>.\n"
+                "The player must already have at least <cp>{}</c> amethysts to receive gifts.\n"
+                "You can't gift more than you have, or gift to yourself.\n"
+                "Gifts are sent instantly and <cr>can't be undone</c>.\n"
                 "Both of you get a notification in your <cl>Logs</c>.",
                 GameToolbox::pointsToString(kMinGiftAmount),
                 GameToolbox::pointsToString(kMaxGiftAmount),
                 GameToolbox::pointsToString(kMinRecipientBalance)),
-            "OK")
+            "OK",
+            nullptr,
+            430.f)
             ->show();
     });
     infoBtn->setScale(0.8f);

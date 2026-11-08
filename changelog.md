@@ -1,4 +1,4 @@
-# v1.0.0
+## v1.0.0
 
 - Bump to Geode v6
 - Improved Banner Caching

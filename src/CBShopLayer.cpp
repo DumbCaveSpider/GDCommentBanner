@@ -433,7 +433,7 @@ void CBShopLayer::fetchAmethyst() {
                     if (!self || !self->getParent() || s_instance != self.data()) {
                         return;
                     }
-                    Notification::create("Failed to fetch amethyst.", NotificationIcon::Error)->show();
+                    Notification::create("Failed to authenticate your account.", NotificationIcon::Error)->show();
                 });
                 co_return;
             }

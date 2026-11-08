@@ -59,7 +59,6 @@ bool CBViewItemPopup::init(const CBBannerItem& banner) {
     if (!dates.empty()) {
         auto datesLabel = Label::create(fmt::format("{}", fmt::join(dates, "  |  ")).c_str(), "chatFont.fnt");
         datesLabel->setLimitLabelWidth(m_mainLayer->getContentWidth() - 120.f, 0.5f, 0.1f);
-        datesLabel->setColor({200, 200, 200});
         m_mainLayer->addChildAtPosition(datesLabel, Anchor::Top, {0, -55.f}, false);
     }
 

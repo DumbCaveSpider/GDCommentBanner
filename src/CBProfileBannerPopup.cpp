@@ -52,8 +52,8 @@ bool CBProfileBannerPopup::init(int targetAccountId, const std::string& targetUs
     if (m_list) {
         m_mainLayer->addChildAtPosition(m_list, Anchor::Center, {0.f, -15.f}, false);
 
-        auto scrollbar = Scrollbar::create(m_list->getScrollLayer());
-        m_mainLayer->addChildAtPosition(scrollbar, Anchor::Center, {340.f / 2 + 5.f, -10.f}, false);
+        // auto scrollbar = Scrollbar::create(m_list->getScrollLayer());
+        // m_mainLayer->addChildAtPosition(scrollbar, Anchor::Center, {340.f / 2 + 5.f, -10.f}, false);
     }
 
     auto listBg = NineSlice::create("square02_001.png");
@@ -134,7 +134,7 @@ void CBProfileBannerPopup::showStats(matjson::Value const& user) {
     m_statsNode = CBUserCell::createStatsNode(data);
     m_statsNode->setAnchorPoint({0.5f, 0.5f});
     m_statsNode->setScale(1.2f);
-    m_mainLayer->addChildAtPosition(m_statsNode, Anchor::Top, {0.f, -40.f}, false);
+    m_mainLayer->addChildAtPosition(m_statsNode, Anchor::Top, {0.f, -45.f}, false);
 
     if (m_title) {
         // cube on the left of the title (SimplePlayer is centered on its position, ~30px wide unscaled)
