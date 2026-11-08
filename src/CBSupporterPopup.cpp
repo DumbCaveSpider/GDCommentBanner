@@ -50,10 +50,10 @@ bool CBSupporterPopup::init() {
     tabMenu->setContentSize({260.f, 30.f});
     tabMenu->setLayout(RowLayout::create()->setGap(8.f));
 
-    m_emailTabSprite = ButtonSprite::create("Email", 90, true, "goldFont.fnt", "GJ_button_01.png", 0.f, .7f);
+    m_emailTabSprite = ButtonSprite::create("Email", "goldFont.fnt", "GJ_button_01.png", .75f);
     tabMenu->addChild(Button::createWithNode(m_emailTabSprite, [this](Button* sender) { this->onSelectEmail(sender); }));
 
-    m_discordTabSprite = ButtonSprite::create("Discord", 90, true, "goldFont.fnt", "GJ_button_04.png", 0.f, .7f);
+    m_discordTabSprite = ButtonSprite::create("Discord", "goldFont.fnt", "GJ_button_04.png", .75f);
     tabMenu->addChild(Button::createWithNode(m_discordTabSprite, [this](Button* sender) { this->onSelectDiscord(sender); }));
 
     tabMenu->updateLayout();
@@ -112,8 +112,8 @@ void CBSupporterPopup::onSelectDiscord(CCObject*) {
 
 void CBSupporterPopup::setUseDiscord(bool useDiscord) {
     m_useDiscord = useDiscord;
-    m_emailTabSprite->updateBGImage(useDiscord ? "GJ_button_04.png" : "GJ_button_01.png");
-    m_discordTabSprite->updateBGImage(useDiscord ? "GJ_button_01.png" : "GJ_button_04.png");
+    m_emailTabSprite->updateBGImage(useDiscord ? "GJ_button_04.png" : "GJ_button_02.png");
+    m_discordTabSprite->updateBGImage(useDiscord ? "GJ_button_02.png" : "GJ_button_04.png");
     m_emailInput->setVisible(!useDiscord);
     m_discordInput->setVisible(useDiscord);
     m_emailInput->defocus();

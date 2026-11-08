@@ -16,7 +16,7 @@ namespace {
 
     CCMenu* createToggleMenu(size_t rows) {
         auto menu = CCMenu::create();
-        menu->setAnchorPoint({0.5f, 0.5f});
+        menu->setAnchorPoint({0.5f, 1.f});
         menu->setContentSize({kRowWidth, kRowHeight * rows});
         menu->setLayout(ColumnLayout::create()
                 ->setGap(0.f)
@@ -70,17 +70,17 @@ bool CBBannerFilterPopup::init() {
     if (!shop) return false;
 
     // tall enough for the filter column (6 filters + Supporter) above the Reset button
-    if (!Popup::init(260.f, 280.f)) return false;
+    if (!Popup::init(260.f, 250.f)) return false;
     addSideArt(m_mainLayer, SideArt::All, SideArtStyle::PopupGold, false);
     this->setTitle("Filter Banners");
 
     auto filterHeader = Label::create("Filter", "goldFont.fnt");
     filterHeader->setScale(0.5f);
-    m_mainLayer->addChildAtPosition(filterHeader, Anchor::Center, {-65.f, 95.f}, false);
+    m_mainLayer->addChildAtPosition(filterHeader, Anchor::Center, {-65.f, 85.f}, false);
 
     auto sortHeader = Label::create("Sort", "goldFont.fnt");
     sortHeader->setScale(0.5f);
-    m_mainLayer->addChildAtPosition(sortHeader, Anchor::Center, {65.f, 95.f}, false);
+    m_mainLayer->addChildAtPosition(sortHeader, Anchor::Center, {65.f, 85.f}, false);
 
 
     auto filterMenu = createToggleMenu(kFilterNames.size() + 1);
@@ -104,9 +104,7 @@ bool CBBannerFilterPopup::init() {
     }
 
     filterMenu->updateLayout();
-    // anchored at the top so the extra row extends downwards, level with the sort menu's top
-    filterMenu->setAnchorPoint({0.5f, 1.f});
-    m_mainLayer->addChildAtPosition(filterMenu, Anchor::Center, {-65.f, 80.f}, false);
+    m_mainLayer->addChildAtPosition(filterMenu, Anchor::Center, {-65.f, 70.f}, false);
 
     auto sortMenu = createToggleMenu(kSortNames.size());
     for (int i = 0; i < static_cast<int>(kSortNames.size()); ++i) {
@@ -119,7 +117,7 @@ bool CBBannerFilterPopup::init() {
             }));
     }
     sortMenu->updateLayout();
-    m_mainLayer->addChildAtPosition(sortMenu, Anchor::Center, {65.f, 15.f}, false);
+    m_mainLayer->addChildAtPosition(sortMenu, Anchor::Center, {65.f, 70.f}, false);
 
     auto resetButton = Button::createWithNode(
         ButtonSprite::create("Reset", "goldFont.fnt", "GJ_button_05.png", .7f),

@@ -82,7 +82,7 @@ bool CBLeaderboardLayer::init() {
 
     createTabs();
 
-    if (auto infoButton = Button::createWithNode(CircleButtonSprite::createWithSpriteFrameName("CB_info.png"_spr, 1.f, CircleBaseColor::DarkPurple, CircleBaseSize::Small), [this](Button* sender) {
+    if (auto infoButton = Button::createWithNode(CircleButtonSprite::createWithSpriteFrameName("CB_info.png"_spr, 1.2f, CircleBaseColor::DarkPurple, CircleBaseSize::Small), [this](Button* sender) {
             auto const& info = getTabInfo(m_currentTab);
             FLAlertLayer::create(fmt::format("Amethysts {}", info.name).c_str(), info.infoText, "OK")->show();
         })) {

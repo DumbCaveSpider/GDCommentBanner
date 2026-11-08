@@ -88,7 +88,7 @@ bool CBSubmitBannerPopup::init(bool isLocal, bool isEdit, CBEditBannerData const
     m_buttonMenu->addChildAtPosition(topMenu, Anchor::Top, {0.f, -50.f}, {0.5, 0.5});
 
     m_fileNameLabel = Label::create("", "chatFont.fnt");
-    m_mainLayer->addChildAtPosition(m_fileNameLabel, Anchor::Top, {0.f, -70.f}, false);
+    m_mainLayer->addChildAtPosition(m_fileNameLabel, Anchor::Top, {0.f, -75.f}, false);
     this->updateFileLabel();
 
     // Name
@@ -121,7 +121,7 @@ bool CBSubmitBannerPopup::init(bool isLocal, bool isEdit, CBEditBannerData const
     row1->addChild(m_amountInput);
     row1->updateLayout();
 
-    m_buttonMenu->addChildAtPosition(row1, Anchor::Center, {0.f, -57.f}, {0.5, 0.5});
+    m_buttonMenu->addChildAtPosition(row1, Anchor::Center, {0.f, -60.f}, {0.5, 0.5});
 
     auto costRow = CCMenu::create();
     costRow->setContentSize({300.f, 20.f});
@@ -184,7 +184,7 @@ bool CBSubmitBannerPopup::init(bool isLocal, bool isEdit, CBEditBannerData const
     togglesMenu->addChild(createToggleRow(m_limitedToggler, "Limited", {255, 255, 255}));
 
     togglesMenu->updateLayout();
-    m_mainLayer->addChildAtPosition(togglesMenu, Anchor::BottomLeft, {5.f, 5.f}, false);
+    m_mainLayer->addChildAtPosition(togglesMenu, Anchor::BottomLeft, {10.f, 10.f}, false);
 
     if (m_isLocal) {
         m_descInput->setVisible(false);

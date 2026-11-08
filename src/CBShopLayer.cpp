@@ -612,14 +612,14 @@ bool CBShopLayer::init() {
         bottomRightMenu->updateLayout();
     }
 
-    if (auto leaderboardButton = Button::createWithNode(CircleButtonSprite::createWithSpriteFrameName("CB_leaderboard.png"_spr, 1.f, CircleBaseColor::DarkPurple, CircleBaseSize::Small), [this](Button* sender) {
+    if (auto leaderboardButton = Button::createWithNode(CircleButtonSprite::createWithSpriteFrameName("CB_leaderboard.png"_spr, 1.2f, CircleBaseColor::DarkPurple, CircleBaseSize::Small), [this](Button* sender) {
             pushSceneWithLayer(CBLeaderboardLayer::create());
         })) {
         bottomRightMenu->addChild(leaderboardButton);
         bottomRightMenu->updateLayout();
     }
 
-    if (auto discordButton = Button::createWithNode(CircleButtonSprite::createWithSpriteFrameName("CB_discord.png"_spr, 1.f, CircleBaseColor::DarkPurple, CircleBaseSize::Small), [this](Button* sender) {
+    if (auto discordButton = Button::createWithNode(CircleButtonSprite::createWithSpriteFrameName("CB_discord.png"_spr, 1.2f, CircleBaseColor::DarkPurple, CircleBaseSize::Small), [this](Button* sender) {
             auto communityUrl = getMod()->getMetadata().getLinks().getCommunityURL();
             if (communityUrl.has_value()) {
                 utils::web::openLinkInBrowser(communityUrl.value());
@@ -629,7 +629,7 @@ bool CBShopLayer::init() {
         bottomRightMenu->updateLayout();
     }
 
-    if (auto supporterButton = Button::createWithNode(CircleButtonSprite::createWithSpriteFrameName("CB_supporter_badge.png"_spr, 1.f, CircleBaseColor::DarkPurple, CircleBaseSize::Small), [](Button* sender) {
+    if (auto supporterButton = Button::createWithNode(CircleButtonSprite::createWithSpriteFrameName("CB_supporter_badge.png"_spr, 1.2f, CircleBaseColor::DarkPurple, CircleBaseSize::Small), [](Button* sender) {
             if (auto popup = CBSupporterPopup::create()) {
                 popup->show();
             }
@@ -639,13 +639,13 @@ bool CBShopLayer::init() {
         bottomRightMenu->updateLayout();
     }
 
-    if (auto settingsButton = Button::createWithNode(CircleButtonSprite::createWithSpriteFrameName("geode.loader/settings.png", 1.f, CircleBaseColor::DarkPurple, CircleBaseSize::Small), [this](Button* sender) {
+    if (auto settingsButton = Button::createWithNode(CircleButtonSprite::createWithSpriteFrameName("geode.loader/settings.png", 1.2f, CircleBaseColor::DarkPurple, CircleBaseSize::Small), [this](Button* sender) {
             openSettingsPopup(getMod());
         })) {
         this->addChildAtPosition(settingsButton, Anchor::BottomLeft, {25.f, 65.f}, false);
     }
 
-    if (auto infoButton = Button::createWithNode(CircleButtonSprite::createWithSpriteFrameName("CB_info.png"_spr, 1.f, CircleBaseColor::DarkPurple, CircleBaseSize::Small), [this](Button* sender) {
+    if (auto infoButton = Button::createWithNode(CircleButtonSprite::createWithSpriteFrameName("CB_info.png"_spr, 1.2f, CircleBaseColor::DarkPurple, CircleBaseSize::Small), [this](Button* sender) {
             MDPopup::create(
                 "About Comment Banners",
                 "<cp>**Comment Banners**</c> is a <cb>community-run</c> banner shop that lets you buy <cg>user-generated</c> banners to apply to your <cc>Comment Cell</c> for everyone to see using this mod.\n\n"
