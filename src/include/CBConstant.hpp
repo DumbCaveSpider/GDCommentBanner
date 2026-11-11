@@ -198,7 +198,6 @@ namespace comment {
         }
     }
 
-
     inline void applyPlayerIcon(cue::PlayerIcon* player, int iconId, int color1, int color2, int glowColor, bool hasGlow) {
         if (iconId <= 0) iconId = 1;
         player->updateIcons(cue::Icons{IconType::Cube, iconId, color1, color2, hasGlow ? glowColor : -1});
@@ -238,19 +237,19 @@ namespace comment {
     };
 
     inline LogStyle logStyleForType(std::string const& type) {
-        if (type == "APPROVED") return {"party", "GJ_completesIcon_001.png", ccGREEN};
-        if (type == "REJECTED") return {"mail", "GJ_deleteIcon_001.png", ccRED};
-        if (type == "BANNER_SOLD") return {"trophy", "GJ_sStarsIcon_001.png", ccGREEN};
+        if (type == "APPROVED") return {"check", "GJ_completesIcon_001.png", ccGREEN};
+        if (type == "REJECTED") return {"cross", "GJ_deleteIcon_001.png", ccRED};
+        if (type == "BANNER_SOLD") return {"chartup", "GJ_sStarsIcon_001.png", ccGREEN};
         if (type == "BANNER_PAYOUT" || type == "AMETHYST_REWARD" || type == "ADMIN_AMETHYST_CHANGE" || type == "AMETHYST_GIFT_RECEIVED")
             return {"chest", "GJ_sStarsIcon_001.png", ccMAGENTA};
         if (type == "FEATURED") return {"star", "GJ_starsIcon_001.png", ccORANGE};
-        if (type == "UNFEATURED") return {"star", "GJ_starsIcon_001.png", ccGRAY};
-        if (type == "BANNER_REFUNDED") return {"download", "GJ_sStarsIcon_001.png", ccORANGE};
+        if (type == "UNFEATURED") return {"brokenheart", "GJ_noStarsIcon_001.png", ccGRAY};
+        if (type == "BANNER_REFUNDED") return {"chartdown", "GJ_sStarsIcon_001.png", ccORANGE};
         if (type == "SUPPORTER_LINKED") return {"royal", "gj_heartOn_001.png", ccMAGENTA};
         if (type == "BANNER_DELETED" || type == "BANNER_REMOVED") return {"mail", "GJ_deleteIcon_001.png", ccRED};
-        if (type == "TEMP_BAN" || type == "PERMANENT_BAN") return {"mail", "GJ_deleteIcon_001.png", ccRED};
+        if (type == "TEMP_BAN" || type == "PERMANENT_BAN") return {"skullbomb", "GJ_deleteIcon_001.png", ccRED};
         if (type == "BANNER_EDITED" || type == "BANNER_CHANGED" || type == "BANNER_UNEQUIPPED")
-            return {"cube", "GJ_infoIcon_001.png", ccYELLOW};
+            return {"tools", "GJ_infoIcon_001.png", ccYELLOW};
         return {"mail", "GJ_infoIcon_001.png", ccYELLOW};
     }
 
