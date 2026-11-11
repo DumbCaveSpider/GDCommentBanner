@@ -8,7 +8,6 @@
 #include "Geode/utils/general.hpp"
 #include "ccTypes.h"
 #include "include/CBConstant.hpp"
-#include "include/CBCommentPreview.hpp"
 #include "include/CBLocalBanner.hpp"
 #include "CBLocalBannersPopup.hpp"
 #include <Geode/utils/file.hpp>
@@ -18,17 +17,6 @@
 #include <unordered_set>
 
 using namespace geode::prelude;
-
-namespace {
-    std::string imageMimeType(std::string const& filePath) {
-        std::string ext = filePath.substr(filePath.find_last_of(".") + 1);
-        std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
-        if (ext == "webp") return "image/webp";
-        if (ext == "jpg" || ext == "jpeg") return "image/jpeg";
-        if (ext == "gif") return "image/gif";
-        return "image/png";
-    }
-}
 
 CBSubmitBannerPopup* CBSubmitBannerPopup::create(
     bool isLocal,
@@ -476,9 +464,9 @@ void CBSubmitBannerPopup::onSubmit(CCObject*) {
             }
             form.param("supporterOnly", isSupporterOnly ? "true" : "false");
 
-            bool attached = static_cast<bool>(form.file("image", filePath, imageMimeType(filePath)));
+            bool attached = static_cast<bool>(form.file("image", filePath, comment::imageMimeType(filePath)));
             if (attached && !nonCompactPath.empty()) {
-                attached = static_cast<bool>(form.file("nonCompactImage", nonCompactPath, imageMimeType(nonCompactPath)));
+                attached = static_cast<bool>(form.file("nonCompactImage", nonCompactPath, comment::imageMimeType(nonCompactPath)));
             }
             if (!attached) {
                 queueInMainThread([popup] {
@@ -577,10 +565,10 @@ void CBSubmitBannerPopup::submitEdit() {
         }
         bool attached = true;
         if (!filePath.empty()) {
-            attached = static_cast<bool>(form.file("image", filePath, imageMimeType(filePath)));
+            attached = static_cast<bool>(form.file("image", filePath, comment::imageMimeType(filePath)));
         }
         if (attached && !nonCompactPath.empty()) {
-            attached = static_cast<bool>(form.file("nonCompactImage", nonCompactPath, imageMimeType(nonCompactPath)));
+            attached = static_cast<bool>(form.file("nonCompactImage", nonCompactPath, comment::imageMimeType(nonCompactPath)));
         }
         if (!attached) {
             queueInMainThread([popup] {

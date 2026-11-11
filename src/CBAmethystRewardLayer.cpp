@@ -1,4 +1,5 @@
 #include "CBAmethystRewardLayer.hpp"
+#include "include/CBConstant.hpp"
 #include <Geode/binding/CCCircleWave.hpp>
 #include <Geode/modify/CurrencyRewardLayer.hpp>
 
@@ -15,68 +16,16 @@ class $modify(CBCurrencyRewardLayer, CurrencyRewardLayer) {
     }
 };
 
-namespace {
-    constexpr char const* kAmethystFrame = "CB_amethyst_003.png"_spr;
-    constexpr int kMaxPieces = 60;
-    constexpr int kMaxTrails = 20;
-    constexpr float kUnitHeight = 12.f;
-    constexpr float kMaxObjectScale = 3.f;
-    constexpr float kCounterIconHeight = 16.f;
-    constexpr ccColor4F kStartColor{1.f, 120.f / 255.f, 1.f, 1.f};
-    constexpr ccColor4F kEndColor{120.f / 255.f, 0.f, 1.f, 1.f};
-    constexpr ccColor4F kNoVariance{0.f, 0.f, 0.f, 0.f};
-    constexpr ccColor3B kLabelColor{255, 150, 255};
-    constexpr ccColor3B kWaveColor{255, 100, 255};
-
-    float random01() {
-        return static_cast<float>(rand()) / static_cast<float>(RAND_MAX);
-    }
-
-    float randomSigned() {
-        return random01() * 2.f - 1.f;
-    }
-
-    CCSprite* createAmethyst(float height) {
-        auto sprite = CCSprite::createWithSpriteFrameName(kAmethystFrame);
-        if (sprite) sprite->setScale(height / std::max(sprite->getContentHeight(), 1.f));
-        return sprite;
-    }
-
-    struct ObjectSettings {
-        float base;    // time before the first object starts flying to the counter
-        float spread;  // random extra delay per object
-        float scale;   // GD object scale
-    };
-
-    ObjectSettings settingsForCount(int count, float time) {
-        ObjectSettings s{time, time * 0.3f, 1.f};
-        if (count < 10) {
-            s.spread = 0.2f;
-            s.base = 0.8f;
-        } else if (count > 400) {
-            s.spread = 0.9f;
-            s.scale = 0.8f;
-        } else if (count > 300) {
-            s.spread = 0.8f;
-            s.scale = 0.8f;
-        } else if (count > 200) {
-            s.spread = 0.7f;
-            s.scale = 0.8f;
-        } else if (count > 100) {
-            s.spread = 0.6f;
-            s.scale = 0.9f;
-        } else if (count > 50) {
-            s.spread = 0.5f;
-            s.scale = 0.9f;
-        } else if (count > 30) {
-            s.spread = 0.4f;
-            s.scale = 0.95f;
-        } else if (count > 20) {
-            s.scale = 0.95f;
-        }
-        return s;
-    }
-}
+const int kMaxPieces = 60;
+const int kMaxTrails = 20;
+const float kUnitHeight = 12.f;
+const float kMaxObjectScale = 3.f;
+const float kCounterIconHeight = 16.f;
+ccColor4F kStartColor{1.f, 120.f / 255.f, 1.f, 1.f};
+ccColor4F kEndColor{120.f / 255.f, 0.f, 1.f, 1.f};
+ccColor4F kNoVariance{0.f, 0.f, 0.f, 0.f};
+ccColor3B kLabelColor{255, 150, 255};
+ccColor3B kWaveColor{255, 100, 255};
 
 CurrencyRewardLayer* CBAmethystRewardLayer::findGDRewardLayer(CCNode* root) {
     if (!root) return nullptr;
@@ -135,7 +84,7 @@ void CBAmethystRewardLayer::attachCounter(CurrencyRewardLayer* gdLayer) {
     m_label->setPosition({0.f, y});
     row->addChild(m_label, 10);
 
-    m_icon = createAmethyst(kCounterIconHeight);
+    m_icon = comment::createAmethyst(kCounterIconHeight);
     if (!m_icon) m_icon = CCSprite::create();
     m_icon->setPosition(m_label->getPosition() + CCPoint{15.f, -0.5f - m_label->getScaledContentHeight() * 0.5f});
     row->addChild(m_icon, 3);
@@ -187,7 +136,7 @@ void CBAmethystRewardLayer::createCounter() {
     m_counter->addChild(m_label, 10);
 
     float labelHeight = m_label->getScaledContentHeight();
-    m_icon = createAmethyst(kCounterIconHeight);
+    m_icon = comment::createAmethyst(kCounterIconHeight);
     if (!m_icon) m_icon = CCSprite::create();
     m_icon->setPosition({15.f, -0.5f - labelHeight * 0.5f});
     m_counter->addChild(m_icon, 3);
@@ -214,12 +163,12 @@ void CBAmethystRewardLayer::createCounter() {
 }
 
 void CBAmethystRewardLayer::createPieces(int reward, CCPoint position) {
-    auto settings = settingsForCount(reward, m_time);
+    auto settings = comment::amethystSettingsForCount(reward, m_time);
     float delayBase = m_time * 0.1f + settings.base;
     bool single = reward == 1;
 
     for (int i = 0; i < std::min(reward, kMaxPieces); ++i) {
-        auto sprite = createAmethyst(kUnitHeight);
+        auto sprite = comment::createAmethyst(kUnitHeight);
         if (!sprite) continue;
 
         Piece piece;
@@ -228,15 +177,18 @@ void CBAmethystRewardLayer::createPieces(int reward, CCPoint position) {
         piece.scale = settings.scale;
         sprite->setScale(piece.unitScale * piece.scale);
 
-        auto start = position + CCPoint{randomSigned() * 10.f, randomSigned() * 10.f};
+        auto start = position + CCPoint{comment::randomSigned() * 10.f, comment::randomSigned() * 10.f};
         sprite->setPosition(start);
-        sprite->setRotation(randomSigned() * 30.f);
+        sprite->setRotation(comment::randomSigned() * 30.f);
         this->addChild(sprite, 2);
 
-        piece.velocity = CCPoint(random01() * 5.f * (random01() > 0.5f ? 1.f : -1.f), random01() * 3.f * 4.f);
-        if (single) piece.velocity.y = (random01() * 0.2f + 2.5f) * 4.f;
-        piece.remaining = random01() * settings.spread + delayBase;
-        piece.targetOffset = randomSigned() * 10.f;
+        piece.velocity = CCPoint(
+            (static_cast<float>(rand()) / static_cast<float>(RAND_MAX)) * 5.f *
+                ((static_cast<float>(rand()) / static_cast<float>(RAND_MAX)) > 0.5f ? 1.f : -1.f),
+            (static_cast<float>(rand()) / static_cast<float>(RAND_MAX)) * 3.f * 4.f);
+        if (single) piece.velocity.y = ((static_cast<float>(rand()) / static_cast<float>(RAND_MAX)) * 0.2f + 2.5f) * 4.f;
+        piece.remaining = (static_cast<float>(rand()) / static_cast<float>(RAND_MAX)) * settings.spread + delayBase;
+        piece.targetOffset = comment::randomSigned() * 10.f;
 
         if (i < kMaxTrails) {
             if (auto trail = CCParticleSystemQuad::create("fireballEffect.plist", false)) {
@@ -249,7 +201,7 @@ void CBAmethystRewardLayer::createPieces(int reward, CCPoint position) {
                 trail->setEndColor(kEndColor);
                 trail->setStartColorVar(kNoVariance);
                 trail->setEndColorVar(kNoVariance);
-                trail->setLife(random01() * 0.2f + 0.2f);
+                trail->setLife((static_cast<float>(rand()) / static_cast<float>(RAND_MAX)) * 0.2f + 0.2f);
                 trail->setLifeVar(0.f);
                 trail->setPositionType(kCCPositionTypeFree);
                 trail->setAutoRemoveOnFinish(false);
@@ -348,11 +300,12 @@ void CBAmethystRewardLayer::update(float dt) {
             CCPoint next = position + piece.velocity * frames;
             if (next.y > ceiling) {
                 next.y = ceiling;
-                piece.velocity.y *= -(0.6f + random01() * 0.3f);
+                piece.velocity.y *= -(0.6f + (static_cast<float>(rand()) / static_cast<float>(RAND_MAX)) * 0.3f);
             } else if (next.y < 6.f) {
                 next.y = 6.f;
-                piece.velocity.y *= -(0.6f + random01() * 0.3f);
-                if (piece.velocity.y < 4.f) piece.velocity.y = random01() * 2.f + 4.f;
+                piece.velocity.y *= -(0.6f + (static_cast<float>(rand()) / static_cast<float>(RAND_MAX)) * 0.3f);
+                if (piece.velocity.y < 4.f)
+                    piece.velocity.y = (static_cast<float>(rand()) / static_cast<float>(RAND_MAX)) * 2.f + 4.f;
             }
             if (next.x < 6.f) {
                 next.x = 6.f;

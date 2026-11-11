@@ -29,10 +29,8 @@ struct EquipRequest {
 static constexpr auto kPreviewID = "cb-comment-preview";
 static constexpr auto kPreviewCompactKey = "preview-compact";
 static constexpr auto kPreviewOverlayKey = "preview-overlay";
-static constexpr float kPreviewMaxHeight = 54.f;
 
 // shows the compact or non-compact mockup depending on the saved preference
-// (and shows/hides the comment drawn over the banner)
 static void applyPreviewMode(CCNode* container) {
     bool compact = Mod::get()->getSavedValue<bool>(kPreviewCompactKey, false);
     bool overlay = Mod::get()->getSavedValue<bool>(kPreviewOverlayKey, true);
@@ -109,14 +107,12 @@ Button* CBBannerCell::createBannerIcon(CBBannerIcon icon) {
     auto button = Button::createWithSpriteFrameName(frame, [title, text](Button*) {
         FLAlertLayer::create(title, text, "OK")->show();
     });
-    // all icons 12 units tall (the star/limited icons at 0.8 scale)
     float height = button->getContentHeight();
     button->setScale(height > 0.f ? 12.f / height : 0.8f);
     return button;
 }
 
 void CBBannerCell::decoratePopupTitle(CCNode* mainLayer, Label* title, CBBannerItem const& banner) {
-    // icons right to left, ending just before the title
     float x = -title->getScaledContentWidth() / 2.f - 5.f;
     auto addIcon = [&](CBBannerIcon type) {
         auto icon = createBannerIcon(type);
@@ -165,7 +161,6 @@ void CBBannerCell::setPreviewOverlay(bool overlay) {
 
 CCNode* CBBannerCell::createCommentPreviewButton(std::string const& imageUrl, CCSize const& maxSize, std::string const& nonCompactImageUrl) {
     return Button::createWithNode(createCellPreview(imageUrl, maxSize, nonCompactImageUrl), [](Button* sender) {
-        // switch between compact and non-compact, applied to every visible preview
         auto compact = Mod::get()->getSavedValue<bool>(kPreviewCompactKey, false);
         Mod::get()->setSavedValue(kPreviewCompactKey, !compact);
         if (auto scene = CCDirector::sharedDirector()->getRunningScene()) {
@@ -250,7 +245,7 @@ CBBannerCell* CBBannerCell::create(const CBBannerItem& banner, float width, CBBa
         auto sprite = comment::createBannerNode(banner.imageUrl, {width - 16.f, 104.f});
         sprite->setPosition({width / 2.f, cellHeight - 30.f});
         cellBg->addChild(sprite);
-    } else if (auto previewButton = createCommentPreviewButton(banner.imageUrl, {width - 32.f, kPreviewMaxHeight}, banner.nonCompactImageUrl)) {
+    } else if (auto previewButton = createCommentPreviewButton(banner.imageUrl, {width - 32.f, 54.f}, banner.nonCompactImageUrl)) {
         previewButton->setPosition({width / 2.f, cellHeight - 27.f});
         cellBg->addChild(previewButton);
     }
@@ -261,7 +256,6 @@ CBBannerCell* CBBannerCell::create(const CBBannerItem& banner, float width, CBBa
         if (nameLabel) {
             nameLabel->setAnchorPoint({0.f, 0.5f});
             float nameX = 10.f;
-            // tappable icons before the name, each explains what it means
             auto addIcon = [&](CBBannerIcon type) {
                 auto icon = createBannerIcon(type);
                 icon->setAnchorPoint({0.f, 0.5f});
@@ -269,7 +263,6 @@ CBBannerCell* CBBannerCell::create(const CBBannerItem& banner, float width, CBBa
                 cellBg->addChild(icon);
                 nameX += icon->getScaledContentWidth() + 4.f;
             };
-            // the manage cell has the name input there instead
             if (!isManage) {
                 if (banner.isSupporterOnly) addIcon(CBBannerIcon::SupporterOnly);
                 if (banner.isFeatured) addIcon(CBBannerIcon::Featured);
@@ -303,7 +296,6 @@ CBBannerCell* CBBannerCell::create(const CBBannerItem& banner, float width, CBBa
             cellBg->addChild(nameLabel);
 
             if (isManage) {
-                // editable instead: same spot, after the icons
                 nameLabel->setVisible(false);
                 cellBg->m_nameInput = TextInput::create(220.f, "Name", "bigFont.fnt");
                 cellBg->m_nameInput->setCommonFilter(CommonFilter::Name);
@@ -317,7 +309,6 @@ CBBannerCell* CBBannerCell::create(const CBBannerItem& banner, float width, CBBa
     }
 
     if (isManage) {
-        // the description instead of "By user" (the popup is already about that user)
         cellBg->m_descInput = TextInput::create(400.f, "Description", "chatFont.fnt");
         cellBg->m_descInput->setCommonFilter(CommonFilter::Any);
         cellBg->m_descInput->setString(banner.description);
@@ -336,13 +327,11 @@ CBBannerCell* CBBannerCell::create(const CBBannerItem& banner, float width, CBBa
         }
     }
 
-    // price, then (admin cells) the extra details in the same row
     float detailX = nameLabel ? nameLabel->getPositionX() + nameLabel->getScaledContentWidth() + 10.f : 20.f;
     if (cellBg->m_nameInput) {
         detailX = cellBg->m_nameInput->getPositionX() + cellBg->m_nameInput->getScaledContentWidth() + 6.f;
     }
     if (isManage) {
-        // editable price with the amethyst after it
         cellBg->m_priceInput = TextInput::create(110.f, "Price", "bigFont.fnt");
         cellBg->m_priceInput->setCommonFilter(CommonFilter::Int);
         cellBg->m_priceInput->setString(numToString(banner.price));
@@ -385,7 +374,6 @@ CBBannerCell* CBBannerCell::create(const CBBannerItem& banner, float width, CBBa
     }
 
     if (isAdminCell && !isManage) {
-        // an approved banner with a new image, rejecting restores the old one
         if (type == CBBannerCellType::Pending && banner.isResubmission) {
             if (auto resubLabel = Label::create("Image Change", "goldFont.fnt")) {
                 resubLabel->setAnchorPoint({0.f, 0.5f});
@@ -396,7 +384,6 @@ CBBannerCell* CBBannerCell::create(const CBBannerItem& banner, float width, CBBa
                 detailX += resubLabel->getScaledContentWidth() + 8.f;
             }
         }
-        // limited stock (pending: what was requested)
         if (banner.isLimited) {
             if (auto amountLabel = Label::create(fmt::format("Amount: {}", banner.amount).c_str(), "goldFont.fnt")) {
                 amountLabel->setAnchorPoint({0.f, 0.5f});
@@ -406,7 +393,6 @@ CBBannerCell* CBBannerCell::create(const CBBannerItem& banner, float width, CBBa
                 detailX += amountLabel->getScaledContentWidth() + 8.f;
             }
         }
-        // full banner details (description, preview, stats)
         if (auto descBtn = Button::createWithSpriteFrameName("GJ_infoIcon_001.png", [banner](Button*) {
                 if (auto popup = CBViewItemPopup::create(banner)) {
                     popup->show();
@@ -526,7 +512,6 @@ void CBBannerCell::addShopButtons() {
 }
 
 CCMenu* CBBannerCell::createAdminMenu() {
-    // bottom right, same spot as the shop cell's buttons
     auto menu = CCMenu::create();
     menu->ignoreAnchorPointForPosition(false);
     menu->setAnchorPoint({1.f, 0.5f});
@@ -540,7 +525,6 @@ CCMenu* CBBannerCell::createAdminMenu() {
 }
 
 void CBBannerCell::addAdminButton(CCMenu* menu, Button* button) {
-    // every admin button the same height, whatever sprite it uses
     constexpr float kButtonHeight = 28.f;
     float height = button->getContentHeight();
     if (height > 0.f) button->setScale(kButtonHeight / height);
@@ -551,7 +535,6 @@ void CBBannerCell::addAdminButton(CCMenu* menu, Button* button) {
 void CBBannerCell::addPendingButtons() {
     auto menu = createAdminMenu();
     int id = m_banner.id;
-    // plain pointer: the panel owns this cell, a Ref here would keep the panel alive forever
     auto adminPanel = m_options.adminPanel;
 
     addAdminButton(menu, Button::createWithNode(CircleButtonSprite::createWithSpriteFrameName("GJ_completesIcon_001.png", 0.8f, CircleBaseColor::Green, CircleBaseSize::Small), [id, adminPanel](Button*) {
@@ -566,7 +549,6 @@ void CBBannerCell::addPendingButtons() {
         }
     }));
 
-    // preview on a comment cell (both images when it has a non-compact one)
     auto imageUrl = m_banner.imageUrl;
     auto nonCompactImageUrl = m_banner.nonCompactImageUrl;
     addAdminButton(menu, Button::createWithSpriteFrameName("dtrackBtn_search_001.png", [imageUrl, nonCompactImageUrl](Button*) {
@@ -578,8 +560,6 @@ void CBBannerCell::addPendingButtons() {
 
 void CBBannerCell::addAdminButtons() {
     auto menu = createAdminMenu();
-
-    // preview of both comment modes, only when the banner has both images
     if (!m_banner.nonCompactImageUrl.empty()) {
         auto imageUrl = m_banner.imageUrl;
         auto nonCompactImageUrl = m_banner.nonCompactImageUrl;
@@ -590,7 +570,6 @@ void CBBannerCell::addAdminButtons() {
         }));
     }
 
-    // feature toggle: an empty star unfeatures, a full star features
     addAdminButton(menu, Button::createWithNode(CircleButtonSprite::createWithSpriteFrameName(m_banner.isFeatured ? "GJ_noStarsIcon_001.png" : "GJ_starsIcon_001.png", 1.0f, CircleBaseColor::Green, CircleBaseSize::Small), [this](Button* sender) { this->toggleFeatured(sender); }));
 
     auto adminData = m_options.adminData;
@@ -606,24 +585,19 @@ void CBBannerCell::addManageButtons() {
     int id = m_banner.id;
 
     // save name / description / price
-    addAdminButton(menu, Button::createWithNode(
-        CircleButtonSprite::createWithSpriteFrameName("GJ_completesIcon_001.png", 0.8f, CircleBaseColor::Green, CircleBaseSize::Small),
-        [this, id](Button*) {
-            if (!m_options.onSave) return;
-            m_options.onSave(id, m_nameInput->getString(), m_descInput->getString(),
-                numFromString<int>(m_priceInput->getString()).unwrapOr(m_banner.price));
-        }));
+    addAdminButton(menu, Button::createWithNode(CircleButtonSprite::createWithSpriteFrameName("GJ_completesIcon_001.png", 0.8f, CircleBaseColor::Green, CircleBaseSize::Small), [this, id](Button*) {
+        if (!m_options.onSave) return;
+        m_options.onSave(id, m_nameInput->getString(), m_descInput->getString(), numFromString<int>(m_priceInput->getString()).unwrapOr(m_banner.price));
+    }));
 
-    // delete (admins only, greyed out for staff)
     auto deleteBtn = Button::createWithNode(
         CircleButtonSprite::createWithSpriteFrameName("GJ_deleteIcon_001.png", 0.8f, CircleBaseColor::Red, CircleBaseSize::Small),
         [this, id](Button*) {
             if (!m_options.onDelete) return;
             auto onDelete = m_options.onDelete;
-            createQuickPopup("Delete Banner", fmt::format("Are you sure you want to <cr>delete</c> <cy>{}</c>?", m_banner.name), "Cancel", "Delete",
-                [onDelete, id](FLAlertLayer*, bool confirmed) {
-                    if (confirmed) onDelete(id);
-                });
+            createQuickPopup("Delete Banner", fmt::format("Are you sure you want to <cr>delete</c> <cy>{}</c>?", m_banner.name), "Cancel", "Delete", [onDelete, id](FLAlertLayer*, bool confirmed) {
+                if (confirmed) onDelete(id);
+            });
         });
     if (!m_options.canDelete) {
         deleteBtn->setEnabled(false);
@@ -642,7 +616,8 @@ void CBBannerCell::toggleFeatured(Button* button) {
         newState
             ? fmt::format("Are you sure you want to <cy>feature</c> <cg>{}</c>?\nIt gets the <cy>featured</c> star and shows up in the <cl>Featured</c> filter.", m_banner.name)
             : fmt::format("Are you sure you want to <cr>unfeature</c> <cg>{}</c>?", m_banner.name),
-        "Cancel", newState ? "Feature" : "Unfeature",
+        "Cancel",
+        newState ? "Feature" : "Unfeature",
         [self, btn, newState](FLAlertLayer*, bool confirmed) {
             if (confirmed) self->setFeatured(btn, newState);
         });

@@ -1,5 +1,6 @@
 #pragma once
 #include <Geode/Geode.hpp>
+#include <cue/PlayerIcon.hpp>
 
 using namespace geode::prelude;
 
@@ -37,7 +38,7 @@ class CBUserCell : public CCNode {
 public:
     static CBUserCell* create(CBUserData const& data, float width, CBUserCellOptions options = {});
     static CCNode* createStatsNode(CBUserData const& data, bool showSalesCount = false);
-    static SimplePlayer* createPlayer(CBUserData const& data);
+    static cue::PlayerIcon* createPlayer(CBUserData const& data);
     static CCNode* createBadges(CBUserData const& data, float height);
 
 private:

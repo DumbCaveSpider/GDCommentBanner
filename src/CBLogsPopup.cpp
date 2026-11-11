@@ -123,7 +123,7 @@ void CBLogsPopup::fetchLogs() {
 
     // ?types=A,B&order=oldest&page=0&limit=10
     std::string query = fmt::format("&page={}&limit={}", m_page, kLogsPerPage);
-    auto types = getLogTypesFor(m_filter.categories);
+    auto types = comment::getLogTypesFor(m_filter.categories);
     if (!types.empty()) {
         query += "&types=" + utils::string::join(types, ",");
     }

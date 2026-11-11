@@ -2,33 +2,9 @@
 #include "CBProfileBannerPopup.hpp"
 #include "include/CBConstant.hpp"
 #include <Geode/binding/GameManager.hpp>
-#include <Geode/binding/SimplePlayer.hpp>
+#include <cue/PlayerIcon.hpp>
 
-namespace {
-    constexpr float kCellHeight = 40.f;
-
-    // a stat with an icon in front
-    CCNode* createStat(char const* frameName, std::string const& text, ccColor3B color) {
-        auto node = CCNode::create();
-        node->setAnchorPoint({0.f, 0.5f});
-        node->setContentSize({0.f, 14.f});
-        node->setLayout(RowLayout::create()->setGap(2.f)->setAutoScale(false)->setAutoGrowAxis(0.f));
-
-        auto icon = CCSprite::createWithSpriteFrameName(frameName);
-        if (icon) {
-            icon->setScale(12.f / std::max(icon->getContentHeight(), 1.f));
-            node->addChild(icon);
-        }
-
-        auto label = Label::create(text.c_str(), "bigFont.fnt");
-        label->setScale(0.3f);
-        label->setColor(color);
-        node->addChild(label);
-
-        node->updateLayout();
-        return node;
-    }
-}
+constexpr float kCellHeight = 40.f;
 
 CBUserData CBUserData::fromJson(matjson::Value const& json) {
     CBUserData data;
@@ -70,9 +46,9 @@ CCNode* CBUserCell::createStatsNode(CBUserData const& data, bool showSalesCount)
             ->setAutoGrowAxis(0.f)
             ->setAxisAlignment(AxisAlignment::Center));
 
-    row->addChild(createStat("CB_amethyst_001.png"_spr, GameToolbox::pointsToString(data.amethyst), {255, 255, 255}));
-    row->addChild(createStat("particle_337_001.png", fmt::format("+{}/mo", GameToolbox::pointsToString(data.monthlyEarnings)), {100, 255, 100}));
-    row->addChild(createStat("particle_336_001.png",
+    row->addChild(comment::createStat("CB_amethyst_001.png"_spr, GameToolbox::pointsToString(data.amethyst), {255, 255, 255}));
+    row->addChild(comment::createStat("particle_337_001.png", fmt::format("+{}/mo", GameToolbox::pointsToString(data.monthlyEarnings)), {100, 255, 100}));
+    row->addChild(comment::createStat("particle_336_001.png",
         showSalesCount ? fmt::format("{} Sales", GameToolbox::pointsToString(data.totalSales))
                        : GameToolbox::pointsToString(data.totalEarned),
         {150, 255, 150}));
@@ -81,28 +57,20 @@ CCNode* CBUserCell::createStatsNode(CBUserData const& data, bool showSalesCount)
     return row;
 }
 
-SimplePlayer* CBUserCell::createPlayer(CBUserData const& data) {
-    auto gm = GameManager::sharedState();
+cue::PlayerIcon* CBUserCell::createPlayer(CBUserData const& data) {
     int iconId = data.iconId > 0 ? data.iconId : 1;
-    auto player = SimplePlayer::create(iconId);
-    player->updatePlayerFrame(iconId, IconType::Cube);
-    if (data.iconId > 0) {
-        player->setColor(gm->colorForIdx(data.color1));
-        player->setSecondColor(gm->colorForIdx(data.color2));
-        if (data.hasGlow) {
-            player->setGlowOutline(gm->colorForIdx(data.glowColor));
-        } else {
-            player->disableGlowOutline();
-        }
-    }
-    player->updateColors();
+    auto player = cue::PlayerIcon::create(
+        IconType::Cube, iconId, data.color1, data.color2, data.hasGlow ? data.glowColor : -1);
+    player->setAnchorPoint({0.5f, 0.5f});
     return player;
 }
 
 CCNode* CBUserCell::createBadges(CBUserData const& data, float height) {
     std::vector<char const*> frames;
-    if (data.isAdmin) frames.push_back("CB_admin_badge.png"_spr);
-    else if (data.isStaff) frames.push_back("CB_staff_badge.png"_spr);
+    if (data.isAdmin)
+        frames.push_back("CB_admin_badge.png"_spr);
+    else if (data.isStaff)
+        frames.push_back("CB_staff_badge.png"_spr);
     if (data.isSupporter) frames.push_back("CB_supporter_badge.png"_spr);
     if (frames.empty()) return nullptr;
 
@@ -180,7 +148,6 @@ bool CBUserCell::init(CBUserData const& data, float width, CBUserCellOptions opt
 
     float availableWidth = rightEdge - x;
     constexpr float kNameY = 27.f;
-    constexpr float kStatsY = 12.f;
 
     // username (opens their profile)
     auto nameLabel = Label::create(m_data.username.c_str(), "goldFont.fnt");
@@ -196,7 +163,6 @@ bool CBUserCell::init(CBUserData const& data, float width, CBUserCellOptions opt
     nameBtn->setPosition({x, kNameY});
     menu->addChild(nameBtn);
     float nameRight = x + nameBtn->getScaledContentWidth() + 4.f;
-
 
     // badges, as tall as the name
     if (auto badges = createBadges(m_data, nameLabel->getScaledContentHeight())) {
@@ -220,7 +186,7 @@ bool CBUserCell::init(CBUserData const& data, float width, CBUserCellOptions opt
     if (stats->getContentWidth() > availableWidth) {
         stats->setScale(availableWidth / stats->getContentWidth());
     }
-    stats->setPosition({x, kStatsY});
+    stats->setPosition({x, 12.f});
     this->addChild(stats, 1);
 
     return true;

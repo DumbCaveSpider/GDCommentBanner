@@ -45,10 +45,10 @@ enum class CBBannerIcon {
 };
 
 enum class CBBannerCellType {
-    Shop,     // shop / profile / local banners
-    Pending,  // approve, reject, preview
-    Admin,    // preview, feature, manage
-    Manage,   // name/description/price inputs, save, delete
+    Shop,
+    Pending,
+    Admin,
+    Manage,
 };
 
 struct CBBannerCellOptions {

@@ -35,7 +35,6 @@ bool CBViewItemPopup::init(const CBBannerItem& banner) {
     this->setTitle(m_banner.name.c_str(), "bigFont.fnt", 0.7f);
     m_title->setLimitLabelWidth(160.f, 0.7f);
 
-    // tappable icons left of the title, and the title tint
     CBBannerCell::decoratePopupTitle(m_mainLayer, m_title, m_banner);
 
     if (!m_banner.username.empty()) {
@@ -48,7 +47,6 @@ bool CBViewItemPopup::init(const CBBannerItem& banner) {
         }
     }
 
-    // when it was uploaded / last edited / approved (dates only, missing ones are skipped)
     std::vector<std::string> dates;
     auto addDate = [&](char const* what, std::string const& when) {
         if (!when.empty()) dates.push_back(fmt::format("{} {}", what, when.substr(0, 10)));
@@ -83,10 +81,8 @@ bool CBViewItemPopup::init(const CBBannerItem& banner) {
         priceNode->updateLayout();
     }
 
-    // Non-Compact / Comment Overlay toggles, top right (Favorite joins them below)
     CCMenu* togglesMenu = nullptr;
     if (!m_banner.imageUrl.empty()) {
-        // the banner on comment cells, fits between the dates and the description
         if (auto preview = CBBannerPreview::create(m_banner.imageUrl, m_banner.nonCompactImageUrl, {345.f, 65.f})) {
             m_mainLayer->addChildAtPosition(preview, Anchor::Center, {0.f, 15.f}, false);
             togglesMenu = preview->createToggles();
@@ -94,7 +90,6 @@ bool CBViewItemPopup::init(const CBBannerItem& banner) {
         }
     }
 
-    // Favorite toggle, one more row of the preview toggles (local banners can't be favorites)
     if (!m_banner.isLocal && m_banner.id > 0) {
         auto favoriteRow = CCMenu::create();
         favoriteRow->setContentSize({90.f, 18.f});
@@ -113,12 +108,10 @@ bool CBViewItemPopup::init(const CBBannerItem& banner) {
         favoriteRow->updateLayout();
 
         if (togglesMenu) {
-            // anchored at the top right, so the menu grows downwards
             togglesMenu->setContentHeight(togglesMenu->getContentHeight() + favoriteRow->getContentHeight());
             togglesMenu->addChild(favoriteRow);
             togglesMenu->updateLayout();
         } else {
-            // no preview (no image): same spot on its own
             togglesMenu = CCMenu::create();
             togglesMenu->ignoreAnchorPointForPosition(false);
             togglesMenu->setAnchorPoint({1.f, 1.f});

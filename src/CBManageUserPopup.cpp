@@ -337,7 +337,7 @@ void CBManageUserPopup::createBannerCell(matjson::Value const& banner) {
     });
     if (!cell) return;
 
-    m_bannersList->setCellColor(ccColor4B{0, 0, 0, 0});
+    m_bannersList->setCellColor(ccBLACK);
     m_bannersList->addCell(cell);
 }
 

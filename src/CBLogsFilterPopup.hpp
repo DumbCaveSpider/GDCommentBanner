@@ -2,18 +2,10 @@
 #include <Geode/Geode.hpp>
 #include <Geode/ui/Popup.hpp>
 #include <Geode/ui/Toggler.hpp>
+#include "include/CBConstant.hpp"
 #include <set>
 
 using namespace geode::prelude;
-
-struct CBLogCategory {
-    char const* name;
-    std::vector<char const*> types;
-};
-
-std::vector<CBLogCategory> const& getLogCategories();
-
-std::vector<std::string> getLogTypesFor(std::set<int> const& categories);
 
 struct CBLogsFilter {
     std::set<int> categories;  // empty = all types

@@ -1,54 +1,15 @@
 #include "CBLogsCell.hpp"
+#include "include/CBConstant.hpp"
 #include <Geode/ui/TextArea.hpp>
+#include <cctype>
 
 #if defined(GEODE_IS_WINDOWS) || defined(GEODE_IS_ANDROID)
 #include <Geode/binding/EmoteSprite.hpp>
 #define CB_HAS_EMOTES 1
 #endif
 
-namespace {
-    constexpr float kIconSize = 18.f;
-    constexpr float kTextX = 36.f; 
-    constexpr float kMinHeight = 40.f;
-    constexpr int kMaxMessageLines = 3;
-
-    struct LogStyle {
-        char const* emote; 
-        char const* sprite;
-        ccColor3B color;
-    };
-
-    LogStyle styleForType(std::string const& type) {
-        static ccColor3B const green{100, 255, 100};
-        static ccColor3B const red{255, 100, 100};
-        static ccColor3B const gold{255, 200, 100};
-        static ccColor3B const pink{255, 150, 255};
-
-        if (type == "APPROVED") return {"party", "GJ_completesIcon_001.png", green};
-        if (type == "REJECTED") return {"mail", "GJ_deleteIcon_001.png", red};
-        if (type == "BANNER_SOLD") return {"trophy", "GJ_sStarsIcon_001.png", green};
-        if (type == "BANNER_PAYOUT" || type == "AMETHYST_REWARD" || type == "ADMIN_AMETHYST_CHANGE" || type == "AMETHYST_GIFT_RECEIVED")
-            return {"chest", "GJ_sStarsIcon_001.png", pink};
-        if (type == "FEATURED") return {"star", "GJ_starsIcon_001.png", gold};
-        if (type == "UNFEATURED") return {"star", "GJ_starsIcon_001.png", {200, 200, 200}};
-        if (type == "BANNER_REFUNDED") return {"download", "GJ_sStarsIcon_001.png", gold};
-        if (type == "SUPPORTER_LINKED") return {"royal", "gj_heartOn_001.png", pink};
-        if (type == "BANNER_DELETED" || type == "BANNER_REMOVED") return {"mail", "GJ_deleteIcon_001.png", red};
-        if (type == "TEMP_BAN" || type == "PERMANENT_BAN") return {"mail", "GJ_deleteIcon_001.png", red};
-        if (type == "BANNER_EDITED" || type == "BANNER_CHANGED" || type == "BANNER_UNEQUIPPED")
-            return {"cube", "GJ_infoIcon_001.png", gold};
-        return {"mail", "GJ_infoIcon_001.png", gold};
-    }
-
-    void fitLines(SimpleTextArea* area, std::string const& text) {
-        if (area->getLines().size() <= kMaxMessageLines) return;
-        size_t length = text.size();
-        while (area->getLines().size() > kMaxMessageLines && length > 4) {
-            length -= 4;
-            area->setText(text.substr(0, length) + "...");
-        }
-    }
-}
+constexpr float kTextX = 36.f;
+constexpr float kMinHeight = 40.f;
 
 CBLogsCell* CBLogsCell::create(CBLogEntry const& entry, float width) {
     auto ret = new CBLogsCell();
@@ -62,36 +23,31 @@ CBLogsCell* CBLogsCell::create(CBLogEntry const& entry, float width) {
 
 std::string CBLogsCell::titleForType(std::string const& actionType) {
     if (actionType.empty()) return "Notification";
-    std::string title;
-    bool upper = true;
-    for (char c : actionType) {
-        if (c == '_') {
-            title += ' ';
-            upper = true;
-        } else {
-            title += upper ? static_cast<char>(std::toupper(c)) : static_cast<char>(std::tolower(c));
-            upper = false;
+
+    auto words = utils::string::split(actionType, "_");
+    for (auto& word : words) {
+        utils::string::toLowerIP(word);
+        if (!word.empty()) {
+            word.front() = static_cast<char>(std::toupper(static_cast<unsigned char>(word.front())));
         }
     }
-    return title;
+    return utils::string::join(words, " ");
 }
 
 CCNode* CBLogsCell::createIcon(std::string const& actionType) {
-    auto style = styleForType(actionType);
+    auto style = comment::logStyleForType(actionType);
     CCNode* icon = nullptr;
 
 #ifdef CB_HAS_EMOTES
-    // only works once GD has loaded its emotes, otherwise falls back to the sprite below
     icon = EmoteSprite::createWithName(style.emote);
 #endif
     if (!icon) icon = CCSprite::createWithSpriteFrameName(style.sprite);
     if (!icon) icon = CCSprite::createWithSpriteFrameName("GJ_infoIcon_001.png");
     if (!icon) return nullptr;
 
-    // like EmoteSprite::fitToHeight, scale to the icon height
     auto size = icon->getContentSize();
     float largest = std::max(size.width, size.height);
-    if (largest > 0.f) icon->setScale(kIconSize / largest);
+    if (largest > 0.f) icon->setScale(18.f / largest);
     return icon;
 }
 
@@ -99,14 +55,13 @@ bool CBLogsCell::init(CBLogEntry const& entry, float width) {
     if (!CCNode::init()) return false;
     m_entry = entry;
 
-    auto style = styleForType(entry.actionType);
+    auto style = comment::logStyleForType(entry.actionType);
     float textWidth = width - kTextX - 14.f;
 
-    // message, measured first so the cell can grow to fit it
     auto body = SimpleTextArea::create(entry.message.c_str(), "chatFont.fnt", 0.54f, textWidth);
     body->setAlignment(kCCTextAlignmentLeft);
     body->setAnchorPoint({0.f, 1.f});
-    fitLines(body, entry.message);
+    body->setMaxLines(3);
 
     float bodyHeight = body->getScaledContentSize().height;
     float height = std::max(kMinHeight, bodyHeight + 30.f);

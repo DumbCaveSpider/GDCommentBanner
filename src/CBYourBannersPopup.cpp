@@ -9,14 +9,6 @@
 
 using namespace geode::prelude;
 
-namespace {
-    // must match TriggerMonthlyPayout on the server
-    float earnRateForEquips(int equippedCount) {
-        if (equippedCount <= 0) return 0.f;
-        return std::min(0.30f, 0.05f + (equippedCount / 5) * 0.05f);
-    }
-}
-
 CBYourBannersPopup* CBYourBannersPopup::create() {
     auto ret = new CBYourBannersPopup();
     if (ret && ret->init()) {
@@ -300,7 +292,7 @@ void CBYourBannersPopup::fetchBanners() {
                 }
 
                 if (!isPending) {
-                    float bannerEarnRate = price * earnRateForEquips(equippedCount);
+                    float bannerEarnRate = price * comment::earnRateForEquips(static_cast<float>(equippedCount));
 
                     if (auto equippedLabel = Label::create(fmt::format("Total Equipped: {}", equippedCount).c_str(), "goldFont.fnt")) {
                         equippedLabel->setLimitLabelWidth(150.f, 0.5f, 0.2f);

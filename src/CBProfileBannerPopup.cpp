@@ -127,26 +127,22 @@ void CBProfileBannerPopup::showStats(matjson::Value const& user) {
     m_badgesNode = nullptr;
 
     auto data = CBUserData::fromJson(user);
-    // /getUser names this one differently from the leaderboard
     data.monthlyEarnings = static_cast<int>(user["monthly_earnings"].asInt().unwrapOr(0));
 
-    // stats centered under the title
     m_statsNode = CBUserCell::createStatsNode(data);
     m_statsNode->setAnchorPoint({0.5f, 0.5f});
     m_statsNode->setScale(1.2f);
     m_mainLayer->addChildAtPosition(m_statsNode, Anchor::Top, {0.f, -45.f}, false);
 
     if (m_title) {
-        // cube on the left of the title (SimplePlayer is centered on its position, ~30px wide unscaled)
         if (m_playerNode) m_playerNode->removeFromParent();
         auto player = CBUserCell::createPlayer(data);
         player->setScale(0.7f);
-        float halfCube = 30.f * player->getScale() / 2.f;
+        float halfCube = player->getScaledContentWidth() / 2.f;
         player->setPosition(m_title->getPosition() - CCPoint{m_title->getScaledContentWidth() / 2.f + 4.f + halfCube, 0.f});
         m_mainLayer->addChild(player, m_title->getZOrder());
         m_playerNode = player;
 
-        // badges right after the title
         if (auto badges = CBUserCell::createBadges(data, m_title->getScaledContentHeight())) {
             m_badgesNode = badges;
             badges->setPosition(m_title->getPosition() + CCPoint{m_title->getScaledContentWidth() / 2.f + 4.f, 0.f});

@@ -79,7 +79,7 @@ bool CBAdminBannerManagePopup::init(matjson::Value const& bannerData) {
     }
     auto amountLabel = Label::create(amountText.c_str(), "chatFont.fnt");
     amountLabel->setPosition({0, startY - gap * 3 - 5.f});
-    amountLabel->setColor(ccColor3B{200, 200, 200});
+    amountLabel->setColor(ccGRAY);
     menu->addChild(amountLabel);
 
     // Buttons Menu

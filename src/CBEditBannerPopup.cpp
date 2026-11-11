@@ -7,14 +7,6 @@
 #include <Geode/binding/UploadActionPopup.hpp>
 #include "include/CBConstant.hpp"
 
-namespace {
-    int submissionFeeForPrice(int price) {
-        if (price <= 0) price = 1;
-        int multiplier = ((price - 1) / 100000) + 1;
-        return 15000 * std::max(1, multiplier);
-    }
-}
-
 CBEditBannerPopup* CBEditBannerPopup::create(CBEditBannerData data, std::function<void()> onSuccess) {
     auto ret = new CBEditBannerPopup();
     if (ret && ret->init(std::move(data), std::move(onSuccess))) {
@@ -123,7 +115,8 @@ void CBEditBannerPopup::onDelete(CCObject*) {
     createQuickPopup(
         "Delete Banner",
         fmt::format("Are you sure you want to <cr>permanently delete</c> <cy>{}</c>?\nEveryone who bought it will lose it and get their <cp>amethysts refunded</c>. The refunds are <cr>taken from your balance</c> (the earnings from its sales). This cannot be undone.", m_data.name),
-        "Cancel", "Delete",
+        "Cancel",
+        "Delete",
         [retainedSelf](FLAlertLayer*, bool btn2) {
             if (btn2) retainedSelf->deleteBanner();
         });
@@ -226,7 +219,7 @@ void CBEditBannerPopup::onSave(CCObject*) {
     }
 
     // raising the price into a higher fee bracket costs the fee difference
-    int feeDifference = std::max(0, submissionFeeForPrice(price) - submissionFeeForPrice(m_data.price));
+    int feeDifference = std::max(0, comment::submissionFeeForPrice(price) - comment::submissionFeeForPrice(m_data.price));
     if (feeDifference == 0) {
         submitEdit(name, desc, price, amount);
         return;
@@ -242,8 +235,10 @@ void CBEditBannerPopup::onSave(CCObject*) {
     createQuickPopup(
         "Increased Submission Fee",
         fmt::format("Raising the price to <cp>{} amethysts</c> moves this banner into a higher submission fee bracket. You will be charged <cy>{} amethysts</c>.\nDo you want to continue?",
-            GameToolbox::pointsToString(price), GameToolbox::pointsToString(feeDifference)),
-        "Cancel", "Save",
+            GameToolbox::pointsToString(price),
+            GameToolbox::pointsToString(feeDifference)),
+        "Cancel",
+        "Save",
         [retainedSelf, name, desc, price, amount](FLAlertLayer*, bool btn2) {
             if (!btn2) return;
             retainedSelf->submitEdit(name, desc, price, amount);

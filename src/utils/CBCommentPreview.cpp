@@ -2,44 +2,13 @@
 #include "../include/CBConstant.hpp"
 #include <Geode/binding/GameManager.hpp>
 #include <Geode/binding/GJAccountManager.hpp>
-#include <Geode/binding/SimplePlayer.hpp>
 #include <Geode/ui/NineSlice.hpp>
+#include <cue/PlayerIcon.hpp>
 
 using namespace geode::prelude;
 
 // me when i steal the CommentCell code from the decomp HAHAHAHAHA
 // rob does the same for all other geode mod devs too so i guess this is fair game
-
-static std::string getPreviewUsername() {
-    std::string name = GJAccountManager::sharedState()->m_username;
-    if (name.empty()) name = GameManager::sharedState()->m_playerName;
-    if (name.empty()) name = "Player";
-    return name;
-}
-
-static SimplePlayer* createPlayerIcon() {
-    auto gm = GameManager::sharedState();
-    auto player = SimplePlayer::create(1);
-    player->updatePlayerFrame(gm->getPlayerFrame(), IconType::Cube);
-    player->setColor(gm->colorForIdx(gm->getPlayerColor()));
-    player->setSecondColor(gm->colorForIdx(gm->getPlayerColor2()));
-    if (gm->getPlayerGlow()) {
-        player->setGlowOutline(gm->colorForIdx(gm->getPlayerGlowColor()));
-    } else {
-        player->disableGlowOutline();
-    }
-    player->updateColors();
-    return player;
-}
-
-static void addCellLines(CCNode* cell, float width, float height) {
-    // CommentCell::draw draws a line on the top and bottom edge
-    for (float y : {0.f, height - 1.f}) {
-        auto line = CCLayerColor::create({0, 0, 0, 75}, width - 2.f, 1.f);
-        line->setPosition({1.f, y});
-        cell->addChild(line, 5);
-    }
-}
 
 namespace comment {
     CCNode* createCommentPreview(std::string const& imageUrl, bool compact, float width, std::string const& nonCompactImageUrl, bool showOverlay, bool priorityLoad) {
@@ -50,20 +19,15 @@ namespace comment {
         clip->setContentSize(size);
         clip->setAnchorPoint({0.5f, 0.5f});
 
-        // everything drawn over the banner (cell background, comment, lines), shown/hidden as one
-        // with setCommentPreviewOverlay. The banner is a sibling underneath, not a child,
-        // so hiding the overlay never hides the banner or its loading spinner.
         auto overlay = CCNode::create();
         overlay->setID(kCommentPreviewOverlayID);
         overlay->setContentSize(size);
         clip->addChild(overlay, 1);
 
-        // m_backgroundLayer, drawn over the banner like setupCommentSprite in CBHook
         auto bgColor = compact ? ccColor3B{156, 85, 42} : ccColor3B{161, 88, 44};
         auto bgLayer = CCLayerColor::create({bgColor.r, bgColor.g, bgColor.b, 255}, width, height);
         overlay->addChild(bgLayer, -1);
 
-        // same rules as setupCommentSprite in CBHook
         bool useNonCompact = !compact && !nonCompactImageUrl.empty();
         if (!imageUrl.empty() || useNonCompact) {
             auto bannerSize = (compact || useNonCompact) ? size : CCSize{800.f, 800.f};
@@ -74,18 +38,17 @@ namespace comment {
             }
         }
 
-        // m_mainLayer
         auto mainLayer = CCNode::create();
         mainLayer->setContentSize(size);
         overlay->addChild(mainLayer, 1);
 
-        auto player = createPlayerIcon();
+        auto player = comment::createLocalPlayerIcon();
         player->setScale((compact ? 0.75f : 1.f) * 0.6f);
         player->setPosition({20.f, height - (compact ? 11.f : 19.5f)});
         mainLayer->addChild(player, 1);
         float iconSpace = 26.f;
 
-        auto name = Label::create(getPreviewUsername().c_str(), "goldFont.fnt");
+        auto name = Label::create(comment::localUsername().c_str(), "goldFont.fnt");
         name->setLimitLabelWidth(150.f, compact ? 0.5f : 0.7f, 0.f);
         name->setAnchorPoint({0.f, 0.5f});
         name->setPosition({iconSpace + 10.f, height - (compact ? 10.f : 18.f)});
@@ -106,7 +69,6 @@ namespace comment {
             text->setPosition({10.f, height * 0.5f - 9.f});
             text->setLimitLabelWidth(270.f, 0.7f, 0.f);
 
-            // CBHook adds a plate behind the text in compact mode so it stays readable
             auto textBg = NineSlice::create("square02_small.png");
             textBg->setInsets({5, 5, 5, 5});
             textBg->setContentSize(text->getScaledContentSize() + CCSize(5, 0));
@@ -150,7 +112,7 @@ namespace comment {
         age->setPosition({width - (compact ? 8.f : 11.f), compact ? 7.f : 14.f});
         mainLayer->addChild(age, 1);
 
-        addCellLines(overlay, width, height);
+        comment::addCellLines(overlay, width, height);
 
         overlay->setVisible(showOverlay);
         return clip;

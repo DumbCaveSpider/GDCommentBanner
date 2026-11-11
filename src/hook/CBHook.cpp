@@ -114,16 +114,12 @@ class $modify(CBThreadViewPopup, ThreadViewPopup) {
     void mountVirtualRow(int index, CCNode* row, CCMenu* menu) {
         ThreadViewPopup::mountVirtualRow(index, row, menu);
         auto glm = GameLevelManager::sharedState();
-        /*
-        CCArray* threadMembers = glm->getThreadMembers(m_thread->m_threadID); // when geode hasnt updated the return type on bindings
-
-
-        */
+        CCArray* threadMembers = glm->getThreadMembers(m_thread->m_threadID);
+        log::debug("threadMembers: {}", threadMembers->count());
     }
 };
 
 // this is where to fetch the images
-// nonCompactImageUrl is the optional 1500x350 image used instead of imageUrl in non-compact cells
 static void setupCommentSprite(CommentCell* cell, std::string const& imageUrl, std::string const& nonCompactImageUrl = "") {
     Ref<CommentCell> self = cell;
     if (!self || !self->m_backgroundLayer) return;
@@ -142,7 +138,6 @@ static void setupCommentSprite(CommentCell* cell, std::string const& imageUrl, s
         size = self->getContentSize();
     }
 
-    // the non-compact image matches the non-compact cell's shape, the compact one is cropped to the middle
     bool useNonCompact = !self->m_compactMode && !nonCompactImageUrl.empty();
     auto bannerSize = (self->m_compactMode || useNonCompact) ? size : CCSize{800.f, 800.f};
 
@@ -216,7 +211,6 @@ class $modify(CBCommentCell, CommentCell) {
             }
         }
 
-        // Check session cache
         {
             std::lock_guard<std::mutex> lock(s_cacheMutex);
             auto it = s_bannerCache.find(accountId);
@@ -228,7 +222,6 @@ class $modify(CBCommentCell, CommentCell) {
             }
         }
 
-        // Register cell as pending and deduplicate in-flight fetches
         Ref<CommentCell> self = this;
         {
             std::lock_guard<std::mutex> lock(s_cacheMutex);

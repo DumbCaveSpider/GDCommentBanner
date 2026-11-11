@@ -98,7 +98,7 @@ bool CBSupporterPopup::init() {
 
 void CBSupporterPopup::updateStatusLabel(bool isSupporter) {
     m_statusLabel->setString(isSupporter ? "You are a Supporter!" : "You are not a Supporter yet");
-    m_statusLabel->setColor(isSupporter ? ccColor3B{100, 255, 100} : ccColor3B{255, 165, 0});
+    m_statusLabel->setColor(isSupporter ? ccGREEN : ccORANGE);
     m_statusLabel->setLimitLabelWidth(m_mainLayer->getContentWidth() - 40.f, 0.45f, 0.1f);
 }
 

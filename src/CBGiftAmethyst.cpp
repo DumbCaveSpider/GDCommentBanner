@@ -4,40 +4,15 @@
 #include "include/CBConstant.hpp"
 #include <Geode/binding/UploadActionPopup.hpp>
 #include <Geode/binding/GameManager.hpp>
-#include <Geode/binding/SimplePlayer.hpp>
+#include <cue/PlayerIcon.hpp>
 #include <Geode/ui/NineSlice.hpp>
 #include <Geode/ui/MDPopup.hpp>
 #include <Geode/utils/web.hpp>
 #include <dankmeme.argon/argon.hpp>
 
-namespace {
-    constexpr float kColumnWidth = 140.f;
-    constexpr float kRowHeight = 30.f;
-    constexpr float kBackgroundPadding = 10.f;
-
-    // horizontal row of nodes, centered
-    CCNode* createRow() {
-        auto row = CCNode::create();
-        row->setAnchorPoint({0.5f, 0.5f});
-        row->setContentSize({kColumnWidth, 20.f});
-        row->setLayout(RowLayout::create()->setGap(4.f)->setAutoScale(false));
-        return row;
-    }
-
-    void applyIcon(SimplePlayer* player, int iconId, int color1, int color2, int glowColor, bool hasGlow) {
-        auto gm = GameManager::sharedState();
-        if (iconId <= 0) iconId = 1;  // unknown icon, default cube
-        player->updatePlayerFrame(iconId, IconType::Cube);
-        player->setColor(gm->colorForIdx(color1));
-        player->setSecondColor(gm->colorForIdx(color2));
-        if (hasGlow) {
-            player->setGlowOutline(gm->colorForIdx(glowColor));
-        } else {
-            player->disableGlowOutline();
-        }
-        player->updateColors();
-    }
-}
+constexpr float kColumnWidth = 140.f;
+constexpr float kRowHeight = 30.f;
+constexpr float kBackgroundPadding = 10.f;
 
 CBGiftAmethyst* CBGiftAmethyst::create(int targetAccountId) {
     auto ret = new CBGiftAmethyst();
@@ -62,12 +37,11 @@ CBGiftAmethyst::Column CBGiftAmethyst::createColumn() {
             ->setAutoScale(false)
             ->setAxisAlignment(AxisAlignment::Center));
 
-    // icon + name
-    column.nameRow = createRow();
-    // SimplePlayer draws around its origin, so it sits centered in a fixed-size holder
+    column.nameRow = comment::createRow(kColumnWidth);
     auto playerHolder = CCNode::create();
     playerHolder->setContentSize({20.f, 20.f});
-    column.player = SimplePlayer::create(1);
+    column.player = cue::PlayerIcon::create(IconType::Cube, 1);
+    column.player->setAnchorPoint({0.5f, 0.5f});
     column.player->setScale(0.6f);
     column.player->setPosition({10.f, 10.f});
     playerHolder->addChild(column.player);
@@ -79,7 +53,7 @@ CBGiftAmethyst::Column CBGiftAmethyst::createColumn() {
     column.menu->addChild(column.nameRow);
 
     // amethyst + balance
-    column.balanceRow = createRow();
+    column.balanceRow = comment::createRow(kColumnWidth);
     if (auto amethyst = CCSprite::createWithSpriteFrameName("CB_amethyst_001.png"_spr)) {
         amethyst->setScale(0.5f);
         column.balanceRow->addChild(amethyst);
@@ -150,7 +124,7 @@ bool CBGiftAmethyst::init(int targetAccountId) {
     // your column, with your local icon
     m_myColumn = createColumn();
     auto gm = GameManager::sharedState();
-    applyIcon(m_myColumn.player, gm->getPlayerFrame(), gm->getPlayerColor(), gm->getPlayerColor2(), gm->getPlayerGlowColor(), gm->getPlayerGlow());
+    comment::applyPlayerIcon(m_myColumn.player, gm->getPlayerFrame(), gm->getPlayerColor(), gm->getPlayerColor2(), gm->getPlayerGlowColor(), gm->getPlayerGlow());
     m_amountInput = TextInput::create(110.f, "Amount");
     m_amountInput->setCommonFilter(CommonFilter::Int);
     m_amountInput->setMaxCharCount(8);  // up to 10,000,000
@@ -253,7 +227,7 @@ void CBGiftAmethyst::onUsersLoaded(std::string myName, int myBalance, matjson::V
 
     setUser(m_myColumn, myName, myBalance);
     setUser(m_targetColumn, targetName, targetBalance);
-    applyIcon(m_targetColumn.player,
+    comment::applyPlayerIcon(m_targetColumn.player,
         static_cast<int>(target["iconId"].asInt().unwrapOr(0)),
         static_cast<int>(target["color1"].asInt().unwrapOr(0)),
         static_cast<int>(target["color2"].asInt().unwrapOr(0)),

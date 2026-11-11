@@ -6,6 +6,7 @@
 #include <Geode/ui/TextInput.hpp>
 #include <Geode/binding/CCCounterLabel.hpp>
 #include <cue/LoadingCircle.hpp>
+#include <cue/PlayerIcon.hpp>
 
 using namespace geode::prelude;
 
@@ -34,7 +35,7 @@ private:
     struct Column {
         CCMenu* menu = nullptr;
         CCNode* nameRow = nullptr;
-        SimplePlayer* player = nullptr;
+        cue::PlayerIcon* player = nullptr;
         Label* nameLabel = nullptr;
         CCNode* balanceRow = nullptr;
         CCCounterLabel* balanceLabel = nullptr;
