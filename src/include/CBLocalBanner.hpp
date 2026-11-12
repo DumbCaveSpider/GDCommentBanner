@@ -17,12 +17,10 @@ namespace comment::local {
         bool equipped = false;
 
         matjson::Value toJson() const {
-            auto obj = matjson::makeObject({
-                {"id", id},
+            auto obj = matjson::makeObject({{"id", id},
                 {"filename", filename},
                 {"name", name},
-                {"equipped", equipped}
-            });
+                {"equipped", equipped}});
             return obj;
         }
 

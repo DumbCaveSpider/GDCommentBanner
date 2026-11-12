@@ -1,5 +1,4 @@
-#include <Geode/Geode.hpp>
-#include <Geode/binding/GameLevelManager.hpp>
+﻿#include <Geode/Geode.hpp>
 #include <Geode/ui/Button.hpp>
 #include <Geode/ui/LazySprite.hpp>
 #include <Geode/ui/NineSlice.hpp>
@@ -17,39 +16,6 @@
 #include "../include/CBLocalBanner.hpp"
 
 using namespace geode::prelude;
-
-#include <mutex>
-#include <unordered_map>
-#include <unordered_set>
-#include <vector>
-
-struct CachedBanner {
-    bool equipped = false;
-    std::string imageUrl = "";
-    std::string nonCompactImageUrl = "";
-};
-
-static std::unordered_map<int, CachedBanner> s_bannerCache;
-static std::unordered_set<int> s_fetchingAccounts;
-static std::unordered_map<int, std::vector<Ref<CommentCell>>> s_pendingCells;
-static std::mutex s_cacheMutex;
-
-namespace comment {
-    void invalidateBannerCache(int accountId) {
-        std::lock_guard<std::mutex> lock(s_cacheMutex);
-        if (accountId <= 0) {
-            s_bannerCache.clear();
-        } else {
-            s_bannerCache.erase(accountId);
-        }
-    }
-
-    void updateBannerCache(int accountId, bool equipped, std::string const& imageUrl, std::string const& nonCompactImageUrl) {
-        if (accountId <= 0) return;
-        std::lock_guard<std::mutex> lock(s_cacheMutex);
-        s_bannerCache[accountId] = CachedBanner{equipped, imageUrl, nonCompactImageUrl};
-    }
-}
 
 class $modify(GJGarageLayer) {
     bool init() {
@@ -88,224 +54,143 @@ class $modify(GJGarageLayer) {
     }
 };
 
-static void setupNodeSprite(CCNode* row, std::string const& imageUrl) {
+static void clearRowBanner(CCNode* row) {
     if (!row) return;
-
     // rows get recycled, so always clear the previous banner
-    if (auto prevBanner = row->getChildByID("cb-node-banner-node")) {
+    if (auto prevBanner = row->getChildByID("cb-thread-banner-node")) {
         prevBanner->removeFromParent();
     }
-
-    if (imageUrl.empty()) return;
-
-    auto size = row->getContentSize();
-    if (size.width <= 0.f || size.height <= 0.f) return;
-
-    auto bannerNode = comment::createBannerNode(imageUrl, size);
-    if (!bannerNode) return;
-    bannerNode->setID("cb-thread-banner-node");
-    bannerNode->setPosition({size.width / 2.f, size.height / 2.f});
-
-    row->addChild(bannerNode, -1);
 }
 
-//
 class $modify(CBThreadViewPopup, ThreadViewPopup) {
+    // todo: get GJThreadMessage fields when geode bindings adds then
     void mountVirtualRow(int index, CCNode* row, CCMenu* menu) {
         ThreadViewPopup::mountVirtualRow(index, row, menu);
-        auto glm = GameLevelManager::sharedState();
-        CCArray* threadMembers = glm->getThreadMembers(m_thread->m_threadID);
-        log::debug("threadMembers: {}", threadMembers->count());
+        // if (!row) return;
+
+        // // rows get recycled, so drop whatever the previous mount left behind
+        // clearRowBanner(row);
+
+        //
+
+        // auto size = row->getContentSize();
+        // if (size.width <= 0.f) size.width = m_listWidth > 0.f ? m_listWidth : 320.f;
+        // if (size.height <= 0.f) size.height = this->virtualRowHeight(index);
+
+        // if (m_fields->m_mountLogs < 8) {
+        //     m_fields->m_mountLogs++;
+        //     log::debug("row {}: account {} ({}x{})", index, accountId, size.width, size.height);
+        // }
+
+        // if (accountId <= 0 || size.width <= 0.f || size.height <= 0.f) return;
+
+        // // the message text starts 32 px in, so the banner spans that column
+        // auto banner = comment::createBannerSprite(accountId,
+        //     comment::BannerVariant::Compact,
+        //     comment::BannerSource::Server,
+        //     CCSize{std::max(1.f, size.width - 36.f), std::max(1.f, size.height - 6.f)});
+        // if (!banner) return;
+
+        // banner->setID("cb-thread-banner-node");
+        // banner->setPosition({size.width * 0.5f + 8.f, size.height * 0.5f});
+        // row->addChild(banner, -1);
     }
 };
 
-// this is where to fetch the images
-static void setupCommentSprite(CommentCell* cell, std::string const& imageUrl, std::string const& nonCompactImageUrl = "") {
+static CCSize commentBannerSize(CommentCell* cell, bool useNonCompact) {
+    if (!cell) return CCSizeZero;
+
+    auto size = cell->m_backgroundLayer ? cell->m_backgroundLayer->getScaledContentSize() : CCSizeZero;
+    if (size.width <= 0.f || size.height <= 0.f) size = cell->m_backgroundLayer->getContentSize();
+    if (size.width <= 0.f || size.height <= 0.f) size = cell->getContentSize();
+
+    // non compact banners are a full size image, compact ones fill the comment background
+    if (!useNonCompact && !cell->m_compactMode) return CCSize{800.f, 800.f};
+    return size;
+}
+
+// mounts an already known banner source (remote url or local file) in the comment background
+static void applyCommentBanner(CommentCell* cell, std::string const& source, bool useNonCompact) {
+    if (!cell || !cell->m_backgroundLayer || source.empty()) return;
+
+    auto size = commentBannerSize(cell, useNonCompact);
+    if (size.width <= 0.f || size.height <= 0.f) return;
+
+    auto banner = comment::createBannerSpriteFromSource(source, size);
+    if (!banner) return;
+
+    banner->setID("cb-comment-banner-node");
+    banner->setPosition({size.width / 2.f, size.height / 2.f});
+    cell->m_backgroundLayer->setOpacity(100);
+    cell->m_backgroundLayer->addChild(banner, -1);
+}
+
+static void setupCommentSprite(CommentCell* cell, int accountId, comment::BannerSource source) {
     Ref<CommentCell> self = cell;
-    if (!self || !self->m_backgroundLayer) return;
+    if (!self || !self->m_backgroundLayer || accountId <= 0) return;
 
-    if (imageUrl.empty()) return;
+    comment::requestBannerInfo(accountId, source, [self](comment::BannerInfo const& info) {
+        if (!self || !self->m_backgroundLayer) return;
 
-    if (auto prevBanner = self->m_backgroundLayer->getChildByID("cb-comment-banner-node")) {
-        prevBanner->removeFromParent();
-    }
+        self->m_backgroundLayer->setOpacity(255);
+        if (auto prevBanner = self->m_backgroundLayer->getChildByID("cb-comment-banner-node")) {
+            prevBanner->removeFromParent();
+        }
+        if (!info.equipped || info.imageUrl.empty()) return;
 
-    auto size = self->m_backgroundLayer->getScaledContentSize();
-    if (size.width <= 0.f || size.height <= 0.f) {
-        size = self->m_backgroundLayer->getContentSize();
-    }
-    if (size.width <= 0.f || size.height <= 0.f) {
-        size = self->getContentSize();
-    }
+        bool useNonCompact = !self->m_compactMode && !info.nonCompactImageUrl.empty();
+        applyCommentBanner(self.data(), info.urlFor(useNonCompact ? comment::BannerVariant::NonCompact : comment::BannerVariant::Compact), useNonCompact);
 
-    bool useNonCompact = !self->m_compactMode && !nonCompactImageUrl.empty();
-    auto bannerSize = (self->m_compactMode || useNonCompact) ? size : CCSize{800.f, 800.f};
-
-    auto bannerNode = comment::createBannerNode(useNonCompact ? nonCompactImageUrl : imageUrl, bannerSize);
-    if (!bannerNode) return;
-    bannerNode->setID("cb-comment-banner-node");
-    bannerNode->setPosition({size.width / 2.f, size.height / 2.f});
-
-    self->m_backgroundLayer->setOpacity(100);
-    self->m_backgroundLayer->addChild(bannerNode, -1);
-
-    if (self->m_compactMode) {
-        if (auto commentText = self->m_mainLayer->getChildByIDRecursive("comment-text-label")) {
-            if (!self->m_mainLayer->getChildByID("cb-comment-banner-bg")) {
-                auto commentBg = NineSlice::create("square02_small.png");
-                commentBg->setID("cb-comment-banner-bg");
-                commentBg->setInsets({5, 5, 5, 5});
-                commentBg->setContentSize(commentText->getScaledContentSize() + CCSize(5, 0));
-                commentBg->setPosition({commentText->getPosition().x - 2, commentText->getPosition().y});
-                commentBg->setOpacity(150);
-                commentBg->setAnchorPoint(commentText->getAnchorPoint());
-                self->m_mainLayer->addChild(commentBg, -1);
+        if (self->m_compactMode && self->m_mainLayer) {
+            if (auto commentText = self->m_mainLayer->getChildByIDRecursive("comment-text-label")) {
+                if (!self->m_mainLayer->getChildByID("cb-comment-banner-bg")) {
+                    auto commentBg = NineSlice::create("square02_small.png");
+                    commentBg->setID("cb-comment-banner-bg");
+                    commentBg->setInsets({5, 5, 5, 5});
+                    commentBg->setContentSize(commentText->getScaledContentSize() + CCSize(5, 0));
+                    commentBg->setPosition({commentText->getPosition().x - 2, commentText->getPosition().y});
+                    commentBg->setOpacity(150);
+                    commentBg->setAnchorPoint(commentText->getAnchorPoint());
+                    self->m_mainLayer->addChild(commentBg, -1);
+                }
             }
         }
-    }
+    });
 }
 
 class $modify(CBCommentCell, CommentCell) {
-    struct Fields {
-        int m_currentAccountId = 0;
-    };
-
     void loadFromComment(GJComment* comment) {
         CommentCell::loadFromComment(comment);
-        if (!m_backgroundLayer || !comment) {
-            return;
-        }
+        if (!m_backgroundLayer || !comment) return;
 
-        // Clean up recycled state
+        // cells are recycled, so drop whatever the previous comment left behind
         m_backgroundLayer->setOpacity(255);
-        if (auto bg = m_mainLayer->getChildByID("cb-comment-banner-bg")) {
-            bg->removeFromParent();
-        }
         if (auto prevBanner = m_backgroundLayer->getChildByID("cb-comment-banner-node")) {
             prevBanner->removeFromParent();
         }
+        if (m_mainLayer) {
+            if (auto bg = m_mainLayer->getChildByID("cb-comment-banner-bg")) bg->removeFromParent();
+        }
 
         int accountId = comment->m_accountID;
-        m_fields->m_currentAccountId = accountId;
-        if (accountId <= 0) {
-            return;
-        }
+        if (accountId <= 0) return;
+        if (m_accountComment && Mod::get()->getSettingValue<bool>("hide-account-comment")) return;
 
-        if (m_accountComment) {
-            if (Mod::get()->getSettingValue<bool>("hide-account-comment")) return;
-        }
-
-        // Check local banner priority for own comment
+        // the own banner may be a local file that is not uploaded yet
         int myAccountId = GJAccountManager::sharedState()->m_accountID;
-        if (myAccountId == 0) {
-            myAccountId = argon::getGameAccountData().accountId;
-        }
+        if (myAccountId == 0) myAccountId = argon::getGameAccountData().accountId;
         if (myAccountId > 0 && accountId == myAccountId) {
-            std::string equippedLocal = Mod::get()->getSavedValue<std::string>("equipped-local-banner", "");
+            auto equippedLocal = Mod::get()->getSavedValue<std::string>("equipped-local-banner", "");
             if (!equippedLocal.empty()) {
                 auto localPath = comment::local::getLocalBannersDir() / equippedLocal;
                 if (localPath.exists()) {
-                    setupCommentSprite(this, localPath.string());
+                    applyCommentBanner(this, localPath.string(), false);
                     return;
                 }
             }
         }
 
-        {
-            std::lock_guard<std::mutex> lock(s_cacheMutex);
-            auto it = s_bannerCache.find(accountId);
-            if (it != s_bannerCache.end()) {
-                if (it->second.equipped && !it->second.imageUrl.empty()) {
-                    setupCommentSprite(this, it->second.imageUrl, it->second.nonCompactImageUrl);
-                }
-                return;
-            }
-        }
-
-        Ref<CommentCell> self = this;
-        {
-            std::lock_guard<std::mutex> lock(s_cacheMutex);
-            if (s_fetchingAccounts.contains(accountId)) {
-                s_pendingCells[accountId].push_back(self);
-                return;
-            }
-            s_fetchingAccounts.insert(accountId);
-            s_pendingCells[accountId].push_back(self);
-        }
-
-        arc::spawn([accountId]() -> arc::Future<> {
-            auto request = utils::web::WebRequest();
-            auto body = matjson::makeObject({
-                {"targetAccountId", accountId},
-            });
-
-            auto response = co_await request.bodyJSON(body).post(fmt::format("{}/getImageBanner", comment::baseUrl));
-            if (!response.ok()) {
-                log::debug("getImageBanner failed for account {}: {}", accountId, response.errorMessage());
-                queueInMainThread([accountId] {
-                    std::lock_guard<std::mutex> lock(s_cacheMutex);
-                    s_fetchingAccounts.erase(accountId);
-                    s_pendingCells.erase(accountId);
-                });
-                co_return;
-            }
-
-            auto jsonRes = response.json();
-            if (jsonRes.isErr()) {
-                log::debug("getImageBanner returned invalid JSON for account {}", accountId);
-                queueInMainThread([accountId] {
-                    std::lock_guard<std::mutex> lock(s_cacheMutex);
-                    s_fetchingAccounts.erase(accountId);
-                    s_pendingCells.erase(accountId);
-                });
-                co_return;
-            }
-
-            auto json = jsonRes.unwrap();
-            auto equipped = json["equipped"].asBool().unwrapOr(false);
-            std::string imageUrl = "";
-            std::string nonCompactImageUrl = "";
-            if (equipped) {
-                if (auto urlRes = json["imageUrl"].asString(); urlRes.isOk()) {
-                    imageUrl = urlRes.unwrap();
-                } else {
-                    equipped = false;
-                }
-                nonCompactImageUrl = json["nonCompactImageUrl"].asString().unwrapOr("");
-            }
-
-            queueInMainThread([accountId, equipped, imageUrl = std::move(imageUrl), nonCompactImageUrl = std::move(nonCompactImageUrl)]() {
-                CachedBanner newCached;
-                newCached.equipped = equipped;
-                newCached.imageUrl = imageUrl;
-                newCached.nonCompactImageUrl = nonCompactImageUrl;
-
-                std::vector<Ref<CommentCell>> cellsToUpdate;
-                {
-                    std::lock_guard<std::mutex> lock(s_cacheMutex);
-                    s_bannerCache[accountId] = newCached;
-                    s_fetchingAccounts.erase(accountId);
-                    auto it = s_pendingCells.find(accountId);
-                    if (it != s_pendingCells.end()) {
-                        cellsToUpdate = std::move(it->second);
-                        s_pendingCells.erase(it);
-                    }
-                }
-
-                if (equipped && !imageUrl.empty()) {
-                    for (auto& cell : cellsToUpdate) {
-                        if (cell) {
-                            auto cbCell = static_cast<CBCommentCell*>(cell.data());
-                            if (cbCell->m_fields->m_currentAccountId == accountId) {
-                                setupCommentSprite(cell.data(), imageUrl, nonCompactImageUrl);
-                            }
-                        }
-                    }
-                }
-            });
-
-            co_return;
-        });
+        setupCommentSprite(this, accountId, comment::BannerSource::Server);
     }
 };
 
