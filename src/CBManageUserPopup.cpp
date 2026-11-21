@@ -118,15 +118,14 @@ void CBManageUserPopup::onUpdateAmethyst(CCObject*) {
     }
     int amy = amyRes.unwrap();
 
-    auto accountData = argon::getGameAccountData();
-    auto adminId = accountData.accountId;
+    auto adminId = argon::getGameAccountData().accountId;
 
     Ref<UploadActionPopup> popup = UploadActionPopup::create(nullptr, "Updating amethyst...");
     popup->show();
 
     Ref<CBManageUserPopup> retainedSelf = this;
-    arc::spawn([retainedSelf, adminId, accountData, amy, popup]() -> arc::Future<> {
-        auto authResult = co_await comment::argonToken(accountData);
+    arc::spawn([retainedSelf, adminId, amy, popup]() -> arc::Future<> {
+        auto authResult = co_await comment::argonToken();
         if (authResult.empty()) {
             queueInMainThread([popup] {
                 if (popup && popup->getParent()) {
@@ -163,15 +162,14 @@ void CBManageUserPopup::onUpdateAmethyst(CCObject*) {
 void CBManageUserPopup::onToggleStaff(CCObject* sender) {
     Ref<Toggler> toggler = static_cast<Toggler*>(sender);
 
-    auto accountData = argon::getGameAccountData();
-    auto adminId = accountData.accountId;
+    auto adminId = argon::getGameAccountData().accountId;
 
     Ref<UploadActionPopup> popup = UploadActionPopup::create(nullptr, "Toggling staff...");
     popup->show();
 
     Ref<CBManageUserPopup> retainedSelf = this;
-    arc::spawn([retainedSelf, adminId, accountData, popup, toggler]() -> arc::Future<> {
-        auto authResult = co_await comment::argonToken(accountData);
+    arc::spawn([retainedSelf, adminId, popup, toggler]() -> arc::Future<> {
+        auto authResult = co_await comment::argonToken();
         if (authResult.empty()) {
             queueInMainThread([popup, toggler] {
                 if (popup && popup->getParent()) {
@@ -219,15 +217,14 @@ void CBManageUserPopup::onTempBan(CCObject*) {
     }
     int hours = hoursRes.unwrap();
 
-    auto accountData = argon::getGameAccountData();
-    auto adminId = accountData.accountId;
+    auto adminId = argon::getGameAccountData().accountId;
 
     Ref<UploadActionPopup> popup = UploadActionPopup::create(nullptr, "Banning user...");
     popup->show();
 
     Ref<CBManageUserPopup> retainedSelf = this;
-    arc::spawn([retainedSelf, adminId, accountData, hours, popup]() -> arc::Future<> {
-        auto authResult = co_await comment::argonToken(accountData);
+    arc::spawn([retainedSelf, adminId, hours, popup]() -> arc::Future<> {
+        auto authResult = co_await comment::argonToken();
         if (authResult.empty()) {
             queueInMainThread([popup] {
                 if (popup && popup->getParent()) {
@@ -267,12 +264,11 @@ void CBManageUserPopup::fetchUserBanners() {
     m_bannersList->addChildAtPosition(m_loadingCircle, Anchor::Center, CCPointZero, false);
     m_loadingCircle->fadeIn();
 
-    auto accountData = argon::getGameAccountData();
-    auto adminId = accountData.accountId;
+    auto adminId = argon::getGameAccountData().accountId;
 
     Ref<CBManageUserPopup> retainedSelf = this;
-    arc::spawn([retainedSelf, adminId, accountData]() -> arc::Future<> {
-        auto authResult = co_await comment::argonToken(accountData);
+    arc::spawn([retainedSelf, adminId]() -> arc::Future<> {
+        auto authResult = co_await comment::argonToken();
         if (authResult.empty()) {
             queueInMainThread([retainedSelf] { retainedSelf->m_loadingCircle->fadeOut(); });
             co_return;
@@ -346,9 +342,9 @@ void CBManageUserPopup::deleteBanner(int bannerId) {
     popup->show();
 
     Ref<CBManageUserPopup> retainedSelf = this;
-    auto accountData = argon::getGameAccountData();
-    arc::spawn([retainedSelf, bannerId, popup, accountData]() -> arc::Future<> {
-        auto authResult = co_await comment::argonToken(accountData);
+    auto accountId = argon::getGameAccountData().accountId;
+    arc::spawn([retainedSelf, bannerId, popup, accountId]() -> arc::Future<> {
+        auto authResult = co_await comment::argonToken();
         if (authResult.empty()) {
             queueInMainThread([popup] {
                 if (popup && popup->getParent()) {
@@ -360,7 +356,7 @@ void CBManageUserPopup::deleteBanner(int bannerId) {
 
         auto req = utils::web::WebRequest();
         auto body = matjson::makeObject({
-            {"accountId", accountData.accountId},
+            {"accountId", accountId},
             {"argonToken", authResult},
             {"bannerId", bannerId}
         });
@@ -389,9 +385,9 @@ void CBManageUserPopup::updateBannerDetails(int bannerId, std::string name, std:
     popup->show();
 
     Ref<CBManageUserPopup> retainedSelf = this;
-    auto accountData = argon::getGameAccountData();
-    arc::spawn([retainedSelf, bannerId, name, description, price, popup, accountData]() -> arc::Future<> {
-        auto authResult = co_await comment::argonToken(accountData);
+    auto accountId = argon::getGameAccountData().accountId;
+    arc::spawn([retainedSelf, bannerId, name, description, price, popup, accountId]() -> arc::Future<> {
+        auto authResult = co_await comment::argonToken();
         if (authResult.empty()) {
             queueInMainThread([popup] {
                 if (popup && popup->getParent()) {
@@ -403,7 +399,7 @@ void CBManageUserPopup::updateBannerDetails(int bannerId, std::string name, std:
 
         auto req = utils::web::WebRequest();
         auto body = matjson::makeObject({
-            {"accountId", accountData.accountId},
+            {"accountId", accountId},
             {"argonToken", authResult},
             {"bannerId", bannerId},
             {"price", price},

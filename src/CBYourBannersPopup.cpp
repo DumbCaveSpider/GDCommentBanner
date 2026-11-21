@@ -66,8 +66,7 @@ void CBYourBannersPopup::fetchBanners() {
     m_list->addChildAtPosition(m_loadingCircle, Anchor::Center, CCPointZero, false);
     m_loadingCircle->fadeIn();
 
-    auto accountData = argon::getGameAccountData();
-    auto accountId = accountData.accountId;
+    auto accountId = argon::getGameAccountData().accountId;
 
     if (accountId <= 0) {
         m_loadingCircle->fadeOut();
@@ -76,8 +75,8 @@ void CBYourBannersPopup::fetchBanners() {
     }
 
     Ref<CBYourBannersPopup> retainedSelf = this;
-    arc::spawn([retainedSelf, accountId, accountData]() -> arc::Future<> {
-        auto authResult = co_await comment::argonToken(accountData);
+    arc::spawn([retainedSelf, accountId]() -> arc::Future<> {
+        auto authResult = co_await comment::argonToken();
         if (authResult.empty()) {
             queueInMainThread([retainedSelf] {
                 retainedSelf->m_loadingCircle->fadeOut();
@@ -369,8 +368,7 @@ void CBYourBannersPopup::onRefund(CCObject* sender) {
     createQuickPopup("Refund Banner", "Are you sure you want to <cr>refund</c> this pending banner?", "Cancel", "Refund", [this, id](FLAlertLayer*, bool btn2) {
         if (!btn2) return;
 
-        auto accountData = argon::getGameAccountData();
-        auto accountId = accountData.accountId;
+        auto accountId = argon::getGameAccountData().accountId;
 
         if (accountId <= 0) {
             Notification::create("Invalid account ID.", NotificationIcon::Error)->show();
@@ -383,8 +381,8 @@ void CBYourBannersPopup::onRefund(CCObject* sender) {
         this->m_loadingCircle->fadeIn();
 
         Ref<CBYourBannersPopup> retainedSelf = this;
-        arc::spawn([retainedSelf, accountId, accountData, id]() -> arc::Future<> {
-            auto authResult = co_await comment::argonToken(accountData);
+        arc::spawn([retainedSelf, accountId, id]() -> arc::Future<> {
+            auto authResult = co_await comment::argonToken();
             if (authResult.empty()) {
                 queueInMainThread([retainedSelf] {
                     retainedSelf->m_loadingCircle->fadeOut();
@@ -443,15 +441,14 @@ void CBYourBannersPopup::onEquip(CCObject* sender) {
     int id = sender->getTag();
     Ref<CBYourBannersPopup> retainedSelf = this;
     queueInMainThread([retainedSelf, id]() {
-        auto accountData = argon::getGameAccountData();
-        auto accountId = accountData.accountId;
+        auto accountId = argon::getGameAccountData().accountId;
         Ref<UploadActionPopup> popup = UploadActionPopup::create(nullptr, "Equipping banner...");
         if (popup) {
             popup->show();
         }
 
-        arc::spawn([retainedSelf, accountId, accountData, id, popup]() -> arc::Future<> {
-            auto authResult = co_await comment::argonToken(accountData);
+        arc::spawn([retainedSelf, accountId, id, popup]() -> arc::Future<> {
+            auto authResult = co_await comment::argonToken();
             if (authResult.empty()) {
                 log::warn("argon failed");
                 queueInMainThread([popup] {
@@ -501,15 +498,14 @@ void CBYourBannersPopup::onUnequip(CCObject* sender) {
     int id = sender->getTag();
     Ref<CBYourBannersPopup> retainedSelf = this;
     queueInMainThread([retainedSelf, id]() {
-        auto accountData = argon::getGameAccountData();
-        auto accountId = accountData.accountId;
+        auto accountId = argon::getGameAccountData().accountId;
         Ref<UploadActionPopup> popup = UploadActionPopup::create(nullptr, "Unequipping banner...");
         if (popup) {
             popup->show();
         }
 
-        arc::spawn([retainedSelf, accountId, accountData, id, popup]() -> arc::Future<> {
-            auto authResult = co_await comment::argonToken(accountData);
+        arc::spawn([retainedSelf, accountId, id, popup]() -> arc::Future<> {
+            auto authResult = co_await comment::argonToken();
             if (authResult.empty()) {
                 log::warn("argon failed");
                 queueInMainThread([popup] {

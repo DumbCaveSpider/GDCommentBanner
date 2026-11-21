@@ -14,7 +14,6 @@
 #include <Geode/ui/NineSlice.hpp>
 #include <algorithm>
 #include <filesystem>
-#include <unordered_set>
 
 using namespace geode::prelude;
 
@@ -254,9 +253,9 @@ void CBSubmitBannerPopup::onPickFile(CCObject* sender) {
     bool nonCompact = sender && sender->getTag() == 1 && m_canUploadNonCompact;
     int requiredHeight = nonCompact ? 350 : 150;
     arc::spawn([retainedSelf, nonCompact, requiredHeight]() -> arc::Future<> {
-        std::unordered_set<std::string> allowedFiles = retainedSelf->m_isLocal
-                                                           ? std::unordered_set<std::string>{"*.png", "*.webp", "*.gif"}
-                                                           : std::unordered_set<std::string>{"*.png", "*.webp", "*.jpg", "*.jpeg", "*.gif"};
+        utils::StringSet allowedFiles =
+            retainedSelf->m_isLocal ? utils::StringSet{"*.png", "*.webp", "*.gif"}
+                                    : utils::StringSet{"*.png", "*.webp", "*.jpg", "*.jpeg", "*.gif"};
 
         auto result = co_await utils::file::pick(
             utils::file::PickMode::OpenFile,
@@ -309,11 +308,12 @@ void CBSubmitBannerPopup::onPickFile(CCObject* sender) {
                     }
                 }
 
-                Loader::get()->queueInMainThread([retainedSelf, nonCompact, p = path.string()]() {
+                std::string selectedPath = path.string();
+                Loader::get()->queueInMainThread([retainedSelf, nonCompact, selectedPath]() {
                     if (nonCompact) {
-                        retainedSelf->m_selectedNonCompactPath = p;
+                        retainedSelf->m_selectedNonCompactPath = selectedPath;
                     } else {
-                        retainedSelf->m_selectedFilePath = p;
+                        retainedSelf->m_selectedFilePath = selectedPath;
                     }
                     retainedSelf->updateFileLabel();
                     if (retainedSelf->m_previewBtn) {
@@ -428,8 +428,7 @@ void CBSubmitBannerPopup::onSubmit(CCObject*) {
         auto nonCompactPath = m_selectedNonCompactPath;
         bool isSupporterOnly = m_supporterOnlyToggler && m_supporterOnlyToggler->isToggled();
 
-        auto accountData = argon::getGameAccountData();
-        auto accountId = accountData.accountId;
+        auto accountId = argon::getGameAccountData().accountId;
 
         if (accountId <= 0) {
             if (popup && popup->getParent()) {
@@ -439,8 +438,8 @@ void CBSubmitBannerPopup::onSubmit(CCObject*) {
         }
 
         Ref<CBSubmitBannerPopup> retainedSelf = this;
-        arc::spawn([retainedSelf, accountId, accountData, name, desc, price, amount, isLimited, isSupporterOnly, filePath, nonCompactPath, popup, submissionFee]() -> arc::Future<> {
-            auto authResult = co_await comment::argonToken(accountData);
+        arc::spawn([retainedSelf, accountId, name, desc, price, amount, isLimited, isSupporterOnly, filePath, nonCompactPath, popup, submissionFee]() -> arc::Future<> {
+            auto authResult = co_await comment::argonToken();
             if (authResult.empty()) {
                 queueInMainThread([popup] {
                     if (popup && popup->getParent()) {
@@ -518,8 +517,7 @@ void CBSubmitBannerPopup::onSubmit(CCObject*) {
 }
 
 void CBSubmitBannerPopup::submitEdit() {
-    auto accountData = argon::getGameAccountData();
-    auto accountId = accountData.accountId;
+    auto accountId = argon::getGameAccountData().accountId;
     if (accountId <= 0) {
         Notification::create("Invalid account ID.", NotificationIcon::Error)->show();
         return;
@@ -539,8 +537,8 @@ void CBSubmitBannerPopup::submitEdit() {
     if (m_supporterOnlyToggler) isSupporterOnly = m_supporterOnlyToggler->isToggled();
 
     Ref<CBSubmitBannerPopup> retainedSelf = this;
-    arc::spawn([retainedSelf, accountId, accountData, bannerId, name, desc, isLimited, amount, isSupporterOnly, filePath, nonCompactPath, popup]() -> arc::Future<> {
-        auto authToken = co_await comment::argonToken(accountData);
+    arc::spawn([retainedSelf, accountId, bannerId, name, desc, isLimited, amount, isSupporterOnly, filePath, nonCompactPath, popup]() -> arc::Future<> {
+        auto authToken = co_await comment::argonToken();
         if (authToken.empty()) {
             queueInMainThread([popup] {
                 if (popup && popup->getParent()) {

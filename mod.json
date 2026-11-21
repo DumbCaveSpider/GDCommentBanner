@@ -1,5 +1,5 @@
 {
-	"geode": "6.0.0-alpha.1",
+	"geode": "6.0.0-beta.1",
 	"gd": {
 		"win": "2.2091",
 		"android": "2.2091",
@@ -14,7 +14,7 @@
 	"dependencies": {
 		"geode.node-ids": ">=v1.23.3",
 		"prevter.imageplus": ">=v1.0.0",
-		"dankmeme.argon": ">=v2.0.0-alpha.2"
+		"dankmeme.argon": ">=2.0.0-beta.1"
 	},
 	"resources": {
 		"spritesheets": {

@@ -13,27 +13,13 @@
 using namespace geode::prelude;
 
 namespace comment {
-    constexpr size_t kMaxActiveLoads = 5;
-
-    struct PendingBanner {
-        WeakRef<LazySprite> sprite;
-        std::string source;
-        bool priority = false;
-    };
-
-    LazySprite::Format guessFormat(std::string_view urlOrPath) {
-        if (urlOrPath.ends_with(".png")) return CCImage::kFmtPng;
-        if (urlOrPath.ends_with(".jpg") || urlOrPath.ends_with(".jpeg")) return CCImage::kFmtJpg;
-        return CCImage::kFmtWebp;
-    }
-
-    bool isRemote(std::string_view source) {
+    static bool isRemote(std::string_view source) {
         return source.starts_with("http://") || source.starts_with("https://");
     }
 
     // stable across runs, unlike std::hash
     // https://github.com/irfantopal/fnv1a
-    uint64_t fnv1a(std::string_view str) {
+    static uint64_t fnv1a(std::string_view str) {
         uint64_t hash = 14695981039346656037ull;
         for (unsigned char c : str) {
             hash ^= c;
@@ -42,178 +28,71 @@ namespace comment {
         return hash;
     }
 
-    asp::fs::Path getCachePath(std::string_view url) {
+    static asp::fs::Path getCachePath(std::string_view url) {
         return loader::getCacheDir() / fmt::format("{:016x}.img", fnv1a(url));
     }
 
-    bool isOnScreen(CCNode* node) {
-        if (!node->isRunning()) return false;
-        for (auto n = node; n; n = n->getParent()) {
-            if (!n->isVisible()) return false;
-        }
-
-        auto a = node->convertToWorldSpace(CCPointZero);
-        auto b = node->convertToWorldSpace(node->getContentSize());
-        auto minX = std::min(a.x, b.x), maxX = std::max(a.x, b.x);
-        auto minY = std::min(a.y, b.y), maxY = std::max(a.y, b.y);
-
-        // small margin so banners just outside the view start loading before scrolled in
-        auto winSize = CCDirector::sharedDirector()->getWinSize();
-        float margin = winSize.height * 0.25f;
-        return maxX >= -margin && minX <= winSize.width + margin &&
-               maxY >= -margin && minY <= winSize.height + margin;
+    // i know its gonna be webp but i dont want to hardcode it in case i change my mind later
+    static void loadFile(LazySprite* lazy, asp::fs::Path path) {
+        lazy->loadFromFile(std::move(path), CCImage::kFmtUnKnown, true);
     }
 
-    class BannerLoader : public CCObject {
-        std::vector<PendingBanner> m_pending;
-        std::vector<WeakRef<LazySprite>> m_decoding;
-        std::unordered_map<std::string, std::vector<WeakRef<LazySprite>>> m_downloads;
-        bool m_scheduled = false;
+    // drops the loading circle for a banner that will never show up
+    static void hideLater(WeakRef<LazySprite> weak) {
+        Loader::get()->queueInMainThread([weak = std::move(weak)]() {
+            if (auto sprite = weak.lock()) sprite->setVisible(false);
+        });
+    }
 
-        size_t activeCount() const {
-            return m_decoding.size() + m_downloads.size();
+    // yang's implementation for loading nameplates in rated layouts. :)
+    static void loadRemote(LazySprite* lazy, std::string url) {
+        auto cachePath = getCachePath(url);
+        if (cachePath.exists()) {
+            loadFile(lazy, std::move(cachePath));
+            return;
         }
 
-        void ensureScheduled() {
-            if (m_scheduled) return;
-            m_scheduled = true;
-            CCScheduler::get()->scheduleUpdateForTarget(this, 0, false);
-        }
-
-        void startDecode(LazySprite* sprite, asp::fs::Path const& path, LazySprite::Format format) {
-            // ignoreCache = true, otherwise every texture stays in CCTextureCache forever
-            sprite->loadFromFile(path, format, true);
-            m_decoding.push_back(WeakRef(sprite));
-        }
-
-        void start(LazySprite* sprite, std::string const& source) {
-            if (!isRemote(source)) {
-                startDecode(sprite, source, CCImage::kFmtUnKnown);
-                return;
-            }
-
-            auto cachePath = getCachePath(source);
-            if (cachePath.exists()) {
-                startDecode(sprite, cachePath, guessFormat(source));
-                return;
-            }
-
-            if (auto it = m_downloads.find(source); it != m_downloads.end()) {
-                it->second.push_back(WeakRef(sprite));
-                return;
-            }
-            m_downloads[source].push_back(WeakRef(sprite));
-
-            arc::spawn([url = source, cachePath = std::move(cachePath)]() -> arc::Future<> {
-                auto response = co_await web::WebRequest().get(url);
-                if (!response.ok()) {
-                    log::warn("Failed to fetch banner '{}': {}", url, response.errorMessage());
-                    queueInMainThread([url] {
-                        BannerLoader::get()->onDownloaded(url, {});
-                    });
-                    co_return;
-                }
-
-                auto const& body = response.data();
-                std::vector<uint8_t> data(body.begin(), body.end());
-
-                // write to a temp file first so a half-written file is never read back
-                auto tmpPath = cachePath;
-                tmpPath += ".tmp";
-                if (auto res = utils::file::writeBinary(tmpPath, data); res) {
-                    auto renamed = asp::fs::rename(tmpPath, cachePath);
-                    if (!renamed) log::warn("Failed to save banner cache '{}': {}", url, renamed.unwrapErr());
-                } else {
-                    log::warn("Failed to save banner cache '{}': {}", url, res.unwrapErr());
-                }
-
-                queueInMainThread([url, data = std::move(data)]() mutable {
-                    BannerLoader::get()->onDownloaded(url, std::move(data));
-                });
+        arc::spawn([weak = WeakRef(lazy), url = std::move(url), cachePath = std::move(cachePath)]() -> arc::Future<> {
+            auto response = co_await web::WebRequest().get(url);
+            if (!response.ok()) {
+                log::warn("failed to fetch banner '{}' ({}): {}", url, response.code(), response.errorMessage());
+                hideLater(weak);
                 co_return;
-            });
-        }
+            }
 
-        void onDownloaded(std::string const& url, std::vector<uint8_t> data) {
-            auto it = m_downloads.find(url);
-            if (it == m_downloads.end()) return;
-            auto waiters = std::move(it->second);
-            m_downloads.erase(it);
+            auto data = std::move(response).data();
+            if (data.empty()) {
+                log::warn("banner '{}' returned an empty body", url);
+                hideLater(weak);
+                co_return;
+            }
 
-            auto format = guessFormat(url);
-            for (auto& weak : waiters) {
-                auto sprite = weak.lock();
-                if (!sprite) continue;
-                if (data.empty()) {
-                    sprite->cancelLoad();  // removes the loading circle
-                    continue;
+            if (auto saved = utils::file::writeBinarySafe(cachePath, data); !saved) {
+                log::warn("failed to cache banner '{}': {}", url, saved.unwrapErr());
+            }
+
+            Loader::get()->queueInMainThread([weak, data = std::move(data)]() mutable {
+                if (auto sprite = weak.lock()) {
+                    sprite->loadFromData(std::move(data), CCImage::kFmtUnKnown);
                 }
-                sprite->loadFromData(data.data(), data.size(), format);
-                m_decoding.push_back(WeakRef(sprite.data()));
-            }
-            this->ensureScheduled();
-        }
-
-    public:
-        static BannerLoader* get() {
-            static auto instance = [] {
-                auto loader = new BannerLoader();
-                loader->retain();
-                return loader;
-            }();
-            return instance;
-        }
-
-        void queue(LazySprite* sprite, std::string source, bool priority) {
-            if (priority) {
-                // in front of banners that were queued earlier (e.g. a list behind a preview)
-                m_pending.insert(m_pending.begin(), {WeakRef(sprite), std::move(source), true});
-            } else {
-                m_pending.push_back({WeakRef(sprite), std::move(source), false});
-            }
-            this->ensureScheduled();
-        }
-
-        void update(float) override {
-            std::erase_if(m_decoding, [](WeakRef<LazySprite>& weak) {
-                auto sprite = weak.lock();
-                return !sprite || !sprite->isLoading();
             });
 
-            for (auto it = m_pending.begin(); it != m_pending.end();) {
-                // priority loads aren't held back by the limit, the rest wait for a free slot
-                if (!it->priority && activeCount() >= kMaxActiveLoads) {
-                    ++it;
-                    continue;
-                }
-                auto sprite = it->sprite.lock();
-                if (!sprite) {
-                    it = m_pending.erase(it);
-                    continue;
-                }
-                if (!isOnScreen(sprite)) {
-                    ++it;
-                    continue;
-                }
-                auto source = std::move(it->source);
-                it = m_pending.erase(it);
-                this->start(sprite, source);
-            }
-
-            // drop banners that were destroyed before they got a chance to load
-            std::erase_if(m_pending, [](PendingBanner& p) { return !p.sprite.lock(); });
-
-            if (m_pending.empty() && m_decoding.empty() && m_downloads.empty()) {
-                CCScheduler::get()->unscheduleUpdateForTarget(this);
-                m_scheduled = false;
-            }
-        }
-    };
+            co_return;
+        });
+    }
 
     namespace loader {
         void queue(LazySprite* sprite, std::string source, bool priority) {
             if (!sprite || source.empty()) return;
-            BannerLoader::get()->queue(sprite, std::move(source), priority);
+
+            // loads are not throttled anymore, so there is nothing for a priority load to jump ahead of
+            (void)priority;
+
+            if (isRemote(source)) {
+                loadRemote(sprite, std::move(source));
+            } else {
+                loadFile(sprite, asp::fs::Path(std::move(source)));
+            }
         }
 
         asp::fs::Path getCacheDir() {
@@ -327,6 +206,12 @@ namespace comment {
         auto sprite = LazySprite::create(size, true);
         if (!sprite) return nullptr;
         sprite->setAutoResize(true);
+        // a banner that fails to load shouldnt leave a spinning loading circle behind
+        sprite->setLoadCallback([weak = WeakRef<LazySprite>(sprite)](Result<> res) {
+            if (res) return;
+            log::warn("banner failed to load: {}", res.unwrapErr());
+            if (auto locked = weak.lock()) locked->setVisible(false);
+        });
         return sprite;
     }
 

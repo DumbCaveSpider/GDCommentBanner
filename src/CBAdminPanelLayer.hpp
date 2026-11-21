@@ -15,7 +15,6 @@ class CBAdminPanelLayer : public Popup, public SetTextPopupDelegate {
 public:
     static CBAdminPanelLayer* create();
     void processPendingBanner(int id, bool approve, const std::string& reason);
-
 private:
     bool init() override;
 
@@ -47,7 +46,6 @@ private:
     void updatePagination();
 
     matjson::Value m_currentData;
-    std::string m_authToken;
     int m_page = 0;
     Label* m_pageLabel = nullptr;
     Button* m_nextBtn = nullptr;

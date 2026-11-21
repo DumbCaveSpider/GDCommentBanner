@@ -21,9 +21,11 @@ using namespace geode::prelude;
 namespace comment {
     inline std::string baseUrl = "https://gdbanner.arcticwoof.xyz";
 
-    inline auto argonToken = [](const argon::AccountData& accountData) -> arc::Future<std::string> {
-        auto authResult = co_await argon::startAuth(accountData);
+    // Argon tokens are short-lived and single-purpose: fetch one right before each request and never cache it.
+    inline auto argonToken = []() -> arc::Future<std::string> {
+        auto authResult = co_await argon::startAuth();
         if (!authResult) {
+            argon::clearToken();
             co_return std::string();
         }
         co_return std::move(authResult).unwrap();
@@ -37,16 +39,7 @@ namespace comment {
             return node;
         }
 
-        auto sprite = LazySprite::create(bannerSize, true);
-        sprite->setAutoResize(true);
-
-        if (imageUrl.starts_with("/")) {
-            loader::queue(sprite, fmt::format("{}{}", comment::baseUrl, imageUrl), priority);
-        } else {
-            loader::queue(sprite, imageUrl, priority);
-        }
-
-        return sprite;
+        return createBannerSpriteFromSource(imageUrl, bannerSize, priority);
     }
 
     void invalidateBannerCache(int accountId = 0);

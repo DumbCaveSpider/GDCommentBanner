@@ -116,8 +116,8 @@ void CBSupporterPopup::setUseDiscord(bool useDiscord) {
     m_discordTabSprite->updateBGImage(useDiscord ? "GJ_button_02.png" : "GJ_button_04.png");
     m_emailInput->setVisible(!useDiscord);
     m_discordInput->setVisible(useDiscord);
-    m_emailInput->defocus();
-    m_discordInput->defocus();
+    m_emailInput->unfocus();
+    m_discordInput->unfocus();
 }
 
 void CBSupporterPopup::onSubmit(CCObject*) {
@@ -127,8 +127,7 @@ void CBSupporterPopup::onSubmit(CCObject*) {
         return;
     }
 
-    auto accountData = argon::getGameAccountData();
-    auto accountId = accountData.accountId;
+    auto accountId = argon::getGameAccountData().accountId;
     if (accountId <= 0) {
         Notification::create("Invalid account ID.", NotificationIcon::Error)->show();
         return;
@@ -140,8 +139,8 @@ void CBSupporterPopup::onSubmit(CCObject*) {
     Ref<CBSupporterPopup> retainedSelf = this;
     std::string type = m_useDiscord ? "discord" : "email";
 
-    arc::spawn([retainedSelf, accountId, accountData, type, value, popup]() -> arc::Future<> {
-        auto authToken = co_await comment::argonToken(accountData);
+    arc::spawn([retainedSelf, accountId, type, value, popup]() -> arc::Future<> {
+        auto authToken = co_await comment::argonToken();
         if (authToken.empty()) {
             queueInMainThread([popup] {
                 if (popup && popup->getParent()) {

@@ -26,15 +26,14 @@ namespace comment {
 
         auto bgColor = compact ? ccColor3B{156, 85, 42} : ccColor3B{161, 88, 44};
         auto bgLayer = CCLayerColor::create({bgColor.r, bgColor.g, bgColor.b, 255}, width, height);
-        overlay->addChild(bgLayer, -1);
+        clip->addChild(bgLayer, -2);
 
         bool useNonCompact = !compact && !nonCompactImageUrl.empty();
         if (!imageUrl.empty() || useNonCompact) {
-            auto bannerSize = (compact || useNonCompact) ? size : CCSize{800.f, 800.f};
-            if (auto banner = createBannerNode(useNonCompact ? nonCompactImageUrl : imageUrl, bannerSize, priorityLoad)) {
+            if (auto banner = createBannerNode(useNonCompact ? nonCompactImageUrl : imageUrl, size, priorityLoad)) {
                 banner->setPosition(size / 2.f);
                 bgLayer->setOpacity(100);
-                clip->addChild(banner, 0);
+                clip->addChild(banner, -1);
             }
         }
 

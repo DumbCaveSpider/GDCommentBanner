@@ -190,8 +190,8 @@ bool CBViewItemPopup::init(const CBBannerItem& banner) {
 }
 
 void CBViewItemPopup::setFavorite(Toggler* toggler, bool favorite) {
-    auto accountData = argon::getGameAccountData();
-    if (accountData.accountId <= 0) {
+    auto accountId = argon::getGameAccountData().accountId;
+    if (accountId <= 0) {
         toggler->setToggled(!favorite);
         Notification::create("You need to be logged in to favorite banners.", NotificationIcon::Error)->show();
         return;
@@ -200,7 +200,7 @@ void CBViewItemPopup::setFavorite(Toggler* toggler, bool favorite) {
     Ref<CBViewItemPopup> self = this;
     Ref<Toggler> toggle = toggler;
     int bannerId = m_banner.id;
-    arc::spawn([self, toggle, bannerId, favorite, accountData]() -> arc::Future<> {
+    arc::spawn([self, toggle, bannerId, favorite, accountId]() -> arc::Future<> {
         auto revert = [self, toggle, favorite](std::string message) {
             queueInMainThread([toggle, favorite, message] {
                 toggle->setToggled(!favorite);
@@ -208,13 +208,13 @@ void CBViewItemPopup::setFavorite(Toggler* toggler, bool favorite) {
             });
         };
 
-        auto authToken = co_await comment::argonToken(accountData);
+        auto authToken = co_await comment::argonToken();
         if (authToken.empty()) {
             revert("Authentication failed.");
             co_return;
         }
 
-        auto body = matjson::makeObject({{"accountId", accountData.accountId},
+        auto body = matjson::makeObject({{"accountId", accountId},
             {"argonToken", authToken},
             {"bannerId", bannerId},
             {"favorite", favorite}});

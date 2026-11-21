@@ -143,8 +143,15 @@ void CBAdminPanelLayer::processPendingBanner(int id, bool approve, const std::st
     Ref<UploadActionPopup> popup = UploadActionPopup::create(nullptr, actionStr);
     popup->show();
     Ref<CBAdminPanelLayer> retainedSelf = this;
-    std::string authToken = this->m_authToken;
-    arc::spawn([retainedSelf, id, accountId, authToken, endpoint, reason, approve, popup]() -> arc::Future<> {
+    arc::spawn([retainedSelf, id, accountId, endpoint, reason, approve, popup]() -> arc::Future<> {
+        auto authToken = co_await comment::argonToken();
+        if (authToken.empty()) {
+            queueInMainThread([popup] {
+                if (popup && popup->getParent()) popup->showFailMessage("Authentication failed.");
+            });
+            co_return;
+        }
+
         auto req = utils::web::WebRequest();
         auto body = matjson::makeObject({{"accountId", accountId},
             {"argonToken", authToken},
@@ -180,12 +187,11 @@ void CBAdminPanelLayer::fetchPendingBanners() {
         empty->removeFromParent();
     }
 
-    auto accountData = argon::getGameAccountData();
-    auto accountId = accountData.accountId;
+    auto accountId = argon::getGameAccountData().accountId;
 
     Ref<CBAdminPanelLayer> retainedSelf = this;
-    arc::spawn([retainedSelf, accountId, accountData]() -> arc::Future<> {
-        auto authResult = co_await comment::argonToken(accountData);
+    arc::spawn([retainedSelf, accountId]() -> arc::Future<> {
+        auto authResult = co_await comment::argonToken();
         if (authResult.empty()) {
             queueInMainThread([retainedSelf] {
                 retainedSelf->m_loadingCircle->fadeOut();
@@ -223,11 +229,10 @@ void CBAdminPanelLayer::fetchPendingBanners() {
             co_return;
         }
 
-        queueInMainThread([retainedSelf, json = std::move(json), accountId, authToken] {
+        queueInMainThread([retainedSelf, json = std::move(json), accountId] {
             retainedSelf->m_loadingCircle->fadeOut();
             if (retainedSelf->m_currentTab != Tab::Pending) return;
             retainedSelf->m_currentData = json;
-            retainedSelf->m_authToken = authToken;
             retainedSelf->m_page = 0;
             retainedSelf->renderPage();
             retainedSelf->m_list->updateLayout();
@@ -250,12 +255,11 @@ void CBAdminPanelLayer::fetchUsers(std::string query) {
         empty->removeFromParent();
     }
 
-    auto accountData = argon::getGameAccountData();
-    auto accountId = accountData.accountId;
+    auto accountId = argon::getGameAccountData().accountId;
 
     Ref<CBAdminPanelLayer> retainedSelf = this;
-    arc::spawn([retainedSelf, accountId, accountData, query]() -> arc::Future<> {
-        auto authResult = co_await comment::argonToken(accountData);
+    arc::spawn([retainedSelf, accountId, query]() -> arc::Future<> {
+        auto authResult = co_await comment::argonToken();
         if (authResult.empty()) {
             queueInMainThread([retainedSelf] {
                 retainedSelf->m_loadingCircle->fadeOut();
@@ -296,11 +300,10 @@ void CBAdminPanelLayer::fetchUsers(std::string query) {
             co_return;
         }
 
-        queueInMainThread([retainedSelf, json = std::move(json), accountId, authToken] {
+        queueInMainThread([retainedSelf, json = std::move(json), accountId] {
             retainedSelf->m_loadingCircle->fadeOut();
             if (retainedSelf->m_currentTab != Tab::Users) return;
             retainedSelf->m_currentData = json;
-            retainedSelf->m_authToken = authToken;
             retainedSelf->m_page = 0;
             retainedSelf->renderPage();
             retainedSelf->m_list->updateLayout();
@@ -322,12 +325,11 @@ void CBAdminPanelLayer::fetchBanners(std::string query) {
         empty->removeFromParent();
     }
 
-    auto accountData = argon::getGameAccountData();
-    auto accountId = accountData.accountId;
+    auto accountId = argon::getGameAccountData().accountId;
 
     Ref<CBAdminPanelLayer> retainedSelf = this;
-    arc::spawn([retainedSelf, accountId, accountData, query]() -> arc::Future<> {
-        auto authResult = co_await comment::argonToken(accountData);
+    arc::spawn([retainedSelf, accountId, query]() -> arc::Future<> {
+        auto authResult = co_await comment::argonToken();
         if (authResult.empty()) {
             queueInMainThread([retainedSelf] {
                 retainedSelf->m_loadingCircle->fadeOut();
@@ -372,11 +374,10 @@ void CBAdminPanelLayer::fetchBanners(std::string query) {
             co_return;
         }
 
-        queueInMainThread([retainedSelf, json = std::move(json), accountId, authToken] {
+        queueInMainThread([retainedSelf, json = std::move(json), accountId] {
             retainedSelf->m_loadingCircle->fadeOut();
             if (retainedSelf->m_currentTab != Tab::Banners) return;
             retainedSelf->m_currentData = json;
-            retainedSelf->m_authToken = authToken;
             retainedSelf->m_page = 0;
             retainedSelf->renderPage();
             retainedSelf->m_list->updateLayout();
@@ -455,8 +456,7 @@ void CBAdminPanelLayer::renderPage() {
     size_t start = m_page * itemsPerPage;
     size_t end = std::min(start + itemsPerPage, jsonArray.size());
 
-    auto accountData = argon::getGameAccountData();
-    auto accountId = accountData.accountId;
+    auto accountId = argon::getGameAccountData().accountId;
 
     if (m_currentTab == Tab::Pending) {
         m_list->setCellColor(ccBLACK);

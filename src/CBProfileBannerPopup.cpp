@@ -91,15 +91,14 @@ bool CBProfileBannerPopup::init(int targetAccountId, const std::string& targetUs
 }
 
 void CBProfileBannerPopup::fetchStats() {
-    auto accountData = argon::getGameAccountData();
-    auto accountId = accountData.accountId;
+    auto accountId = argon::getGameAccountData().accountId;
     // /getUser needs a logged in account
     if (accountId <= 0) return;
 
     Ref<CBProfileBannerPopup> retainedSelf = this;
     int targetAccountId = m_targetAccountId;
-    arc::spawn([retainedSelf, accountId, accountData, targetAccountId]() -> arc::Future<> {
-        auto authToken = co_await comment::argonToken(accountData);
+    arc::spawn([retainedSelf, accountId, targetAccountId]() -> arc::Future<> {
+        auto authToken = co_await comment::argonToken();
         if (authToken.empty()) co_return;
 
         auto body = matjson::makeObject({{"accountId", accountId},
@@ -189,12 +188,11 @@ void CBProfileBannerPopup::fetchBanners() {
     m_list->addChildAtPosition(m_loadingCircle, Anchor::Center, CCPointZero, false);
     m_loadingCircle->fadeIn();
 
-    auto accountData = argon::getGameAccountData();
-    auto accountId = accountData.accountId;
+    auto accountId = argon::getGameAccountData().accountId;
 
     Ref<CBProfileBannerPopup> retainedSelf = this;
-    arc::spawn([retainedSelf, accountId, accountData]() -> arc::Future<> {
-        auto authResult = co_await comment::argonToken(accountData);
+    arc::spawn([retainedSelf, accountId]() -> arc::Future<> {
+        auto authResult = co_await comment::argonToken();
 
         auto req = utils::web::WebRequest();
         auto body = matjson::makeObject({

@@ -624,7 +624,7 @@ void CBBannerCell::toggleFeatured(Button* button) {
 }
 
 void CBBannerCell::setFeatured(Button* button, bool newState) {
-    auto accountData = argon::getGameAccountData();
+    auto accountId = argon::getGameAccountData().accountId;
 
     Ref<UploadActionPopup> popup = UploadActionPopup::create(nullptr, newState ? "Featuring banner..." : "Unfeaturing banner...");
     popup->show();
@@ -632,8 +632,8 @@ void CBBannerCell::setFeatured(Button* button, bool newState) {
     Ref<CBBannerCell> self = this;
     Ref<Button> btn = button;
     int bannerId = m_banner.id;
-    arc::spawn([self, btn, bannerId, newState, popup, accountData]() -> arc::Future<> {
-        auto authToken = co_await comment::argonToken(accountData);
+    arc::spawn([self, btn, bannerId, newState, popup, accountId]() -> arc::Future<> {
+        auto authToken = co_await comment::argonToken();
         if (authToken.empty()) {
             queueInMainThread([popup] {
                 if (popup && popup->getParent()) popup->showFailMessage("Authentication failed.");
@@ -641,7 +641,7 @@ void CBBannerCell::setFeatured(Button* button, bool newState) {
             co_return;
         }
 
-        auto body = matjson::makeObject({{"accountId", accountData.accountId},
+        auto body = matjson::makeObject({{"accountId", accountId},
             {"argonToken", authToken},
             {"bannerId", bannerId},
             {"featured", newState}});
@@ -690,15 +690,14 @@ void CBBannerCell::showPurchaseConfirm() {
 void CBBannerCell::applyBanner() {
     Ref<CBBannerCell> retainedSelf = this;
     queueInMainThread([retainedSelf]() {
-        auto accountData = argon::getGameAccountData();
-        auto accountId = accountData.accountId;
+        auto accountId = argon::getGameAccountData().accountId;
         Ref<UploadActionPopup> popup = UploadActionPopup::create(nullptr, "Equipping banner...");
         if (popup) {
             popup->show();
         }
 
-        arc::spawn([retainedSelf, accountId, accountData, popup]() -> arc::Future<> {
-            auto authResult = co_await comment::argonToken(accountData);
+        arc::spawn([retainedSelf, accountId, popup]() -> arc::Future<> {
+            auto authResult = co_await comment::argonToken();
             if (authResult.empty()) {
                 log::warn("argon failed");
                 co_return;
@@ -758,15 +757,14 @@ void CBBannerCell::applyBanner() {
 void CBBannerCell::unequipBanner() {
     Ref<CBBannerCell> retainedSelf = this;
     queueInMainThread([retainedSelf]() {
-        auto accountData = argon::getGameAccountData();
-        auto accountId = accountData.accountId;
+        auto accountId = argon::getGameAccountData().accountId;
         Ref<UploadActionPopup> popup = UploadActionPopup::create(nullptr, "Unequipping banner...");
         if (popup) {
             popup->show();
         }
 
-        arc::spawn([retainedSelf, accountId, accountData, popup]() -> arc::Future<> {
-            auto authResult = co_await comment::argonToken(accountData);
+        arc::spawn([retainedSelf, accountId, popup]() -> arc::Future<> {
+            auto authResult = co_await comment::argonToken();
             if (authResult.empty()) {
                 log::warn("argon failed");
                 co_return;
@@ -816,15 +814,14 @@ void CBBannerCell::unequipBanner() {
 void CBBannerCell::purchaseBanner() {
     Ref<CBBannerCell> retainedSelf = this;
     queueInMainThread([retainedSelf]() {
-        auto accountData = argon::getGameAccountData();
-        auto accountId = accountData.accountId;
+        auto accountId = argon::getGameAccountData().accountId;
         Ref<UploadActionPopup> popup = UploadActionPopup::create(nullptr, "Equipping banner...");
         if (popup) {
             popup->show();
         }
 
-        arc::spawn([retainedSelf, accountId, accountData, popup]() -> arc::Future<> {
-            auto authResult = co_await comment::argonToken(accountData);
+        arc::spawn([retainedSelf, accountId, popup]() -> arc::Future<> {
+            auto authResult = co_await comment::argonToken();
             if (authResult.empty()) {
                 log::warn("argon failed");
                 co_return;

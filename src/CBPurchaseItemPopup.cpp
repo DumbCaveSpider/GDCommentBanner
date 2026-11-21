@@ -100,8 +100,7 @@ bool CBPurchaseItemPopup::init(const CBBannerItem& banner) {
 void CBPurchaseItemPopup::buyBanner() {
     auto itemPopup = Ref<CBPurchaseItemPopup>(this);
     queueInMainThread([this, itemPopup]() {
-        auto accountData = argon::getGameAccountData();
-        auto accountId = accountData.accountId;
+        auto accountId = argon::getGameAccountData().accountId;
         if (accountId <= 0) {
             Notification::create("Failed to retrieve a valid account ID.", NotificationIcon::Error)->show();
             return;
@@ -113,8 +112,8 @@ void CBPurchaseItemPopup::buyBanner() {
         }
 
         auto bannerId = m_banner.id;
-        arc::spawn([bannerId, accountId, accountData, popup, itemPopup]() -> arc::Future<> {
-            auto authResult = co_await comment::argonToken(accountData);
+        arc::spawn([bannerId, accountId, popup, itemPopup]() -> arc::Future<> {
+            auto authResult = co_await comment::argonToken();
             if (authResult.empty()) {
                 queueInMainThread([popup] {
                     if (popup && popup->getParent()) {
@@ -126,11 +125,10 @@ void CBPurchaseItemPopup::buyBanner() {
                 co_return;
             }
 
-            auto authToken = std::move(authResult);
             auto request = utils::web::WebRequest();
             auto body = matjson::makeObject({
                 {"accountId", accountId},
-                {"argonToken", authToken},
+                {"argonToken", authResult},
                 {"bannerId", bannerId},
             });
             auto response = co_await request.bodyJSON(body).post(fmt::format("{}/buyBanner", comment::baseUrl));
@@ -167,11 +165,12 @@ void CBPurchaseItemPopup::buyBanner() {
             }
 
             int latestAmethyst = -1;
-            {
+            // a token is only good for the request it was fetched for, so authenticate again
+            if (auto userAuth = co_await comment::argonToken(); !userAuth.empty()) {
                 auto userRequest = utils::web::WebRequest();
                 auto userBody = matjson::makeObject({
                     {"accountId", accountId},
-                    {"argonToken", authToken},
+                    {"argonToken", userAuth},
                 });
                 auto userResponse = co_await userRequest.bodyJSON(userBody).post(fmt::format("{}/getUser", comment::baseUrl));
                 if (userResponse.ok()) {

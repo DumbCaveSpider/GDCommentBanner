@@ -112,8 +112,7 @@ void CBLogsPopup::fetchLogs() {
     m_list->addChildAtPosition(m_loadingCircle, Anchor::Center, CCPointZero, false);
     m_loadingCircle->fadeIn();
 
-    auto accountData = argon::getGameAccountData();
-    auto accountId = accountData.accountId;
+    auto accountId = argon::getGameAccountData().accountId;
 
     if (accountId <= 0) {
         m_loadingCircle->fadeOut();
@@ -133,7 +132,7 @@ void CBLogsPopup::fetchLogs() {
 
     int fetchId = ++m_fetchId;
     Ref<CBLogsPopup> retainedSelf = this;
-    arc::spawn([retainedSelf, accountId, accountData, query, fetchId]() -> arc::Future<> {
+    arc::spawn([retainedSelf, accountId, query, fetchId]() -> arc::Future<> {
         auto isStale = [retainedSelf, fetchId] { return retainedSelf->m_fetchId != fetchId; };
         auto fail = [retainedSelf, isStale](char const* message) {
             queueInMainThread([retainedSelf, isStale, message] {
@@ -143,7 +142,7 @@ void CBLogsPopup::fetchLogs() {
             });
         };
 
-        auto authToken = co_await comment::argonToken(accountData);
+        auto authToken = co_await comment::argonToken();
         if (authToken.empty()) {
             fail("Authentication failed.");
             co_return;

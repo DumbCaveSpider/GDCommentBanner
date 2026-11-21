@@ -110,15 +110,14 @@ void CBAdminBannerManagePopup::onSave(CCObject*) {
     bool hasAmount = m_amountInput != nullptr;
     int newAmount = hasAmount ? numFromString<int>(m_amountInput->getString()).unwrapOr(0) : 0;
 
-    auto accountData = argon::getGameAccountData();
-    auto accountId = accountData.accountId;
+    auto accountId = argon::getGameAccountData().accountId;
     Ref<CBAdminBannerManagePopup> retainedSelf = this;
 
     Ref<UploadActionPopup> popup = UploadActionPopup::create(nullptr, "Saving changes...");
     popup->show();
 
-    arc::spawn([retainedSelf, bannerId, accountId, accountData, newName, newDesc, newPrice, hasAmount, newAmount, popup]() -> arc::Future<> {
-        auto authResult = co_await comment::argonToken(accountData);
+    arc::spawn([retainedSelf, bannerId, accountId, newName, newDesc, newPrice, hasAmount, newAmount, popup]() -> arc::Future<> {
+        auto authResult = co_await comment::argonToken();
         if (authResult.empty()) {
             queueInMainThread([popup] {
                 if (popup && popup->getParent()) {
@@ -165,15 +164,14 @@ void CBAdminBannerManagePopup::onDelete(CCObject*) {
     createQuickPopup("Delete Banner", "Are you sure you want to <cr>delete</c> this banner?", "Cancel", "Delete", [this](FLAlertLayer*, bool btn2) {
         if (btn2) {
             int bannerId = m_bannerData["id"].asInt().unwrapOr(0);
-            auto accountData = argon::getGameAccountData();
-            auto accountId = accountData.accountId;
+            auto accountId = argon::getGameAccountData().accountId;
             Ref<CBAdminBannerManagePopup> retainedSelf = this;
 
             Ref<UploadActionPopup> popup = UploadActionPopup::create(nullptr, "Deleting banner...");
             popup->show();
 
-            arc::spawn([retainedSelf, bannerId, accountId, accountData, popup]() -> arc::Future<> {
-                auto authResult = co_await comment::argonToken(accountData);
+            arc::spawn([retainedSelf, bannerId, accountId, popup]() -> arc::Future<> {
+                auto authResult = co_await comment::argonToken();
                 if (authResult.empty()) {
                     queueInMainThread([popup] {
                         if (popup && popup->getParent()) {

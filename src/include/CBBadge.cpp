@@ -35,16 +35,15 @@ void checkAndShowBadge(const dasshu::badgified::Badge& badge, bool isAdminBadge)
         return;
     }
 
-    auto accountData = argon::getGameAccountData();
-    int accountId = accountData.accountId;
+    auto accountId = argon::getGameAccountData().accountId;
     if (accountId <= 0) return;
 
     bool alreadyPending = s_pendingBadges.contains(targetAccountId);
     s_pendingBadges[targetAccountId].push_back({badge, isAdminBadge});
     if (alreadyPending) return;
 
-    arc::spawn([targetAccountId, accountData, accountId]() -> arc::Future<> {
-        auto authResult = co_await comment::argonToken(accountData);
+    arc::spawn([targetAccountId, accountId]() -> arc::Future<> {
+        auto authResult = co_await comment::argonToken();
         if (authResult.empty()) {
             queueInMainThread([targetAccountId]() {
                 s_pendingBadges.erase(targetAccountId);

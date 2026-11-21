@@ -171,8 +171,7 @@ void CBShopLayer::fetchBanners() {
             self->m_loadingCircle->fadeIn();
         }
 
-        auto accountData = argon::getGameAccountData();
-        auto accountId = accountData.accountId;
+        auto accountId = argon::getGameAccountData().accountId;
         if (accountId <= 0) {
             if (self->m_loadingCircle) {
                 self->m_loadingCircle->fadeOut();
@@ -191,8 +190,8 @@ void CBShopLayer::fetchBanners() {
         int equippedBannerId = self->m_equippedBannerId;
         int fetchId = ++self->m_fetchId;
 
-        arc::spawn([self, fetchId, accountId, accountData, currentPage, itemsPerPage, filterState, sortState, supporterOnlyFilter, searchQuery, equippedBannerId]() -> arc::Future<> {
-            auto authResult = co_await comment::argonToken(accountData);
+        arc::spawn([self, fetchId, accountId, currentPage, itemsPerPage, filterState, sortState, supporterOnlyFilter, searchQuery, equippedBannerId]() -> arc::Future<> {
+            auto authResult = co_await comment::argonToken();
             if (authResult.empty()) {
                 queueInMainThread([self, fetchId]() {
                     if (!self || self->isStaleFetch(fetchId)) {
@@ -395,8 +394,7 @@ void CBShopLayer::fetchAmethyst() {
             return;
         }
 
-        auto accountData = argon::getGameAccountData();
-        auto accountId = accountData.accountId;
+        auto accountId = argon::getGameAccountData().accountId;
         if (accountId <= 0) {
             Notification::create("Failed to retrieve a valid account ID.", NotificationIcon::Error)->show();
             return;
@@ -410,8 +408,8 @@ void CBShopLayer::fetchAmethyst() {
             {"glowColor", gm->getPlayerGlowColor()},
             {"hasGlow", gm->getPlayerGlow()}});
 
-        arc::spawn([self, accountId, accountData, icon]() -> arc::Future<> {
-            auto authResult = co_await comment::argonToken(accountData);
+        arc::spawn([self, accountId, icon]() -> arc::Future<> {
+            auto authResult = co_await comment::argonToken();
             if (authResult.empty()) {
                 queueInMainThread([self]() {
                     if (!self || !self->getParent() || s_instance != self.data()) {
@@ -821,8 +819,8 @@ bool CBShopLayer::init() {
     //             return;
     //         }
 
-    //         arc::spawn([accountId, accountData, popup]() -> arc::Future<> {
-    //             auto authResult = co_await comment::argonToken(accountData);
+    //         arc::spawn([accountId, popup]() -> arc::Future<> {
+    //             auto authResult = co_await comment::argonToken();
     //             if (authResult.empty()) {
     //                 queueInMainThread([popup] {
     //                     popup->showFailMessage("Authentication failed.");

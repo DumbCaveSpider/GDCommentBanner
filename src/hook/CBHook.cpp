@@ -97,24 +97,25 @@ class $modify(CBThreadViewPopup, ThreadViewPopup) {
     }
 };
 
-static CCSize commentBannerSize(CommentCell* cell, bool useNonCompact) {
+static CCSize commentBannerSize(CommentCell* cell) {
     if (!cell) return CCSizeZero;
 
-    auto size = cell->m_backgroundLayer ? cell->m_backgroundLayer->getScaledContentSize() : CCSizeZero;
-    if (size.width <= 0.f || size.height <= 0.f) size = cell->m_backgroundLayer->getContentSize();
-    if (size.width <= 0.f || size.height <= 0.f) size = cell->getContentSize();
-
-    // non compact banners are a full size image, compact ones fill the comment background
-    if (!useNonCompact && !cell->m_compactMode) return CCSize{800.f, 800.f};
-    return size;
+    if (cell->m_backgroundLayer) {
+        auto size = cell->m_backgroundLayer->getContentSize();
+        if (size.width > 0.f && size.height > 0.f) return size;
+    }
+    return cell->getContentSize();
 }
 
-// mounts an already known banner source (remote url or local file) in the comment background
-static void applyCommentBanner(CommentCell* cell, std::string const& source, bool useNonCompact) {
+static void applyCommentBanner(CommentCell* cell, std::string const& source) {
     if (!cell || !cell->m_backgroundLayer || source.empty()) return;
 
-    auto size = commentBannerSize(cell, useNonCompact);
+    auto size = commentBannerSize(cell);
     if (size.width <= 0.f || size.height <= 0.f) return;
+
+    if (auto prevBanner = cell->m_backgroundLayer->getChildByID("cb-comment-banner-node")) {
+        prevBanner->removeFromParent();
+    }
 
     auto banner = comment::createBannerSpriteFromSource(source, size);
     if (!banner) return;
@@ -125,45 +126,18 @@ static void applyCommentBanner(CommentCell* cell, std::string const& source, boo
     cell->m_backgroundLayer->addChild(banner, -1);
 }
 
-static void setupCommentSprite(CommentCell* cell, int accountId, comment::BannerSource source) {
-    Ref<CommentCell> self = cell;
-    if (!self || !self->m_backgroundLayer || accountId <= 0) return;
-
-    comment::requestBannerInfo(accountId, source, [self](comment::BannerInfo const& info) {
-        if (!self || !self->m_backgroundLayer) return;
-
-        self->m_backgroundLayer->setOpacity(255);
-        if (auto prevBanner = self->m_backgroundLayer->getChildByID("cb-comment-banner-node")) {
-            prevBanner->removeFromParent();
-        }
-        if (!info.equipped || info.imageUrl.empty()) return;
-
-        bool useNonCompact = !self->m_compactMode && !info.nonCompactImageUrl.empty();
-        applyCommentBanner(self.data(), info.urlFor(useNonCompact ? comment::BannerVariant::NonCompact : comment::BannerVariant::Compact), useNonCompact);
-
-        if (self->m_compactMode && self->m_mainLayer) {
-            if (auto commentText = self->m_mainLayer->getChildByIDRecursive("comment-text-label")) {
-                if (!self->m_mainLayer->getChildByID("cb-comment-banner-bg")) {
-                    auto commentBg = NineSlice::create("square02_small.png");
-                    commentBg->setID("cb-comment-banner-bg");
-                    commentBg->setInsets({5, 5, 5, 5});
-                    commentBg->setContentSize(commentText->getScaledContentSize() + CCSize(5, 0));
-                    commentBg->setPosition({commentText->getPosition().x - 2, commentText->getPosition().y});
-                    commentBg->setOpacity(150);
-                    commentBg->setAnchorPoint(commentText->getAnchorPoint());
-                    self->m_mainLayer->addChild(commentBg, -1);
-                }
-            }
-        }
-    });
-}
+static void setupCommentSprite(CommentCell* cell, int accountId, comment::BannerSource source);
 
 class $modify(CBCommentCell, CommentCell) {
+    struct Fields {
+        uint64_t m_bannerRequest = 0;
+    };
+
     void loadFromComment(GJComment* comment) {
         CommentCell::loadFromComment(comment);
+        m_fields->m_bannerRequest++;
         if (!m_backgroundLayer || !comment) return;
 
-        // cells are recycled, so drop whatever the previous comment left behind
         m_backgroundLayer->setOpacity(255);
         if (auto prevBanner = m_backgroundLayer->getChildByID("cb-comment-banner-node")) {
             prevBanner->removeFromParent();
@@ -184,7 +158,7 @@ class $modify(CBCommentCell, CommentCell) {
             if (!equippedLocal.empty()) {
                 auto localPath = comment::local::getLocalBannersDir() / equippedLocal;
                 if (localPath.exists()) {
-                    applyCommentBanner(this, localPath.string(), false);
+                    applyCommentBanner(this, localPath.string());
                     return;
                 }
             }
@@ -193,6 +167,42 @@ class $modify(CBCommentCell, CommentCell) {
         setupCommentSprite(this, accountId, comment::BannerSource::Server);
     }
 };
+
+static void setupCommentSprite(CommentCell* cell, int accountId, comment::BannerSource source) {
+    Ref<CommentCell> self = cell;
+    if (!self || !self->m_backgroundLayer || accountId <= 0) return;
+
+    auto request = static_cast<CBCommentCell*>(cell)->m_fields->m_bannerRequest;
+
+    comment::requestBannerInfo(accountId, source, [self, request](comment::BannerInfo const& info) {
+        if (!self || !self->m_backgroundLayer) return;
+        if (static_cast<CBCommentCell*>(self.data())->m_fields->m_bannerRequest != request) return;
+
+        self->m_backgroundLayer->setOpacity(255);
+        if (auto prevBanner = self->m_backgroundLayer->getChildByID("cb-comment-banner-node")) {
+            prevBanner->removeFromParent();
+        }
+        if (!info.equipped || info.imageUrl.empty()) return;
+
+        bool useNonCompact = !self->m_compactMode && !info.nonCompactImageUrl.empty();
+        applyCommentBanner(self.data(), info.urlFor(useNonCompact ? comment::BannerVariant::NonCompact : comment::BannerVariant::Compact));
+
+        if (self->m_compactMode && self->m_mainLayer) {
+            if (auto commentText = self->m_mainLayer->getChildByIDRecursive("comment-text-label")) {
+                if (!self->m_mainLayer->getChildByID("cb-comment-banner-bg")) {
+                    auto commentBg = NineSlice::create("square02_small.png");
+                    commentBg->setID("cb-comment-banner-bg");
+                    commentBg->setInsets({5, 5, 5, 5});
+                    commentBg->setContentSize(commentText->getScaledContentSize() + CCSize(5, 0));
+                    commentBg->setPosition({commentText->getPosition().x - 2, commentText->getPosition().y});
+                    commentBg->setOpacity(150);
+                    commentBg->setAnchorPoint(commentText->getAnchorPoint());
+                    self->m_mainLayer->addChild(commentBg, -1);
+                }
+            }
+        }
+    });
+}
 
 class $modify(CBPlayLayer, PlayLayer) {
     struct Fields {
@@ -256,8 +266,7 @@ class $modify(CBEndLevelLayer, EndLevelLayer) {
             return;
         }
 
-        auto accountData = argon::getGameAccountData();
-        auto accountId = accountData.accountId;
+        auto accountId = argon::getGameAccountData().accountId;
         if (accountId <= 0) {
             log::warn("Invalid account ID for amethyst reward submission.");
             return;
@@ -268,8 +277,8 @@ class $modify(CBEndLevelLayer, EndLevelLayer) {
         Ref<EndLevelLayer> endLayerRef = this;
 
         m_fields->m_submitTask.spawn(
-            [accountData, accountId, levelId]() -> arc::Future<web::WebResponse> {
-                auto authResult = co_await comment::argonToken(accountData);
+            [accountId, levelId]() -> arc::Future<web::WebResponse> {
+                auto authResult = co_await comment::argonToken();
                 if (authResult.empty()) {
                     log::warn("argon auth failed for amethyst reward");
                     co_return web::WebResponse();

@@ -162,8 +162,7 @@ bool CBGiftAmethyst::init(int targetAccountId) {
 }
 
 void CBGiftAmethyst::fetchUsers() {
-    auto accountData = argon::getGameAccountData();
-    auto accountId = accountData.accountId;
+    auto accountId = argon::getGameAccountData().accountId;
     if (accountId <= 0) {
         m_loadingCircle->fadeOut();
         m_statusLabel->setString("You need to be logged in to gift amethysts.");
@@ -173,7 +172,7 @@ void CBGiftAmethyst::fetchUsers() {
 
     Ref<CBGiftAmethyst> self = this;
     int targetAccountId = m_targetAccountId;
-    arc::spawn([self, accountId, accountData, targetAccountId]() -> arc::Future<> {
+    arc::spawn([self, accountId, targetAccountId]() -> arc::Future<> {
         auto fail = [self](std::string message) {
             queueInMainThread([self, message] {
                 if (self->m_loadingCircle) self->m_loadingCircle->fadeOut();
@@ -182,7 +181,7 @@ void CBGiftAmethyst::fetchUsers() {
             });
         };
 
-        auto authToken = co_await comment::argonToken(accountData);
+        auto authToken = co_await comment::argonToken();
         if (authToken.empty()) {
             fail("Authentication failed.");
             co_return;
@@ -314,8 +313,7 @@ void CBGiftAmethyst::onGift(CCObject*) {
 }
 
 void CBGiftAmethyst::sendGift(int amount) {
-    auto accountData = argon::getGameAccountData();
-    auto accountId = accountData.accountId;
+    auto accountId = argon::getGameAccountData().accountId;
     if (accountId <= 0) return;
 
     Ref<UploadActionPopup> popup = UploadActionPopup::create(nullptr, "Sending gift...");
@@ -323,8 +321,8 @@ void CBGiftAmethyst::sendGift(int amount) {
 
     Ref<CBGiftAmethyst> self = this;
     int targetAccountId = m_targetAccountId;
-    arc::spawn([self, accountId, accountData, targetAccountId, amount, popup]() -> arc::Future<> {
-        auto authToken = co_await comment::argonToken(accountData);
+    arc::spawn([self, accountId, targetAccountId, amount, popup]() -> arc::Future<> {
+        auto authToken = co_await comment::argonToken();
         if (authToken.empty()) {
             queueInMainThread([popup] {
                 if (popup && popup->getParent()) popup->showFailMessage("Authentication failed.");

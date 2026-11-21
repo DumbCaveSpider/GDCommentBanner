@@ -123,8 +123,7 @@ void CBEditBannerPopup::onDelete(CCObject*) {
 }
 
 void CBEditBannerPopup::deleteBanner() {
-    auto accountData = argon::getGameAccountData();
-    auto accountId = accountData.accountId;
+    auto accountId = argon::getGameAccountData().accountId;
     if (accountId <= 0) {
         Notification::create("Invalid account ID.", NotificationIcon::Error)->show();
         return;
@@ -136,8 +135,8 @@ void CBEditBannerPopup::deleteBanner() {
     Ref<CBEditBannerPopup> retainedSelf = this;
     int bannerId = m_data.id;
 
-    arc::spawn([retainedSelf, accountId, accountData, bannerId, popup]() -> arc::Future<> {
-        auto authToken = co_await comment::argonToken(accountData);
+    arc::spawn([retainedSelf, accountId, bannerId, popup]() -> arc::Future<> {
+        auto authToken = co_await comment::argonToken();
         if (authToken.empty()) {
             queueInMainThread([popup] {
                 if (popup && popup->getParent()) {
@@ -246,8 +245,7 @@ void CBEditBannerPopup::onSave(CCObject*) {
 }
 
 void CBEditBannerPopup::submitEdit(std::string name, std::string desc, int price, int amount) {
-    auto accountData = argon::getGameAccountData();
-    auto accountId = accountData.accountId;
+    auto accountId = argon::getGameAccountData().accountId;
     if (accountId <= 0) {
         Notification::create("Invalid account ID.", NotificationIcon::Error)->show();
         return;
@@ -260,8 +258,8 @@ void CBEditBannerPopup::submitEdit(std::string name, std::string desc, int price
     bool isLimited = m_data.isLimited;
     int bannerId = m_data.id;
 
-    arc::spawn([retainedSelf, accountId, accountData, bannerId, name, desc, price, amount, isLimited, popup]() -> arc::Future<> {
-        auto authToken = co_await comment::argonToken(accountData);
+    arc::spawn([retainedSelf, accountId, bannerId, name, desc, price, amount, isLimited, popup]() -> arc::Future<> {
+        auto authToken = co_await comment::argonToken();
         if (authToken.empty()) {
             queueInMainThread([popup] {
                 if (popup && popup->getParent()) {
