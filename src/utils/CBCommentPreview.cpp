@@ -30,7 +30,7 @@ namespace comment {
 
         bool useNonCompact = !compact && !nonCompactImageUrl.empty();
         if (!imageUrl.empty() || useNonCompact) {
-            auto fit = useNonCompact ? BannerFit::Cover : BannerFit::Contain;
+            auto fit = compact ? BannerFit::Contain : BannerFit::Cover;
             if (auto banner = createBannerNode(useNonCompact ? nonCompactImageUrl : imageUrl, size, priorityLoad, fit)) {
                 banner->setPosition(size / 2.f);
                 bgLayer->setOpacity(100);
