@@ -99,25 +99,34 @@ class $modify(CBThreadViewPopup, ThreadViewPopup) {
 
 static CCSize commentBannerSize(CommentCell* cell) {
     if (!cell) return CCSizeZero;
-
     if (cell->m_backgroundLayer) {
         auto size = cell->m_backgroundLayer->getContentSize();
         if (size.width > 0.f && size.height > 0.f) return size;
     }
+    if (cell->m_width > 0.f && cell->m_height > 0.f) return CCSize{cell->m_width, cell->m_height};
     return cell->getContentSize();
 }
 
-static void applyCommentBanner(CommentCell* cell, std::string const& source) {
+static void applyCommentBanner(CommentCell* cell, std::string const& source, comment::BannerFit fit) {
     if (!cell || !cell->m_backgroundLayer || source.empty()) return;
 
     auto size = commentBannerSize(cell);
     if (size.width <= 0.f || size.height <= 0.f) return;
 
+    // if (bannerBoxLogs < 5) {
+    //     bannerBoxLogs++;
+    //     auto layerSize = cell->m_backgroundLayer->getContentSize();
+    //     auto nodeSize = cell->getContentSize();
+    //     log::info("comment banner box {}x{} fit={} compact={} | cell {}x{} | layer {}x{} | node {}x{}",
+    //         size.width, size.height, fit == comment::BannerFit::Cover ? "cover" : "contain", cell->m_compactMode,
+    //         cell->m_width, cell->m_height, layerSize.width, layerSize.height, nodeSize.width, nodeSize.height);
+    // }
+
     if (auto prevBanner = cell->m_backgroundLayer->getChildByID("cb-comment-banner-node")) {
         prevBanner->removeFromParent();
     }
 
-    auto banner = comment::createBannerSpriteFromSource(source, size);
+    auto banner = comment::createBannerSpriteFromSource(source, size, false, fit);
     if (!banner) return;
 
     banner->setID("cb-comment-banner-node");
@@ -126,11 +135,38 @@ static void applyCommentBanner(CommentCell* cell, std::string const& source) {
     cell->m_backgroundLayer->addChild(banner, -1);
 }
 
-static void setupCommentSprite(CommentCell* cell, int accountId, comment::BannerSource source);
+static void setupCommentSprite(CommentCell* cell, int accountId, comment::BannerSource source, comment::BannerFit fit);
+
+static void mountCommentBanner(CommentCell* cell) {
+    if (!cell || !cell->m_backgroundLayer || !cell->m_comment) return;
+
+    int accountId = cell->m_comment->m_accountID;
+    if (accountId <= 0) return;
+    if (cell->m_accountComment && Mod::get()->getSettingValue<bool>("hide-account-comment")) return;
+
+    auto fit = cell->m_compactMode ? comment::BannerFit::Contain : comment::BannerFit::Cover;
+
+    // the own banner may be a local file that is not uploaded yet
+    int myAccountId = GJAccountManager::sharedState()->m_accountID;
+    if (myAccountId == 0) myAccountId = argon::getGameAccountData().accountId;
+    if (myAccountId > 0 && accountId == myAccountId) {
+        auto equippedLocal = Mod::get()->getSavedValue<std::string>("equipped-local-banner", "");
+        if (!equippedLocal.empty()) {
+            auto localPath = comment::local::getLocalBannersDir() / equippedLocal;
+            if (localPath.exists()) {
+                applyCommentBanner(cell, localPath.string(), fit);
+                return;
+            }
+        }
+    }
+
+    setupCommentSprite(cell, accountId, comment::BannerSource::Server, fit);
+}
 
 class $modify(CBCommentCell, CommentCell) {
     struct Fields {
         uint64_t m_bannerRequest = 0;
+        bool m_bannerShown = false;
     };
 
     void loadFromComment(GJComment* comment) {
@@ -146,35 +182,38 @@ class $modify(CBCommentCell, CommentCell) {
             if (auto bg = m_mainLayer->getChildByID("cb-comment-banner-bg")) bg->removeFromParent();
         }
 
-        int accountId = comment->m_accountID;
-        if (accountId <= 0) return;
-        if (m_accountComment && Mod::get()->getSettingValue<bool>("hide-account-comment")) return;
+        mountCommentBanner(this);
+        m_fields->m_bannerShown = this->isVisible();
+    }
 
-        // the own banner may be a local file that is not uploaded yet
-        int myAccountId = GJAccountManager::sharedState()->m_accountID;
-        if (myAccountId == 0) myAccountId = argon::getGameAccountData().accountId;
-        if (myAccountId > 0 && accountId == myAccountId) {
-            auto equippedLocal = Mod::get()->getSavedValue<std::string>("equipped-local-banner", "");
-            if (!equippedLocal.empty()) {
-                auto localPath = comment::local::getLocalBannersDir() / equippedLocal;
-                if (localPath.exists()) {
-                    applyCommentBanner(this, localPath.string());
-                    return;
-                }
-            }
+    void updateVisibility() {
+        CommentCell::updateVisibility();
+        if (!m_backgroundLayer) return;
+
+        bool visible = this->isVisible();
+        if (visible == m_fields->m_bannerShown) return;
+        m_fields->m_bannerShown = visible;
+
+        // rows keep their banner textures around while scrolled out of view, which is what makes a long
+        // list run out of memory on phones, so drop the banner and only rebuild it once the row is back
+        m_fields->m_bannerRequest++;
+        if (auto prevBanner = m_backgroundLayer->getChildByID("cb-comment-banner-node")) {
+            prevBanner->removeFromParent();
         }
+        m_backgroundLayer->setOpacity(255);
 
-        setupCommentSprite(this, accountId, comment::BannerSource::Server);
+        // rows are laid out before they are scrolled into view, so the banner may already be there
+        if (visible && !m_backgroundLayer->getChildByID("cb-comment-banner-node")) mountCommentBanner(this);
     }
 };
 
-static void setupCommentSprite(CommentCell* cell, int accountId, comment::BannerSource source) {
+static void setupCommentSprite(CommentCell* cell, int accountId, comment::BannerSource source, comment::BannerFit fit) {
     Ref<CommentCell> self = cell;
     if (!self || !self->m_backgroundLayer || accountId <= 0) return;
 
     auto request = static_cast<CBCommentCell*>(cell)->m_fields->m_bannerRequest;
 
-    comment::requestBannerInfo(accountId, source, [self, request](comment::BannerInfo const& info) {
+    comment::requestBannerInfo(accountId, source, [self, request, fit](comment::BannerInfo const& info) {
         if (!self || !self->m_backgroundLayer) return;
         if (static_cast<CBCommentCell*>(self.data())->m_fields->m_bannerRequest != request) return;
 
@@ -185,7 +224,7 @@ static void setupCommentSprite(CommentCell* cell, int accountId, comment::Banner
         if (!info.equipped || info.imageUrl.empty()) return;
 
         bool useNonCompact = !self->m_compactMode && !info.nonCompactImageUrl.empty();
-        applyCommentBanner(self.data(), info.urlFor(useNonCompact ? comment::BannerVariant::NonCompact : comment::BannerVariant::Compact));
+        applyCommentBanner(self.data(), info.urlFor(useNonCompact ? comment::BannerVariant::NonCompact : comment::BannerVariant::Compact), fit);
 
         if (self->m_compactMode && self->m_mainLayer) {
             if (auto commentText = self->m_mainLayer->getChildByIDRecursive("comment-text-label")) {

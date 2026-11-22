@@ -459,7 +459,7 @@ void CBAdminPanelLayer::renderPage() {
     auto accountId = argon::getGameAccountData().accountId;
 
     if (m_currentTab == Tab::Pending) {
-        m_list->setCellColor(ccBLACK);
+        //m_list->setCellColor(ccBLACK);
         for (size_t i = start; i < end; ++i) {
             auto cell = CBBannerCell::create(CBBannerItem::fromJson(jsonArray[i]), 380.f, {
                 .type = CBBannerCellType::Pending,
@@ -470,7 +470,7 @@ void CBAdminPanelLayer::renderPage() {
         }
 
     } else if (m_currentTab == Tab::Users) {
-        m_list->setCellColor(ccBLACK);
+        //m_list->setCellColor(ccBLACK);
         for (size_t i = start; i < end; ++i) {
             auto item = jsonArray[i];
             auto cell = CBUserCell::create(CBUserData::fromJson(item), 380.f, {
@@ -487,7 +487,7 @@ void CBAdminPanelLayer::renderPage() {
         }
 
     } else if (m_currentTab == Tab::Banners) {
-        m_list->setCellColor(ccBLACK);
+        //m_list->setCellColor(ccBLACK);
         // plain pointer: the panel owns these cells, a Ref here would keep the panel alive forever
         auto self = this;
         for (size_t i = start; i < end; ++i) {

@@ -30,7 +30,8 @@ namespace comment {
 
         bool useNonCompact = !compact && !nonCompactImageUrl.empty();
         if (!imageUrl.empty() || useNonCompact) {
-            if (auto banner = createBannerNode(useNonCompact ? nonCompactImageUrl : imageUrl, size, priorityLoad)) {
+            auto fit = useNonCompact ? BannerFit::Cover : BannerFit::Contain;
+            if (auto banner = createBannerNode(useNonCompact ? nonCompactImageUrl : imageUrl, size, priorityLoad, fit)) {
                 banner->setPosition(size / 2.f);
                 bgLayer->setOpacity(100);
                 clip->addChild(banner, -1);

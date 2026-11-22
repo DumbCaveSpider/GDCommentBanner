@@ -8,6 +8,7 @@ using namespace geode::prelude;
 
 namespace comment::loader {
     void queue(LazySprite* sprite, std::string source, bool priority = false);
+    void pump();
 
     asp::fs::Path getCacheDir();
     void clearDiskCache();
@@ -24,6 +25,11 @@ namespace comment {
         Server,
     };
 
+    enum class BannerFit {
+        Contain,
+        Cover,
+    };
+
     struct BannerInfo {
         bool equipped = false;
         std::string imageUrl = "";
@@ -36,6 +42,6 @@ namespace comment {
     };
 
     void requestBannerInfo(int accountId, BannerSource source, std::function<void(BannerInfo const&)> callback);
-    LazySprite* createBannerSprite(int accountId, BannerVariant variant, BannerSource source, cocos2d::CCSize const& size, bool priority = false);
-    LazySprite* createBannerSpriteFromSource(std::string const& source, cocos2d::CCSize const& size, bool priority = false);
+    cocos2d::CCNode* createBannerSprite(int accountId, BannerVariant variant, BannerSource source, cocos2d::CCSize const& size, bool priority = false, BannerFit fit = BannerFit::Contain);
+    cocos2d::CCNode* createBannerSpriteFromSource(std::string const& source, cocos2d::CCSize const& size, bool priority = false, BannerFit fit = BannerFit::Contain);
 }

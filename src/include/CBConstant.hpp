@@ -31,7 +31,7 @@ namespace comment {
         co_return std::move(authResult).unwrap();
     };
 
-    inline CCNode* createBannerNode(std::string const& imageUrl, CCSize const& bannerSize, bool priority = false) {
+    inline CCNode* createBannerNode(std::string const& imageUrl, CCSize const& bannerSize, bool priority = false, BannerFit fit = BannerFit::Contain) {
         if (imageUrl.empty()) {
             auto node = CCNode::create();
             node->setContentSize(bannerSize);
@@ -39,7 +39,7 @@ namespace comment {
             return node;
         }
 
-        return createBannerSpriteFromSource(imageUrl, bannerSize, priority);
+        return createBannerSpriteFromSource(imageUrl, bannerSize, priority, fit);
     }
 
     void invalidateBannerCache(int accountId = 0);

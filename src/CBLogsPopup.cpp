@@ -179,7 +179,7 @@ void CBLogsPopup::fetchLogs() {
                 return;
             }
 
-            retainedSelf->m_list->setCellColor(ccColor4B{0, 0, 0, 0});
+            //retainedSelf->m_list->setCellColor(ccColor4B{0, 0, 0, 0});
             float cellWidth = retainedSelf->m_list->getContentWidth();
 
             for (size_t i = 0; i < logs.size(); ++i) {

@@ -8,7 +8,7 @@
 	},
 	"id": "arcticwoof.comment_banners",
 	"name": "Comment Banners",
-	"version": "v1.0.0",
+	"version": "v1.0.1",
 	"developer": "ArcticWoof",
 	"description": "Community-run, Custom banners for comments.",
 	"dependencies": {

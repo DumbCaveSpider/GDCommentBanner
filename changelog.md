@@ -1,3 +1,9 @@
+## v1.0.1
+
+- Fixed Memory Leaked when loading/unloading banners
+- Fixed Non-Compact Banners not being displayed correctly
+- Fixed the User Cell background displaying black when the user has no banner equipped
+
 ## v1.0.0
 
 - Bump to Geode v6
@@ -17,7 +23,7 @@
 - Added Supporter Only Banners and Badge
 - Added Gifting Amethyst to other players
 - Added toggle to view compact or non-compact banners on the shop
-- Refacoted the Notification & Logs Popup
+- Refactored the Notification & Logs Popup
 - Supporter: Delete/Modify your banners' images
 
 ## v0.1.8-beta.1

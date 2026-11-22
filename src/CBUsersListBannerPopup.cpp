@@ -161,7 +161,7 @@ void CBUsersListBannerPopup::fetchUsers() {
             }
 
             if (retainedSelf->m_list) {
-                retainedSelf->m_list->setCellColor(ccColor4B{0, 0, 0, 0});
+                //retainedSelf->m_list->setCellColor(ccColor4B{0, 0, 0, 0});
                 float cellWidth = retainedSelf->m_list->getContentWidth();
                 for (size_t i = 0; i < usersArr.size(); ++i) {
                     auto data = CBUserData::fromJson(usersArr[i]);
