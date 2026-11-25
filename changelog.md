@@ -3,6 +3,8 @@
 - Fixed Memory Leaked when loading/unloading banners
 - Fixed Non-Compact Banners not being displayed correctly
 - Fixed the User Cell background displaying black when the user has no banner equipped
+- Fixed Text Input labels sized incorrectly *(caused by Geode bug)*
+- Tweaked the User Cell and the Profile Banner Popup
 
 ## v1.0.0
 

@@ -42,6 +42,7 @@ bool CBAdminBannerManagePopup::init(matjson::Value const& bannerData) {
     m_nameInput->setString(name);
     m_nameInput->setCommonFilter(CommonFilter::Name);
     m_nameInput->setLabel("Banner Name");
+    m_nameInput->getCaptionLabel()->setFont("goldFont.fnt");
     menu->addChild(m_nameInput);
 
     // Description
@@ -49,6 +50,7 @@ bool CBAdminBannerManagePopup::init(matjson::Value const& bannerData) {
     m_descInput->setPosition({0, startY - gap - 20.f});
     m_descInput->setString(desc);
     m_descInput->setCommonFilter(CommonFilter::Any);
+    m_descInput->getCaptionLabel()->setFont("goldFont.fnt");
     m_descInput->setLabel("Banner Description");
     menu->addChild(m_descInput);
 
@@ -56,6 +58,7 @@ bool CBAdminBannerManagePopup::init(matjson::Value const& bannerData) {
     m_priceInput = TextInput::create(100.f, "Price");
     m_priceInput->setCommonFilter(CommonFilter::Int);
     m_priceInput->setLabel("Price");
+    m_priceInput->getCaptionLabel()->setFont("goldFont.fnt");
     m_priceInput->setString(numToString(price));
     menu->addChild(m_priceInput);
 
@@ -66,6 +69,7 @@ bool CBAdminBannerManagePopup::init(matjson::Value const& bannerData) {
         m_amountInput->setPosition({60.f, startY - gap * 2 - 20.f});
         m_amountInput->setCommonFilter(CommonFilter::Int);
         m_amountInput->setLabel("Amount");
+        m_amountInput->getCaptionLabel()->setFont("goldFont.fnt");
         m_amountInput->setString(numToString(amount));
         menu->addChild(m_amountInput);
     } else {
@@ -79,7 +83,7 @@ bool CBAdminBannerManagePopup::init(matjson::Value const& bannerData) {
     }
     auto amountLabel = Label::create(amountText.c_str(), "chatFont.fnt");
     amountLabel->setPosition({0, startY - gap * 3 - 5.f});
-    amountLabel->setColor(ccGRAY);
+    amountLabel->setColor(ccWHITE);
     menu->addChild(amountLabel);
 
     // Buttons Menu

@@ -34,32 +34,36 @@ bool CBEditBannerPopup::init(CBEditBannerData data, std::function<void()> onSucc
     m_nameInput = TextInput::create(300.f, "Banner Name");
     m_nameInput->setCommonFilter(CommonFilter::Name);
     m_nameInput->setLabel("Banner Name");
+    m_nameInput->getCaptionLabel()->setFont("goldFont.fnt");
     m_nameInput->setString(m_data.name);
-    menu->addChildAtPosition(m_nameInput, Anchor::Center, {0.f, 50.f});
+    menu->addChildAtPosition(m_nameInput, Anchor::Center, {0.f, 45.f});
 
     // Description
     m_descInput = TextInput::create(300.f, "Description");
     m_descInput->setCommonFilter(CommonFilter::Any);
     m_descInput->setLabel("Banner Description");
+    m_descInput->getCaptionLabel()->setFont("goldFont.fnt");
     m_descInput->setString(m_data.description);
-    menu->addChildAtPosition(m_descInput, Anchor::Center, {0.f, 5.f});
+    menu->addChildAtPosition(m_descInput, Anchor::Center, {0.f, 0.f});
 
     // Price (+ Amount for limited banners)
     m_priceInput = TextInput::create(100.f, "Price");
     m_priceInput->setCommonFilter(CommonFilter::Int);
     m_priceInput->setLabel("Price");
+    m_priceInput->getCaptionLabel()->setFont("goldFont.fnt");
     m_priceInput->setString(numToString(m_data.price));
 
     if (m_data.isLimited) {
-        menu->addChildAtPosition(m_priceInput, Anchor::Center, {-60.f, -40.f});
+        menu->addChildAtPosition(m_priceInput, Anchor::Center, {-60.f, -45.f});
 
         m_amountInput = TextInput::create(100.f, "Amount");
         m_amountInput->setCommonFilter(CommonFilter::Int);
         m_amountInput->setLabel("Total Amount");
+        m_amountInput->getCaptionLabel()->setFont("goldFont.fnt");
         m_amountInput->setString(numToString(m_data.amount));
-        menu->addChildAtPosition(m_amountInput, Anchor::Center, {60.f, -40.f});
+        menu->addChildAtPosition(m_amountInput, Anchor::Center, {60.f, -45.f});
     } else {
-        menu->addChildAtPosition(m_priceInput, Anchor::Center, {0.f, -40.f});
+        menu->addChildAtPosition(m_priceInput, Anchor::Center, {0.f, -45.f});
     }
 
     // Bottom buttons

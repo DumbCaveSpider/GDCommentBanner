@@ -122,8 +122,10 @@ void CBProfileBannerPopup::fetchStats() {
 void CBProfileBannerPopup::showStats(matjson::Value const& user) {
     if (m_statsNode) m_statsNode->removeFromParent();
     if (m_badgesNode) m_badgesNode->removeFromParent();
+    if (m_playerNode) m_playerNode->removeFromParent();
     m_statsNode = nullptr;
     m_badgesNode = nullptr;
+    m_playerNode = nullptr;
 
     auto data = CBUserData::fromJson(user);
     data.monthlyEarnings = static_cast<int>(user["monthly_earnings"].asInt().unwrapOr(0));
@@ -134,19 +136,35 @@ void CBProfileBannerPopup::showStats(matjson::Value const& user) {
     m_mainLayer->addChildAtPosition(m_statsNode, Anchor::Top, {0.f, -45.f}, false);
 
     if (m_title) {
-        if (m_playerNode) m_playerNode->removeFromParent();
+        auto headerPosition = m_headerMenu ? m_headerMenu->getPosition() : m_title->getPosition();
+        auto headerZOrder = m_headerMenu ? m_headerMenu->getZOrder() : m_title->getZOrder();
+        Ref<Label> retainedTitle = m_title;
+        if (m_title->getParent()) m_title->removeFromParent();
+        if (m_headerMenu) m_headerMenu->removeFromParent();
+
+        m_headerMenu = CCMenu::create();
+        m_headerMenu->setContentSize({m_mainLayer->getContentSize().width - 20.f, 22.f});
+        m_headerMenu->setLayout(RowLayout::create()
+                ->setGap(4.f)
+                ->setAutoScale(true)
+                ->setCrossAxisOverflow(false)
+                ->setAxisAlignment(AxisAlignment::Center));
+
         auto player = CBUserCell::createPlayer(data);
         player->setScale(0.7f);
-        float halfCube = player->getScaledContentWidth() / 2.f;
-        player->setPosition(m_title->getPosition() - CCPoint{m_title->getScaledContentWidth() / 2.f + 4.f + halfCube, 0.f});
-        m_mainLayer->addChild(player, m_title->getZOrder());
+        m_headerMenu->addChild(player, 0);
         m_playerNode = player;
+
+        m_headerMenu->addChild(m_title, 1);
 
         if (auto badges = CBUserCell::createBadges(data, m_title->getScaledContentHeight())) {
             m_badgesNode = badges;
-            badges->setPosition(m_title->getPosition() + CCPoint{m_title->getScaledContentWidth() / 2.f + 4.f, 0.f});
-            m_mainLayer->addChild(badges, m_title->getZOrder());
+            m_headerMenu->addChild(badges, 2);
         }
+
+        m_headerMenu->updateLayout();
+        m_headerMenu->setPosition(headerPosition);
+        m_mainLayer->addChild(m_headerMenu, headerZOrder);
     }
 }
 

@@ -27,6 +27,7 @@ bool CBPendingBannerReasonPopup::init(int bannerId, bool isReject, CBAdminPanelL
     m_reasonInput = TextInput::create(260.f, "Enter reason here...");
     m_reasonInput->setCommonFilter(CommonFilter::Any);
     m_reasonInput->setLabel(isReject ? "Reason for Rejection:" : "Reason for Approval:");
+    m_reasonInput->getCaptionLabel()->setFont("goldFont.fnt");
     m_reasonInput->setMaxCharCount(150);
     m_mainLayer->addChildAtPosition(m_reasonInput, Anchor::Center, {0.f, 0.f});
 

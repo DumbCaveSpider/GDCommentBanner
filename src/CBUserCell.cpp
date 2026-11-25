@@ -2,6 +2,7 @@
 #include "CBProfileBannerPopup.hpp"
 #include "include/CBConstant.hpp"
 #include <Geode/binding/GameManager.hpp>
+#include <Geode/binding/FLAlertLayer.hpp>
 #include <cue/PlayerIcon.hpp>
 
 constexpr float kCellHeight = 40.f;
@@ -66,15 +67,22 @@ cue::PlayerIcon* CBUserCell::createPlayer(CBUserData const& data) {
 }
 
 CCNode* CBUserCell::createBadges(CBUserData const& data, float height) {
-    std::vector<char const*> frames;
-    if (data.isAdmin)
-        frames.push_back("CB_admin_badge.png"_spr);
-    else if (data.isStaff)
-        frames.push_back("CB_staff_badge.png"_spr);
-    if (data.isSupporter) frames.push_back("CB_supporter_badge.png"_spr);
-    if (frames.empty()) return nullptr;
+    struct BadgeInfo {
+        char const* frame;
+        char const* title;
+        char const* description;
+    };
 
-    auto row = CCNode::create();
+    std::vector<BadgeInfo> badges;
+    if (data.isAdmin)
+        badges.push_back({"CB_admin_badge.png"_spr, "Administrator", "<cr>Administrator</c> of <cp>Comment Banners</c>.\nThey have the <cg>permission</c> to promote staff, manage users, and manage banners."});
+    if (data.isStaff)
+        badges.push_back({"CB_staff_badge.png"_spr, "Staff", "<cg>Staff</c> of the <cp>Comment Banners</c>.\nStaff help review and approve community-submitted banners."});
+    if (data.isSupporter)
+        badges.push_back({"CB_supporter_badge.png"_spr, "Supporter", "<cd>Supporter</c> of <cp>Comment Banners</c>.\nSupporters receive <cg>exclusive</c> perks, such as the ability to submit banners and access supporter-only banners."});
+    if (badges.empty()) return nullptr;
+
+    auto row = CCMenu::create();
     row->setAnchorPoint({0.f, 0.5f});
     row->setContentSize({0.f, height});
     row->setLayout(RowLayout::create()
@@ -83,11 +91,14 @@ CCNode* CBUserCell::createBadges(CBUserData const& data, float height) {
             ->setAutoGrowAxis(0.f)
             ->setAxisAlignment(AxisAlignment::Start));
 
-    for (auto frame : frames) {
-        if (auto badge = CCSprite::createWithSpriteFrameName(frame)) {
-            badge->setScale(height / std::max(badge->getContentHeight(), 1.f));
-            row->addChild(badge);
-        }
+    for (auto const& badgeInfo : badges) {
+        auto badge = CCSprite::createWithSpriteFrameName(badgeInfo.frame);
+        if (!badge) continue;
+        badge->setScale(height / std::max(badge->getContentHeight(), 1.f));
+        auto badgeButton = Button::createWithNode(badge, [title = badgeInfo.title, description = badgeInfo.description](Button*) {
+            FLAlertLayer::create(title, description, "OK")->show();
+        });
+        if (badgeButton) row->addChild(badgeButton);
     }
     row->updateLayout();
     return row;

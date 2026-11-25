@@ -81,14 +81,16 @@ bool CBSubmitBannerPopup::init(bool isLocal, bool isEdit, CBEditBannerData const
     // Name
     m_nameInput = TextInput::create(300.f, "Banner Name");
     m_nameInput->setLabel("Banner Name");
+    m_nameInput->getCaptionLabel()->setFont("goldFont.fnt");
     m_nameInput->setCommonFilter(CommonFilter::Name);
-    m_buttonMenu->addChildAtPosition(m_nameInput, Anchor::Center, {0.f, 30.f});
+    m_buttonMenu->addChildAtPosition(m_nameInput, Anchor::Center, {0.f, 25.f});
 
     // Description
     m_descInput = TextInput::create(300.f, "Description");
     m_descInput->setLabel("Description");
+    m_descInput->getCaptionLabel()->setFont("goldFont.fnt");
     m_descInput->setCommonFilter(CommonFilter::Any);
-    m_buttonMenu->addChildAtPosition(m_descInput, Anchor::Center, {0.f, -15.f});
+    m_buttonMenu->addChildAtPosition(m_descInput, Anchor::Center, {0.f, -20.f});
 
     // Price & Limited row
     auto row1 = CCMenu::create();
@@ -97,18 +99,20 @@ bool CBSubmitBannerPopup::init(bool isLocal, bool isEdit, CBEditBannerData const
 
     m_priceInput = TextInput::create(100.f, "Price");
     m_priceInput->setLabel("Price");
+    m_priceInput->getCaptionLabel()->setFont("goldFont.fnt");
     m_priceInput->setCommonFilter(CommonFilter::Int);
     row1->addChild(m_priceInput);
 
     m_amountInput = TextInput::create(100.f, "Amount");
     m_amountInput->setLabel("Amount");
+    m_amountInput->getCaptionLabel()->setFont("goldFont.fnt");
     m_amountInput->setCommonFilter(CommonFilter::Int);
     m_amountInput->setVisible(false);
 
     row1->addChild(m_amountInput);
     row1->updateLayout();
 
-    m_buttonMenu->addChildAtPosition(row1, Anchor::Center, {0.f, -60.f}, {0.5, 0.5});
+    m_buttonMenu->addChildAtPosition(row1, Anchor::Center, {0.f, -65.f}, {0.5, 0.5});
 
     auto costRow = CCMenu::create();
     costRow->setContentSize({300.f, 20.f});
